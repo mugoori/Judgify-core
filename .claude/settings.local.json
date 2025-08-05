@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(claude mcp:*)",
+      "Bash(claude --debug)",
+      "Bash(/mcp)",
+      "Bash(claude /mcp)",
+      "Bash(claude --debug --print \"/mcp\")",
+      "Bash(npx:*)",
+      "WebFetch(domain:github.com)",
+      "mcp__context7-mcp__resolve-library-id",
+      "mcp__context7-mcp__get-library-docs",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": []
+  }
+}
