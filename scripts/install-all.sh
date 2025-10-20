@@ -116,6 +116,8 @@ run_command() {
 detect_os() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
         echo "macos"
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        echo "windows"
     elif [[ -f /etc/os-release ]]; then
         . /etc/os-release
         echo "$ID"
@@ -136,6 +138,9 @@ detect_package_manager() {
             ;;
         fedora|rhel|centos)
             echo "dnf"
+            ;;
+        windows)
+            echo "choco"
             ;;
         *)
             echo "unknown"
@@ -260,12 +265,12 @@ install_python() {
     log_step "📦 Checking Python"
 
     if command_exists python3; then
-        local version=$(python3 --version)
+        local version=$(python3 --version 2>&1)
         log_success "Python already installed: $version"
 
         # Check if version is >= 3.11
-        local minor_version=$(python3 -c 'import sys; print(sys.version_info.minor)')
-        if [ "$minor_version" -lt 11 ]; then
+        local minor_version=$(python3 -c 'import sys; print(sys.version_info.minor)' 2>/dev/null || echo "0")
+        if [ -n "$minor_version" ] && [ "$minor_version" -lt 11 ]; then
             log_warning "Python version is below required 3.11"
             if confirm "Install Python 3.11+?"; then
                 # Continue to installation
@@ -456,7 +461,11 @@ install_python_deps() {
 
     # Activate virtual environment
     log_info "Activating virtual environment..."
-    source venv/bin/activate
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[DRY-RUN] Would activate virtual environment"
+    elif [ -f "venv/bin/activate" ]; then
+        source venv/bin/activate
+    fi
 
     # Upgrade pip
     log_info "Upgrading pip..."
