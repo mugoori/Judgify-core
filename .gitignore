@@ -22,12 +22,15 @@ Thumbs.db
 # Node modules (if any)
 node_modules/
 
-# Environment variables
+# Environment variables (실제 값 포함된 파일만 무시)
 .env
+.env.development
+.env.testing
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+# .env.example은 템플릿이므로 커밋에 포함
 
 # Build directories
 dist/
@@ -38,6 +41,13 @@ out/
 *.tmp
 *.temp
 *.cache
+
+# Vite cache
+node_modules/.vite/deps_temp*
+
+# Execution scripts (로컬 전용)
+*.ps1
+EXECUTE-NOW.*
 
 # Python
 __pycache__/

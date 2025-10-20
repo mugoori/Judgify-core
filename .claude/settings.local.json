@@ -51,7 +51,8 @@
       "Bash(pnpm --version:*)",
       "Bash(rustc:*)",
       "Bash(echo:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nBackup: Project state before cleanup\n\n프로젝트 정리 전 현재 상태 백업:\n- 문서 파일 정리 전 상태\n- 환경 설정 파일 백업\n- src-tauri 빌드 artifacts 포함\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "additionalDirectories": [
