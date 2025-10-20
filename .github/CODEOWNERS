@@ -1,0 +1,102 @@
+# Code Owners for Judgify-core Ver2.0 Final
+#
+# 각 파일/디렉토리의 변경사항에 대해 자동으로 리뷰 요청이 전송됩니다.
+# 담당자는 GitHub 사용자명 또는 팀명으로 지정합니다.
+#
+# 패턴 형식: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# 전역 소유자 (기본)
+* @mugoori
+
+# 문서
+/docs/ @technical-writer @mugoori
+/README.md @technical-writer @mugoori
+/CLAUDE.md @ai-engineer @mugoori
+/*.md @technical-writer @mugoori
+
+# 마이크로서비스별 소유자 (Ver2.0 Final - 9개 서비스)
+
+## API Gateway (8000)
+/services/api-gateway/ @security-engineer @devops-engineer
+
+## Workflow Service (8001) - Visual Workflow Builder
+/services/workflow/ @task-decomposition-expert @graphql-architect @frontend-architect
+
+## Judgment Service (8002) - 하이브리드 판단 엔진 (핵심!)
+/services/judgment/ @ai-engineer @prompt-engineer @mugoori
+
+## Action Service (8003)
+/services/action/ @data-engineer @graphql-architect
+
+## Notification Service (8004)
+/services/notification/ @data-engineer @devops-engineer
+
+## Logging Service (8005)
+/services/logging/ @devops-engineer @observability-engineer
+
+## Data Visualization Service (8006) - 고정 대시보드
+/services/data-visualization/ @frontend-architect @data-engineer
+
+## BI Service (8007) - MCP Component Assembly
+/services/bi/ @ai-engineer @business-analyst @frontend-architect
+
+## Chat Interface Service (8008) - 마스터 컨트롤러
+/services/chat-interface/ @prompt-engineer @frontend-architect @ai-engineer
+
+## Learning Service (8009) - 자동학습 (ML 대체, 신규!)
+/services/learning/ @ai-engineer @mlops-engineer @mugoori
+
+# 알고리즘 설계 문서
+/docs/algorithms/ @ai-engineer @mlops-engineer @mugoori
+/docs/algorithms/auto_rule_extraction.md @ai-engineer @mlops-engineer
+/docs/algorithms/data_aggregation.md @ai-engineer @data-engineer
+
+# 인프라 및 배포
+/docker/ @devops-engineer @mugoori
+/kubernetes/ @devops-engineer @performance-engineer
+/docker-compose*.yml @devops-engineer
+/Dockerfile @devops-engineer
+/.dockerignore @devops-engineer
+
+# CI/CD 파이프라인
+/.github/workflows/ @devops-engineer @mugoori
+/.circleci/ @devops-engineer
+
+# 데이터베이스
+/migrations/ @database-optimization @data-engineer
+/alembic/ @database-optimization @data-engineer
+/docs/architecture/database_design.md @database-optimization @mugoori
+
+# 보안
+/docs/architecture/security_architecture.md @security-engineer @mugoori
+/.env.example @security-engineer @devops-engineer
+
+# 테스트
+/tests/ @performance-engineer @mlops-engineer
+/playwright/ @performance-engineer
+/pytest.ini @performance-engineer
+
+# 프론트엔드
+/frontend/ @frontend-architect @business-analyst
+/UI/ @frontend-architect @business-analyst
+
+# 설정 파일
+/.gitignore @devops-engineer
+/pyproject.toml @devops-engineer
+/requirements.txt @devops-engineer
+/package.json @frontend-architect
+/.mcp.json @mugoori
+
+# 프롬프트 설계
+/prompt-guide.md @prompt-engineer @ai-engineer @mugoori
+/docs/prompts/ @prompt-engineer @ai-engineer
+
+# 아키텍처 문서
+/docs/architecture/ @ai-engineer @graphql-architect @mugoori
+/system-structure.md @ai-engineer @graphql-architect @mugoori
+/initial.md @mugoori
+
+# GitHub 설정
+/.github/ @mugoori
+/.github/ISSUE_TEMPLATE/ @mugoori
+/.github/PULL_REQUEST_TEMPLATE.md @mugoori

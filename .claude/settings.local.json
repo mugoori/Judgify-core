@@ -52,11 +52,30 @@
       "Bash(rustc:*)",
       "Bash(echo:*)",
       "Bash(test:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nBackup: Project state before cleanup\n\n프로젝트 정리 전 현재 상태 백업:\n- 문서 파일 정리 전 상태\n- 환경 설정 파일 백업\n- src-tauri 빌드 artifacts 포함\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nBackup: Project state before cleanup\n\n프로젝트 정리 전 현재 상태 백업:\n- 문서 파일 정리 전 상태\n- 환경 설정 파일 백업\n- src-tauri 빌드 artifacts 포함\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit -m \"$(cat <<''EOF''\nCleanup: Project structure organization\n\n프로젝트 정리 완료:\n\n삭제된 파일 (10개):\n- 로그: hwp_mcp_stdio_server.log\n- 중복 README: README-DESKTOP.md, README-DESKTOP-FINAL.md, README-SETUP.md, RUN-LOCALLY.md, START-HERE.md\n- 환경 파일: .env, .env.development, .env.testing (보안)\n- 실행 스크립트: EXECUTE-NOW.ps1 (플랫폼 종속)\n\n재구성된 파일:\n- docs/clarified-requirements.md → docs/development/requirements.md\n- docs/development-plan.md → docs/development/plan.md\n- PROJECT-STATUS.md + IMPLEMENTATION-STATUS.md + DEVELOPMENT-CHECKLIST.md\n  → docs/development/status.md (통합)\n\n업데이트:\n- .gitignore: 환경 파일, Vite 캐시, 실행 스크립트 추가\n\n최종 구조:\n- 루트 디렉토리: 17개 → 8개 파일 (깔끔함)\n- docs/development/: 논리적 구조 (plan.md, requirements.md, status.md)\n- 보안 강화: 실제 .env 파일 제거, .env.example만 유지\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git check-ignore .env)",
+      "Bash(del setup-env-windows.ps1)",
+      "Read(//c/Users/dilel/AppData/Roaming/Claude/**)",
+      "Bash(dir C:UsersdilelAppDataRoamingClaude)",
+      "Read(//c/Users/dilel/AppData/Roaming/**)",
+      "Bash(git remote add origin https://github.com/mugoori/Judgify-core.git)",
+      "Bash(git branch -M main)"
     ],
     "deny": [],
     "additionalDirectories": [
       "C:\\c\\Users\\mkbso"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "postgresql",
+    "filesystem",
+    "github",
+    "memory",
+    "playwright",
+    "context7",
+    "circleci-mcp-server",
+    "DeepGraph TypeScript MCP"
+  ]
 }
