@@ -60,7 +60,10 @@
       "Bash(dir C:UsersdilelAppDataRoamingClaude)",
       "Read(//c/Users/dilel/AppData/Roaming/**)",
       "Bash(git remote add origin https://github.com/mugoori/Judgify-core.git)",
-      "Bash(git branch -M main)"
+      "Bash(git branch -M main)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Setup GitHub collaboration infrastructure\n\nGitHub 프라이빗 레포지토리 및 협업 환경 구성:\n\n추가된 파일:\n- .github/ISSUE_TEMPLATE/: 버그/기능/서비스 이슈 템플릿 (3개)\n- .github/PULL_REQUEST_TEMPLATE.md: PR 템플릿\n- .github/CODEOWNERS: 서비스별 코드 소유권 정의\n- CONTRIBUTING.md: 기여 가이드라인\n- SECURITY.md: 보안 취약점 보고 절차\n- SETUP.md: 프로젝트 설정 가이드\n\n업데이트:\n- .gitignore: MCP 설정 파일 보안 강화 (.mcp.json, .claude/settings.local.json)\n- .mcp.json: GitHub Personal Access Token 설정\n\n협업 기능:\n- 9개 마이크로서비스별 이슈 템플릿\n- 서비스별 코드 소유자 자동 지정\n- Conventional Commits 규칙\n- 브랜치 전략 (main/develop/feature/service)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push -u origin main)",
+      "Bash(chmod +x scripts/setup-env.sh)"
     ],
     "deny": [],
     "additionalDirectories": [

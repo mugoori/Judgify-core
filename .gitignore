@@ -51,6 +51,7 @@ node_modules/.vite/deps_temp*
 
 # Execution scripts (로컬 전용)
 *.ps1
+!scripts/*.ps1          # scripts 폴더의 자동화 스크립트는 포함
 EXECUTE-NOW.*
 
 # Python

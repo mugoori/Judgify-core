@@ -41,17 +41,37 @@
 ### 2.1 프로젝트 클론
 ```bash
 # 프라이빗 레포지토리 클론
-git clone https://github.com/YOUR_USERNAME/judgify-core-v2.git
-cd judgify-core-v2
+git clone https://github.com/mugoori/Judgify-core.git
+cd Judgify-core
 ```
 
-### 2.2 환경 변수 파일 생성
-```bash
-# .env.example을 .env로 복사
-cp .env.example .env
+### 2.2 필수 설정 파일 생성 ⚠️ **중요!**
 
-# Windows에서는:
+**다른 PC에서 클론한 경우, 다음 파일들이 없습니다:**
+- `.env` (환경 변수)
+- `.mcp.json` (MCP 서버 설정)
+
+**자동 생성 스크립트 실행 (권장):**
+```bash
+# Mac/Linux
+./scripts/setup-env.sh
+
+# Windows (PowerShell)
+.\scripts\setup-env.ps1
+
+# Windows (Command Prompt)
+scripts\setup-env.bat
+```
+
+**또는 수동으로 복사:**
+```bash
+# Mac/Linux
+cp .env.example .env
+cp .mcp.template.json .mcp.json
+
+# Windows
 copy .env.example .env
+copy .mcp.template.json .mcp.json
 ```
 
 ### 2.3 .env 파일 편집
@@ -78,9 +98,32 @@ OPENAI_API_KEY=sk-YOUR_OPENAI_API_KEY
 JWT_SECRET=your-secure-random-secret-min-32-chars
 ```
 
+### 2.4 .mcp.json 파일 편집
+
+```bash
+# 텍스트 에디터로 .mcp.json 파일 열기
+notepad .mcp.json
+
+# 또는 VS Code
+code .mcp.json
+```
+
+**반드시 수정해야 할 항목:**
+```json
+{
+  "mcpServers": {
+    "github": {
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_YOUR_ACTUAL_TOKEN_HERE"  ← 1단계 토큰 입력
+      }
+    }
+  }
+}
+```
+
 ---
 
-## 🔧 3단계: Claude Desktop MCP 설정
+## 🔧 3단계: Claude Desktop MCP 설정 (선택사항)
 
 ### 3.1 설정 파일 위치
 **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
