@@ -48,3 +48,6 @@ __pycache__/
 venv/
 ENV/
 env/
+# Artifacts created by path-unzip issues on Windows
+C?Users*
+

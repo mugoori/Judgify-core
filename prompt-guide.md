@@ -1,93 +1,664 @@
-# prompt-guide.md
+# Prompt 설계 가이드 (Ver2.0 Final)
 
-이 문서는 Claude 판단 엔진과 MCP 기반 자동화 시스템이 사용하는 Prompt 설계 가이드를 제공합니다. 주요 목적은 다음과 같습니다:
+이 문서는 **마이크로서비스 기반 AI 판단 플랫폼 Ver2.0 Final**에서 사용되는 LLM Prompt 설계 및 최적화 가이드를 제공합니다. Ver2.0 Final에서는 하이브리드 판단, MCP 기반 BI, 자동학습 시스템을 고려한 새로운 Prompt 전략을 수립합니다.
 
-- 판단 품질 향상
-- 일관된 대화형 인터페이스 유지
-- MCP 연동 시 오작동 최소화
-
----
-
-## 1. Prompt 유형 구분
-
-| Prompt 유형 | 설명 | 예시 |
-|-------------|------|------|
-| 사용자 질의형 | 자연어 질문 입력 | "현재 온도는 몇 도야?" |
-| 시스템 명령형 | MCP에서 내부 명령 전달 | `mcp://sensor.read("temp")` |
-| 판단 유도형 | Claude가 스스로 판단하도록 유도 | "다음 조건을 보고 작업자 호출 여부를 판단해줘." |
-| 프레임 기반형 | PRP 또는 DSL 기반 템플릿 삽입 | `plan: {...}, reason: {...}, prompt: {...}` |
+### 주요 목적:
+- 하이브리드 판단 엔진의 일관된 품질 보장 (Few-shot 학습 활용)
+- MCP 기반 BI 컴포넌트 조립 정확도 최적화
+- 자동 Rule 추출 알고리즘 (빈도 분석, 결정 트리, LLM 패턴 발견)
+- 시스템 간 상호작용 신뢰성 향상
+- RAG 기반 설명 생성 기능 활용
 
 ---
 
-## 2. Prompt 작성 원칙
+## 1. Ver2.0 Final Prompt 유형 및 9개 마이크로서비스 매핑
 
-1. **역할 명시**: Claude가 어떤 역할인지 서두에 명시
-   - 예: "너는 실시간 생산품질 관리 에이전트야"
-
-2. **입력 구분**: 입력 데이터는 항상 코드 블록 또는 리스트로 구분
-
-3. **출력 명확화**: 어떤 형식(json, text 등)으로 응답할지 요구
-
-4. **판단근거 유도**: reasoning 단계 포함 시 "왜 그렇게 판단했는지 설명해줘" 포함
-
-5. **예외 대응 포함**: "판단 불가능하면 이유를 말해줘" 또는 "모르면 'UNKNOWN'으로 응답해줘"
+| Prompt 유형 | 대상 서비스 | 설명 | 예시 |
+|-------------|------------|------|------|
+| **판단 요청형** | Judgment Service (8002) | Rule/LLM/Hybrid 판단 요청 (Few-shot 활용) | "온도 88도, 진동 42 상황에서 작업자 호출 필요한가?" |
+| **BI 컴포넌트 조립형** 🔥 | BI Service (8007) | MCP 사전 제작 컴포넌트 검색 및 조립 | "지난 주 불량률 분석해줘" → MCP 컴포넌트 조립 |
+| **설명 생성형** | Judgment Service (RAG) | 판단 결과에 대한 상세 설명 | "이 판단 왜 이렇게 나왔어?" |
+| **워크플로우 디자인형** | Workflow Service (8001) | n8n 스타일 워크플로우 자동 생성 | "온도 감시 워크플로우 만들어줘" |
+| **액션 실행형** | Action Service (8003) | 판단 결과 → 외부 시스템 연동 | MCP/Slack/Webhook 명령 자동생성 |
+| **자동 Rule 추출형** 🔥 | Learning Service (8009) | 패턴 분석 → Rule 자동 추출 | "빈도 80% 패턴을 Rule로 변환" |
+| **Few-shot 샘플 선택형** 🔥 | Learning Service (8009) | pgvector 유사 샘플 10-20개 검색 | "이 판단과 유사한 과거 샘플 찾아줘" |
+| **통합 채팅형** 🔥 | Chat Interface (8008) | 자연어 → 모든 서비스 통합 제어 | "채팅으로 워크플로우 실행해줘" |
 
 ---
 
-## 3. MCP 연동 Prompt 예시
+## 2. Ver2.0 Final Prompt 작성 원칙
 
-### 3.1 센서 수집 데이터 판단 요청
+### 2.1 Ver2.0 Final 마이크로서비스별 원칙
+
+#### Judgment Service Prompt 원칙 (Few-shot 강화)
+1. **하이브리드 전략 명시**: "너는 Rule 기반과 LLM 기반을 조합하는 하이브리드 판단 엔진이야"
+2. **Few-shot 학습 활용**: Learning Service에서 유사 샘플 10-20개를 받아 판단 정확도 향상
+3. **신뢰도 요구**: 모든 판단 결과에 0.0~1.0 사이의 confidence score 포함
+4. **설명 가능성**: 판단 근거와 대안 시나리오 필수 제공
+5. **JSON 구조화**: 결과는 반드시 `{result, confidence, method_used, explanation}` 형식
+
+#### BI Service Prompt 원칙 (Ver2.0 Final 핵심 변경!)
+1. **MCP 컴포넌트 우선**: React 코드 생성 대신 **MCP에서 사전 제작된 컴포넌트 검색 및 조립**
+2. **컴포넌트 선택 논리**: 사용자 요청 분석 → 적합한 MCP 컴포넌트 ID 선택 → 조립
+3. **데이터 바인딩**: 선택한 컴포넌트에 데이터 소스 매핑
+4. **AI 인사이트 생성**: RAG 기반 비즈니스 권장사항 생성
+
+#### Learning Service Prompt 원칙 (Ver2.0 Final 신규!) 🔥
+1. **패턴 발견**: 사용자 피드백 데이터에서 반복 패턴 자동 발견
+2. **Rule 추출**: 3가지 알고리즘 (빈도 분석, 결정 트리, LLM 패턴) 실행
+3. **Few-shot 관리**: pgvector로 유사한 10-20개 예시 자동 검색 및 반환
+4. **성능 평가**: 추출된 Rule의 정확도 및 신뢰도 검증
+
+#### Chat Interface Prompt 원칙 (Ver2.0 Final 신규!) 🔥
+1. **의도 분석**: 사용자 자연어 → 워크플로우 실행 / BI 생성 / 설정 변경 등 라우팅
+2. **멀티턴 컨텍스트**: 이전 대화 컨텍스트 유지 (5턴 이내)
+3. **피드백 수집**: 👍👎, LOG, 채팅 피드백을 Learning Service에 자동 전송
+4. **MCP 서버 상태 표시**: Settings 화면에서 MCP 서버 연결 상태 실시간 표시
+
+#### RAG 기반 설명 생성 원칙
+1. **컨텍스트 활용**: pgvector에 저장된 과거 판단 데이터를 컨텍스트로 활용
+2. **번역 기능**: 기술적 용어를 일반인이 이해하기 쉬운 언어로 변환
+3. **사례 비교**: 유사한 과거 사례와의 비교 분석 포함
+
+---
+
+## 3. Ver2.0 서비스별 Prompt 템플릿
+
+### 3.1 하이브리드 판단 서비스 (Port 8002)
+
+#### Rule 우선 전략 Prompt
 ```text
-너는 생산 공장의 온습도 판단 에이전트야. 다음 데이터를 보고 작업자 호출이 필요한지 판단해줘.
+너는 Rule Engine과 LLM을 조합한 하이브리드 판단 엔진이야.
+판단 전략: Rule 우선 → 실패시 LLM 보완
 
-```
+**입력 데이터:**
+```json
 {
-  "temp": 88,
-  "humidity": 18
+  "workflow_id": "temp_monitoring_v2",
+  "input_data": {
+    "temperature": 88,
+    "vibration": 42,
+    "machine_status": "RUNNING"
+  },
+  "context": {
+    "shift": "night",
+    "operator": "kim_engineer"
+  }
 }
-
-조건: 온도 > 85 AND 습도 < 20이면 호출
-응답은 JSON 형식으로, 결과와 설명을 함께 줘
 ```
 
-### 3.2 Supabase에서 특정 데이터 조회
+**Rule 조건:** temperature > 85 AND vibration > 40
+**LLM 대체 조건:** Rule 평가 실패 시 또는 신뢰도 < 0.7 시
+
+**요구 응답 형식:**
+```json
+{
+  "result": true/false,
+  "confidence": 0.0-1.0,
+  "method_used": "rule|llm|hybrid",
+  "explanation": "상세한 판단 근거",
+  "execution_time_ms": 1234,
+  "recommended_actions": ["notify_operator", "log_event"]
+}
+```
+```
+
+### 3.2 BI Service - MCP 컴포넌트 조립 (Port 8007, Ver2.0 Final) 🔥
+
+#### 자연어 → MCP 컴포넌트 조립 Prompt
 ```text
-너는 supabase에 연결된 데이터 분석가야. 아래 쿼리를 실행해서 결과만 보여줘.
+너는 MCP 기반 BI 컴포넌트 조립 전문가야.
+사용자 요청을 분석해서 **사전 제작된 MCP 컴포넌트를 검색하고 조립**해줘.
+절대로 React 코드를 생성하지 마! MCP Components에서 찾아서 조립해!
 
-쿼리: `SELECT * FROM temperature_logs WHERE temp > 90 ORDER BY timestamp DESC LIMIT 5;`
+**사용자 요청:** "지난 주 불량률 분석해줘"
 
-응답 형식: markdown 테이블
+**분석 프로세스:**
+1. 요청 의도 분석: "불량률" → 품질 관련, "지난 주" → 시간 필터
+2. 데이터 소스 선택: judgment_executions 테이블, workflows 테이블
+3. **MCP 컴포넌트 검색**:
+   - 검색 쿼리: "defect rate analysis", "quality dashboard", "manufacturing KPI"
+   - 필터 조건: 제조업, 품질 분석, 시계열 차트
+4. **적합한 컴포넌트 선택**:
+   - mcp_component_id: "quality-kpi-card-v2"
+   - mcp_component_id: "defect-trend-line-chart-v1"
+   - mcp_component_id: "workflow-comparison-bar-chart-v3"
+5. **컴포넌트 조립**: 선택한 컴포넌트들을 레이아웃에 배치
+
+**요구 응답 형식:**
+```json
+{
+  "insight_summary": "지난 주 전체 불량률은 3.2%로, 전주 대비 0.5%p 감소했습니다.",
+  "recommendation": "워크플로우 B의 불량률이 5.8%로 높으니 점검이 필요합니다.",
+  "selected_components": [
+    {
+      "mcp_component_id": "quality-kpi-card-v2",
+      "title": "전체 불량률",
+      "data_binding": {
+        "metric": "defect_rate",
+        "time_range": "last_7_days",
+        "aggregation": "avg"
+      }
+    },
+    {
+      "mcp_component_id": "defect-trend-line-chart-v1",
+      "title": "불량률 추세",
+      "data_binding": {
+        "x_axis": "date",
+        "y_axis": "defect_rate",
+        "time_range": "last_7_days"
+      }
+    },
+    {
+      "mcp_component_id": "workflow-comparison-bar-chart-v3",
+      "title": "워크플로우별 불량률 비교",
+      "data_binding": {
+        "x_axis": "workflow_name",
+        "y_axis": "defect_rate",
+        "time_range": "last_7_days"
+      }
+    }
+  ],
+  "layout": {
+    "grid": "3-column",
+    "responsive": true
+  }
+}
+```
+```
+
+### 3.3 RAG 기반 판단 설명 서비스
+
+#### 판단 설명 생성 Prompt
+```text
+너는 판단 결과를 이해하기 쉽게 설명하는 AI 에이전트야.
+과거 데이터를 참고해서 상세하고 정확한 설명을 생성해줘.
+
+**판단 결과:**
+```json
+{
+  "result": true,
+  "confidence": 0.85,
+  "method_used": "hybrid",
+  "explanation": "Rule 기반 판단 성공, 온도 88도 > 85도 기준"
+}
+```
+
+**관련 컨텍스트:** (과거 유사 판단 데이터 3-5건)
+
+**요구 설명 형식:**
+1. 판단 요약 (1-2줄)
+2. 주요 근거 (3-4개 항목)
+3. 유사 사례 비교 (2-3줄)
+4. 예상 결과 및 대응방안
+```
+
+### 3.4 Learning Service - 자동 Rule 추출 (Port 8009, Ver2.0 Final) 🔥
+
+#### 알고리즘 1: 빈도 분석 기반 Rule 추출 Prompt
+```text
+너는 패턴 분석 전문가야.
+사용자 피드백 데이터에서 자주 발생하는 패턴을 찾아 Rule로 변환해줘.
+
+**입력 데이터:** (최근 100개 판단 데이터 + 피드백)
+```json
+[
+  {"input": {"temp": 88, "vib": 42}, "result": true, "feedback": "👍"},
+  {"input": {"temp": 87, "vib": 43}, "result": true, "feedback": "👍"},
+  ...
+]
+```
+
+**분석 프로세스:**
+1. **패턴 카운팅**: 각 조건 조합의 발생 빈도 계산
+   - temp > 85 AND vib > 40 → 82회 (82%)
+   - temp > 90 AND vib > 35 → 15회 (15%)
+2. **임계값 적용**: 80% 이상 빈도 → Rule 후보
+3. **Rule 생성**: 고빈도 패턴을 조건식으로 변환
+
+**요구 응답 형식:**
+```json
+{
+  "extracted_rules": [
+    {
+      "rule_expression": "temp > 85 AND vib > 40",
+      "frequency": 0.82,
+      "confidence": 0.85,
+      "sample_count": 82,
+      "method": "frequency_analysis"
+    }
+  ],
+  "recommendation": "이 Rule을 워크플로우에 추가하면 82% 케이스를 자동 처리할 수 있습니다."
+}
+```
+```
+
+#### 알고리즘 2: 결정 트리 기반 Rule 추출 Prompt
+```text
+너는 sklearn 결정 트리 전문가야.
+DecisionTreeClassifier로 학습한 트리를 Rule 형태로 변환해줘.
+
+**학습 완료된 결정 트리:**
+```
+Node 0: temp <= 85.0 → Node 1 (left) / Node 2 (right)
+Node 2: vib <= 40.0 → Node 3 (left) / Node 4 (right)
+Node 4: result = True (samples=78, confidence=0.89)
+```
+
+**변환 프로세스:**
+1. **리프 노드 추적**: 각 리프 노드까지의 경로 찾기
+2. **조건 결합**: 경로상의 모든 조건을 AND로 결합
+3. **Rule 생성**: `temp > 85 AND vib > 40 → True`
+
+**요구 응답 형식:**
+```json
+{
+  "extracted_rules": [
+    {
+      "rule_expression": "temp > 85 AND vib > 40",
+      "confidence": 0.89,
+      "sample_count": 78,
+      "method": "decision_tree",
+      "tree_depth": 2,
+      "feature_importance": {"temp": 0.62, "vib": 0.38}
+    }
+  ]
+}
+```
+```
+
+#### 알고리즘 3: LLM 패턴 발견 Rule 추출 Prompt
+```text
+너는 데이터 패턴 발견 전문가야.
+사용자 피드백 데이터의 요약을 분석해서 숨겨진 Rule을 제안해줘.
+
+**데이터 집계 요약:**
+```json
+{
+  "total_samples": 100,
+  "positive_feedback": 85,
+  "negative_feedback": 15,
+  "statistical_summary": {
+    "temp_avg_positive": 87.5,
+    "temp_avg_negative": 82.3,
+    "vib_avg_positive": 43.2,
+    "vib_avg_negative": 38.7,
+    "correlation_temp_vib": 0.72
+  }
+}
+```
+
+**분석 프로세스:**
+1. **통계 분석**: 긍정/부정 피드백 간 변수 차이 발견
+2. **상관관계 분석**: temp와 vib의 상관관계 0.72 (강한 양의 상관)
+3. **패턴 제안**: "온도와 진동이 모두 높을 때 긍정 피드백"
+4. **Rule 생성**: temp > 85 AND vib > 40 제안
+
+**요구 응답 형식:**
+```json
+{
+  "extracted_rules": [
+    {
+      "rule_expression": "temp > 85 AND vib > 40",
+      "reasoning": "긍정 피드백 케이스에서 temp 평균 87.5, vib 평균 43.2로 부정 케이스보다 각각 5.2, 4.5 높음. 상관관계 0.72로 두 변수가 함께 움직임.",
+      "confidence": 0.83,
+      "method": "llm_pattern_discovery"
+    }
+  ]
+}
+```
+```
+
+#### Few-shot 샘플 선택 Prompt
+```text
+너는 Few-shot 학습 전문가야.
+pgvector를 사용해 현재 판단과 유사한 과거 샘플 10-20개를 선택해줘.
+
+**현재 판단 입력:**
+```json
+{
+  "temperature": 88,
+  "vibration": 42,
+  "machine_status": "RUNNING",
+  "shift": "night"
+}
+```
+
+**선택 프로세스:**
+1. **입력 임베딩 생성**: OpenAI embedding API 호출
+2. **pgvector 유사도 검색**: cosine similarity로 상위 20개 검색
+3. **다양성 필터링**: 너무 유사한 샘플 제거 (similarity > 0.95)
+4. **긍정/부정 균형**: 긍정 피드백 15개, 부정 피드백 5개 균형있게 선택
+5. **최종 선택**: 10-20개 Few-shot 샘플 반환
+
+**요구 응답 형식:**
+```json
+{
+  "selected_samples": [
+    {
+      "input": {"temp": 87, "vib": 43, "status": "RUNNING", "shift": "night"},
+      "result": true,
+      "feedback": "👍",
+      "similarity": 0.92
+    },
+    ... (10-20개)
+  ],
+  "selection_summary": {
+    "positive_count": 15,
+    "negative_count": 5,
+    "avg_similarity": 0.88,
+    "diversity_score": 0.65
+  }
+}
+```
+```
+
+### 3.5 Chat Interface - 통합 채팅 어시스턴트 (Port 8008, Ver2.0 Final) 🔥
+
+#### 의도 분석 및 라우팅 Prompt
+```text
+너는 통합 AI 채팅 어시스턴트야.
+사용자의 자연어 요청을 분석해서 적절한 서비스로 라우팅해줘.
+
+**사용자 요청:** "지난 주 불량률 분석해줘"
+
+**의도 분석 프로세스:**
+1. **키워드 추출**: "지난 주" (시간), "불량률" (KPI), "분석" (BI)
+2. **의도 분류**: BI 생성 요청 (not 워크플로우 실행, not 설정 변경)
+3. **서비스 선택**: BI Service (8007)
+4. **파라미터 추출**: time_range="last_7_days", metric="defect_rate"
+
+**요구 응답 형식:**
+```json
+{
+  "intent": "bi_insight_generation",
+  "target_service": "bi_service",
+  "target_port": 8007,
+  "parameters": {
+    "user_request": "지난 주 불량률 분석해줘",
+    "metric": "defect_rate",
+    "time_range": "last_7_days",
+    "analysis_type": "trend_and_comparison"
+  },
+  "confidence": 0.92,
+  "alternative_intents": []
+}
+```
+
+**다른 의도 예시:**
+- "온도 감시 워크플로우 실행해줘" → Workflow Service (8001)
+- "MCP 서버 상태 확인해줘" → Settings (local)
+- "이 판단 왜 이렇게 나왔어?" → Judgment Service (8002, RAG 설명)
+```
+
+#### 멀티턴 컨텍스트 관리 Prompt
+```text
+너는 대화 컨텍스트 관리 전문가야.
+이전 대화 내용을 기억하고 현재 요청에 반영해줘.
+
+**대화 히스토리 (최근 5턴):**
+```json
+[
+  {"turn": 1, "user": "지난 주 불량률 분석해줘", "response": "BI 생성 완료"},
+  {"turn": 2, "user": "워크플로우 A는 어때?", "response": "워크플로우 A 불량률 5.8%"},
+  {"turn": 3, "user": "그럼 개선 방법은?", "context": "워크플로우 A 불량률 개선"}
+]
+```
+
+**현재 요청:** "지난달과 비교해줘"
+
+**컨텍스트 활용:**
+1. **참조 해석**: "지난달과" → 지난 주 불량률 vs 지난달 불량률
+2. **대상 유지**: 워크플로우 A (Turn 2에서 언급)
+3. **요청 재구성**: "워크플로우 A의 지난 주 vs 지난달 불량률 비교"
+
+**요구 응답 형식:**
+```json
+{
+  "resolved_request": "워크플로우 A의 지난 주 vs 지난달 불량률 비교",
+  "intent": "bi_comparison",
+  "target_service": "bi_service",
+  "parameters": {
+    "workflow_id": "workflow_a",
+    "metric": "defect_rate",
+    "time_range_1": "last_7_days",
+    "time_range_2": "last_30_days"
+  },
+  "context_references": ["turn_2", "turn_1"]
+}
+```
 ```
 
 ---
 
-## 4. 오류 방지 팁
-- **조건문은 항상 명시적으로**: "~이상" 보다는 "~ 이상이면" 같은 구문으로
-- **출력 형식 명시 필수**: JSON, 테이블, 마크다운 등
-- **입력 값 누락 시 응답 규칙 지정**: "데이터가 없으면 'NO_DATA'로 응답해줘"
+## 4. Ver2.0 Final 오류 방지 및 품질 최적화
+
+### 4.1 Ver2.0 Final 마이크로서비스별 오류 방지
+- **Judgment Service**: 신뢰도 0.7 미만 시 자동 LLM 보완 활성화, Few-shot 샘플 부족시 경고
+- **BI Service**: MCP 컴포넌트 검색 실패시 대체 컴포넌트 제안, 데이터 소스 존재 여부 사전 확인
+- **Learning Service**:
+  - 피드백 샘플 부족시 (< 50개) Rule 추출 보류
+  - 3가지 알고리즘 결과 불일치시 (신뢰도 차이 > 0.2) 사용자 확인 요청
+  - Few-shot 샘플 다양성 부족시 (diversity < 0.5) 경고
+- **Chat Interface**: 의도 분류 신뢰도 < 0.7시 사용자에게 명확화 요청
+- **Action Service**: 외부 API 호출 실패 시 3회 재시도 + 대체 액션 수행
+
+### 4.2 일반적 오류 방지 원칙
+- **시간 데이터 처리**: ISO 8601 형식 사용 필수
+- **수치 데이터 검증**: 범위 및 단위 확인 필수
+- **JSON 스키마**: Pydantic 모델로 입출력 검증
+- **비동기 처리**: 타임아웃 30초 기본설정
 
 ---
 
-## 5. 추천 프롬프트 템플릿
+## 5. Ver2.0 최적화된 Prompt 템플릿 라이브러리
 
-### 판단 에이전트용
+### 5.1 하이브리드 판단 전용 템플릿
 ```text
-역할: ~한 판단을 수행하는 LLM 에이전트야.
-목적: ~ 기준에 따라 판단하고 사용자에게 설명을 제공
-입력: { JSON or 리스트 }
-조건: ~일 경우 A, 아니면 B
-응답: JSON 형태로 { result, explanation } 반환
+# 하이브리드 판단 엔진 v2.0
+너는 제조업 현장의 전문 판단 AI야. 다음 전략을 사용해:
+
+## 판단 전략
+1. **Rule Engine 우선**: AST 기반 안전한 조건식 평가
+2. **LLM 보완**: Rule 실패 또는 신뢰도 < 0.7 시
+3. **컨텍스트 활용**: 과거 데이터 및 도메인 지식 통합
+4. **설명 생성**: 모든 판단에 명확한 근거 제시
+
+## 입력: {{ workflow_input }}
+## 컨텍스트: {{ context_data }}
+## Rule 조건: {{ rule_expression }}
+
+## 요구 출력 형식:
+```json
+{
+  "result": "boolean 또는 구체적 값",
+  "confidence": "0.0-1.0 신뢰도",
+  "method_used": "rule|llm|hybrid",
+  "execution_time_ms": "integer",
+  "explanation": "상세 판단 근거",
+  "recommended_actions": ["액션1", "액션2"]
+}
 ```
 
-### Supabase 쿼리 요청용
+### 5.2 MCP 기반 BI 컴포넌트 조립 전용 템플릿 (Ver2.0 Final) 🔥
 ```text
-역할: supabase에 쿼리를 실행하고 요약하는 AI
-목적: 쿼리 실행 후 결과 요약 또는 필터링
-입력: 쿼리문 (SQL)
-응답: 마크다운 표 또는 bullet list
+# MCP BI 컴포넌트 조립기 Ver2.0 Final
+너는 MCP 사전 제작 컴포넌트를 검색하고 조립하는 전문가야.
+절대로 React 코드를 생성하지 말고, MCP Components에서 찾아서 조립해!
+
+## 분석 단계
+1. 사용자 요청 의도 분석
+2. 필요한 데이터 소스 매핑
+3. **MCP 컴포넌트 검색 쿼리 생성**
+4. **적합한 MCP 컴포넌트 선택 및 조립**
+
+## 사용자 요청: "{{ user_request }}"
+
+## 사용 가능한 데이터:
+{{ available_data_sources }}
+
+## MCP 컴포넌트 검색:
+- 검색 쿼리: {{ search_keywords }}
+- 필터 조건: 제조업, {{ domain }}, {{ chart_type }}
+
+## 요구 출력:
+```json
+{
+  "insight_summary": "AI 인사이트 요약 (1-2줄)",
+  "recommendation": "비즈니스 권장사항 (RAG 기반)",
+  "selected_components": [{
+    "mcp_component_id": "컴포넌트 ID",
+    "title": "컴포넌트 제목",
+    "data_binding": {
+      "data_source": "데이터 소스",
+      "config": { "설정값들" }
+    }
+  }],
+  "layout": {
+    "grid": "3-column",
+    "responsive": true
+  }
+}
+```
+
+### 5.3 RAG 기반 설명 생성 템플릿
+```text
+# 설명 가능한 AI v2.0
+너는 복잡한 판단을 일반인도 이해하기 쉽게 설명하는 전문가야.
+
+## 설명 원칙
+1. **단계별 분해**: 복잡한 판단을 단순 단계로 나눔
+2. **비유 활용**: 기술적 내용을 일상 언어로 변환
+3. **사례 비교**: 과거 유사 사례와 비교 설명
+4. **시각적 구성**: 마크다운으로 읽기 쉽게 구성
+
+## 판단 결과: {{ judgment_result }}
+## 관련 컨텍스트: {{ related_context }}
+## 유사 사례: {{ similar_cases }}
+
+## 요구 설명 구조:
+1. **🔍 판단 요약** (1-2줄)
+2. **📊 주요 근거** (3-4개 포인트)
+3. **🔄 과거 사례 비교** (2-3줄)
+4. **⚡ 예상 결과 및 대응방안**
+5. **❓ 추가 고려사항** (있는 경우)
+```
+
+### 5.4 Learning Service 자동학습 전용 템플릿 (Ver2.0 Final) 🔥
+```text
+# 자동학습 시스템 Ver2.0 Final
+너는 사용자 피드백 데이터를 분석해서 자동으로 Rule을 추출하는 ML 대체 전문가야.
+
+## 학습 전략
+1. **피드백 수집**: 👍👎, LOG 리뷰, 채팅 피드백 수집
+2. **Few-shot 관리**: pgvector로 유사 샘플 10-20개 자동 검색
+3. **Rule 추출**: 3가지 알고리즘 병렬 실행
+4. **성능 검증**: 추출된 Rule의 정확도 및 신뢰도 검증
+
+## 입력: {{ feedback_data }}
+## 알고리즘: frequency_analysis | decision_tree | llm_pattern
+## 최소 샘플 수: 50개
+
+## 요구 출력 형식:
+```json
+{
+  "extracted_rules": [{
+    "rule_expression": "Rule 조건식",
+    "confidence": 0.0-1.0,
+    "method": "사용된 알고리즘",
+    "sample_count": "학습 샘플 수",
+    "recommendation": "적용 권장사항"
+  }],
+  "few_shot_samples": [{
+    "input": "입력 데이터",
+    "result": "판단 결과",
+    "feedback": "👍 or 👎",
+    "similarity": 0.0-1.0
+  }]
+}
+```
+
+### 5.5 Chat Interface 통합 어시스턴트 전용 템플릿 (Ver2.0 Final) 🔥
+```text
+# 통합 AI 채팅 어시스턴트 Ver2.0 Final
+너는 모든 서비스를 통합 제어하는 마스터 컨트롤러야.
+사용자의 자연어를 분석해서 적절한 서비스로 라우팅해줘.
+
+## 의도 분류
+1. **워크플로우 실행**: Workflow Service (8001)
+2. **BI 인사이트 생성**: BI Service (8007)
+3. **판단 설명**: Judgment Service (8002, RAG)
+4. **설정 변경**: Settings (local)
+5. **피드백 전송**: Learning Service (8009)
+
+## 사용자 요청: "{{ user_message }}"
+## 대화 히스토리: {{ conversation_history }}
+## 현재 컨텍스트: {{ current_context }}
+
+## 요구 출력 형식:
+```json
+{
+  "intent": "워크플로우_실행 | BI_생성 | 판단_설명 | 설정_변경 | 피드백",
+  "target_service": "서비스 이름",
+  "target_port": 8001-8009,
+  "parameters": {
+    "요청_파라미터들": "값"
+  },
+  "confidence": 0.0-1.0,
+  "resolved_request": "컨텍스트 반영한 명확한 요청"
+}
 ```
 
 ---
 
-(이 문서는 `prp-example.md` 및 `initial.md`의 기준을 따름)
+## 6. Ver2.0 Final 성능 모니터링 및 개선
 
+### 6.1 Ver2.0 Final Prompt 성능 메트릭
+- **판단 정확도**: Rule vs LLM vs Hybrid 방식별 정확도 추적
+- **응답 시간**: 각 서비스별 평균 응답 시간 (목표: 2초 이내)
+- **사용자 만족도**: 피드백 기반 Prompt 품질 평가 (👍👎)
+- **캐시 적중률**: Redis 캐시 활용률 (목표: 70% 이상)
+- **MCP 컴포넌트 조립 성공률** 🔥: BI Service 컴포넌트 검색 성공률 (목표: 90% 이상)
+- **Rule 추출 정확도** 🔥: Learning Service의 3가지 알고리즘 평균 정확도 (목표: 85% 이상)
+- **Few-shot 효과성** 🔥: Few-shot 샘플 사용시 vs 미사용시 정확도 향상률 (목표: +15%p)
+- **의도 분류 정확도** 🔥: Chat Interface 의도 분류 정확도 (목표: 92% 이상)
+
+### 6.2 지속적 개선 프로세스
+- **A/B 테스트**: 새로운 Prompt 버전과 기존 버전 성능 비교
+- **사용자 피드백**: 판단 결과에 대한 사용자 피드백 수집 및 반영
+- **컨텍스트 학습**: pgvector에 축적된 데이터로 Prompt 개선
+- **버전 관리**: 각 Prompt 템플릿의 버전 관리 및 롤백 기능
+
+---
+
+## 7. 다음 단계 참조 문서 (Ver2.0 Final)
+
+이 Prompt 가이드를 기반으로 다음 문서들과 연계하여 개발하세요:
+
+### 마이크로서비스 상세 문서
+1. **`docs/services/judgment_engine.md`**: Judgment Service 내부 구현 (하이브리드 판단 + Few-shot 학습)
+2. **`docs/services/dashboard_service.md`**: Dashboard Service 상세 설계 (Data Visualization + BI)
+3. **`docs/services/workflow_editor.md`**: Workflow Service UI/UX 설계 (n8n 스타일)
+4. **`docs/services/learning_service.md`** 🔥: Learning Service 자동학습 알고리즘 (Ver2.0 Final 신규)
+5. **`docs/services/chat_interface.md`**: Chat Interface Service 통합 어시스턴트
+6. **`docs/services/external_integration.md`**: MCP 및 외부 시스템 연동
+
+### 알고리즘 및 아키텍처 문서
+7. **`docs/algorithms/auto_rule_extraction.md`** 🔥: 3가지 자동 Rule 추출 알고리즘 (Ver2.0 Final 신규)
+8. **`docs/algorithms/data_aggregation.md`** 🔥: 데이터 집계 알고리즘 - LLM 할루시네이션 방지 (Ver2.0 Final 신규)
+9. **`docs/architecture/database_design.md`**: 통합 데이터베이스 스키마 (9개 서비스 + Learning)
+10. **`docs/architecture/system_overview.md`**: Ver2.0 Final 전체 시스템 아키텍처
+
+### 운영 및 모니터링 문서
+11. **`docs/operations/monitoring_guide.md`**: 운영 및 모니터링 가이드 (Prometheus + Grafana)
+12. **`docs/operations/deployment_guide.md`**: Docker/Kubernetes 배포 가이드
+
+---
+
+**Ver2.0 Final 주요 변경사항:**
+- BI Service: React 코드 생성 → MCP 컴포넌트 조립로 전환
+- Learning Service: 3가지 Rule 추출 알고리즘 (빈도 분석, 결정 트리, LLM 패턴) 추가
+- Chat Interface: 자연어 기반 통합 마스터 컨트롤러 추가
+- Few-shot 학습: pgvector 기반 10-20개 유사 샘플 자동 검색 시스템 추가
+
+**(Ver2.0에서 더 이상 사용하지 않는 문서: `prp-example.md` - PRP 방식은 하이브리드 판단으로 대체)**
