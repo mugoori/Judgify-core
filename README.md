@@ -77,68 +77,43 @@ docs/
 
 ## 🚀 빠른 시작
 
-⚠️ **새 PC에서 시작하는 경우 반드시 읽어주세요!**
-
 ### 1단계: 레포지토리 클론
 ```bash
 git clone https://github.com/mugoori/Judgify-core.git
 cd Judgify-core
 ```
 
-### 2단계: 필수 설정 파일 생성 ⚠️
-**중요**: `.gitignore`에 포함된 파일들은 Git에 커밋되지 않으므로, 클론 후 반드시 생성해야 합니다.
-
-#### 자동 생성 (권장)
+### 2단계: 자동 설치 실행
 ```bash
-# Mac/Linux
-./scripts/setup-env.sh
+# macOS/Linux
+./scripts/install-all.sh
 
 # Windows (PowerShell)
-.\scripts\setup-env.ps1
-
-# Windows (Command Prompt)
-scripts\setup-env.bat
+.\scripts\install-all.ps1
 ```
 
-#### 수동 생성
+### 3단계: 환경 파일 설정
 ```bash
-# Mac/Linux
-cp .env.example .env
-cp .mcp.template.json .mcp.json
+# .env 파일 편집
+# - DATABASE_URL 설정
+# - OPENAI_API_KEY 입력
+# - GITHUB_TOKEN 입력
 
-# Windows
-copy .env.example .env
-copy .mcp.template.json .mcp.json
+# .mcp.json 파일 편집
+# - GITHUB_PERSONAL_ACCESS_TOKEN 입력
 ```
 
-### 3단계: 환경 변수 설정
-`.env` 파일을 열고 다음 값을 입력하세요:
+### 4단계: 개발 시작
 ```bash
-# PostgreSQL 데이터베이스
-DATABASE_URL=postgresql://user:pass@localhost:5432/judgify_prod
+# Python 가상 환경 활성화
+source venv/bin/activate  # macOS/Linux
+.\venv\Scripts\Activate.ps1  # Windows
 
-# Redis 캐시
-REDIS_URL=redis://localhost:6379/0
-
-# OpenAI API Key (AI 판단 엔진용)
-OPENAI_API_KEY=sk-your-openai-api-key
+# 개발 서버 시작
+npm run dev
 ```
 
-### 4단계: MCP 토큰 설정
-`.mcp.json` 파일을 열고 GitHub Personal Access Token을 입력하세요:
-```json
-{
-  "mcpServers": {
-    "github": {
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_github_token"
-      }
-    }
-  }
-}
-```
-
-💡 **상세 설정 가이드**: [SETUP.md](SETUP.md) 참조
+💡 **상세 설치 가이드**: [GETTING-STARTED.md](GETTING-STARTED.md) 참조
 
 ---
 
