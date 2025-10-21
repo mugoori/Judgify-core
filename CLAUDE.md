@@ -158,6 +158,30 @@ docs/development/plan.md:
   2. 승인시 분리, 거부시 통합 유지
 ```
 
+### 🔄 Ver2.0 Final 아키텍처 변경 요약
+
+**서비스 구조 변화**:
+- Ver1.0: 6개 서비스 → Ver2.0 Final: **9개 마이크로서비스**
+- **Learning Service (8009) 신규 추가**: 자동학습 + Rule 추출 (ML 대체!)
+- **용어 정정**: "Dashboard" → 3개 독립 서비스
+  - Data Visualization Service (8006): 단순 데이터 대시보드
+  - BI Service (8007): MCP 기반 AI 인사이트
+  - Chat Interface Service (8008): 통합 AI 어시스턴트
+
+**핵심 혁신 기능**:
+1. **하이브리드 판단**: Rule Engine + LLM 순차 실행 ([섹션 2.1](#21-하이브리드-판단-전략-rule--llm))
+2. **자동학습 시스템**: 3개 알고리즘 (빈도 분석 + 결정 트리 + LLM) ([섹션 2.3](#23-자동학습-시스템-전략-ver20-final---ml-대체))
+3. **데이터 집계**: 토큰 90% 절감 + 할루시네이션 방지 ([섹션 2.4](#24-데이터-집계-알고리즘-할루시네이션-방지))
+4. **Visual Workflow Builder**: n8n 스타일 드래그앤드롭
+5. **MCP 컴포넌트 조립**: 사전 제작 컴포넌트 활용
+
+**UI 매핑**:
+- `UI/judgify-inventory-dashboard.html` → Data Visualization (8006)
+- `UI/judgify-inventory-chat.html` → BI Service (8007)
+- `UI/judgify-enterprise-ui.html` → Chat Interface (8008)
+
+---
+
 ### 🚀 Quick Reference (빠른 참조)
 
 #### 자주 찾는 정보
@@ -225,188 +249,161 @@ Claude가 개발할 **9개 핵심 마이크로서비스**:
 ## 🎯 2. Ver2.0 핵심 개발 철학
 
 ### 2.1 하이브리드 판단 전략 (Rule + LLM)
-```python
-# Claude가 구현해야 하는 하이브리드 로직
-def hybrid_judgment(input_data, workflow):
-    # 1. Rule Engine 우선 시도 (AST 기반, 안전함)
-    rule_result = ast_rule_engine.evaluate(workflow.rule_expression, input_data)
-    
-    if rule_result.success and rule_result.confidence >= 0.7:
-        return rule_result  # Rule 성공시 바로 반환
-    
-    # 2. Rule 실패시 LLM 보완
-    llm_result = openai_judgment_engine.evaluate(input_data, workflow.context)
-    
-    # 3. Hybrid 결과 종합
-    return combine_results(rule_result, llm_result)
+
+**실행 흐름**:
 ```
+1. Rule Engine 우선 실행 (AST 기반, 안전함)
+   ├─ 성공 && 신뢰도 ≥ 0.7 → 즉시 반환 (종료)
+   └─ 실패 || 저신뢰도 → 2단계로 진행
+
+2. LLM 보완 실행
+   └─ OpenAI API 호출 (workflow context 활용)
+
+3. 최종 결과 종합
+   └─ Rule 결과 + LLM 결과 → 하이브리드 판단
+```
+
+**핵심 파라미터**:
+- 신뢰도 임계값: `0.7`
+- Rule Engine: AST 기반 (eval 금지)
+- LLM Engine: OpenAI API
 
 ### 2.2 3-Tier Frontend 전략 (Ver2.0 핵심 변경!)
 
 **용어 정정**: "Dashboard" → 3개 서비스로 분리
 
 #### 2.2.1 Data Visualization Service (8006) - 단순 대시보드
-```python
-# 단순 데이터 표시 (편집 가능)
-class DataVisualizationService:
-    async def render_dashboard(self, dashboard_id: str):
-        # 1. 미리 정의된 대시보드 설정 로드
-        config = await self.db.get_dashboard_config(dashboard_id)
 
-        # 2. PostgreSQL에서 데이터 직접 조회
-        data = await self.db.query_data(config.data_sources)
+**기능**: 미리 정의된 차트로 데이터 표시 (편집 가능)
 
-        # 3. 미리 정의된 차트로 표시 (KPI 카드, 게이지, 라인/바 차트)
-        return render_predefined_charts(data, config.layout)
+**처리 흐름**:
+```
+render_dashboard:
+  1. DB에서 대시보드 설정 로드
+  2. PostgreSQL 데이터 직접 조회
+  3. 미리 정의된 차트 렌더링
+     (KPI 카드, 게이지, 라인/바 차트)
 
-    async def edit_dashboard(self, dashboard_id: str, new_layout: dict):
-        # 드래그앤드롭으로 차트 배치 변경
-        await self.db.update_dashboard_layout(dashboard_id, new_layout)
+edit_dashboard:
+  └─ 드래그앤드롭으로 차트 배치 변경 저장
 ```
 
 #### 2.2.2 BI Service (8007) - AI 기반 인사이트 생성
-```python
-# AI 기반 인사이트 + 자동 대시보드 생성
-class BIService:
-    async def generate_insight(self, user_request: str):
-        # 1. LLM으로 요청 분석
-        analysis = await self.llm_analyzer.analyze_request(user_request)
 
-        # 2. Judgment Service 호출 → 데이터 기반 판단
-        judgment_result = await self.judgment_client.evaluate(
-            data=analysis.required_data,
-            context=analysis.business_context
-        )
+**기능**: MCP 기반 컴포넌트 조립 + AI 인사이트 생성
 
-        # 3. React 컴포넌트 자동 생성
-        components = await self.code_generator.generate_dashboard(
-            insights=judgment_result.insights,
-            chart_types=analysis.optimal_charts
-        )
+**처리 흐름**:
+```
+generate_insight(user_request):
+  1. LLM 요청 분석
+     └─ 필요 데이터 + 비즈니스 컨텍스트 추출
 
-        # 4. 비즈니스 권장사항 생성
-        recommendations = await self.llm_explainer.generate(
-            judgment_result=judgment_result,
-            similar_cases=await self.rag_engine.search(judgment_result)
-        )
+  2. Judgment Service 호출
+     └─ 데이터 기반 판단 실행
 
-        return BIInsight(
-            dashboard=components,
-            insights=judgment_result.insights,
-            recommendations=recommendations
-        )
+  3. React 컴포넌트 자동 생성
+     └─ 인사이트 + 최적 차트 타입 기반
+
+  4. 비즈니스 권장사항 생성
+     ├─ 판단 결과 분석
+     └─ RAG 엔진으로 유사 사례 검색
+
+  반환: 대시보드 + 인사이트 + 권장사항
 ```
 
 #### 2.2.3 Chat Interface Service (8008) - 통합 AI 어시스턴트
-```python
-# 통합 AI 채팅 어시스턴트
-class ChatInterfaceService:
-    async def handle_chat(self, user_message: str, session_id: str):
-        # 1. 의도 분석
-        intent = await self.nlp_engine.classify_intent(user_message)
 
-        # 2. 라우팅 로직
-        if intent == "workflow_execution":
-            # Workflow Service 호출
-            result = await self.workflow_client.execute(user_message)
+**기능**: Claude Desktop 수준 마스터 컨트롤러
 
-        elif intent == "data_visualization":
-            # BI Service 호출
-            result = await self.bi_client.generate_insight(user_message)
+**처리 흐름**:
+```
+handle_chat(user_message, session_id):
+  1. 의도 분석 (NLP)
+     └─ workflow_execution | data_visualization | settings_change
 
-        elif intent == "settings_change":
-            # Settings 변경 (MCP 서버 상태 표시 포함)
-            result = await self.settings_manager.update(user_message)
+  2. 라우팅 로직
+     ├─ workflow_execution → Workflow Service 호출
+     ├─ data_visualization → BI Service 호출
+     └─ settings_change → Settings 변경 (MCP 서버 상태 포함)
 
-        # 3. 컨텍스트 유지 (멀티턴 대화)
-        await self.context_manager.save(session_id, user_message, result)
+  3. 컨텍스트 유지 (멀티턴 대화)
+     └─ 세션별 대화 이력 저장
 
-        return ChatResponse(result=result, context=session_context)
+  반환: 결과 + 세션 컨텍스트
 ```
 
 ### 2.3 자동학습 시스템 전략 (Ver2.0 Final - ML 대체!)
-```python
-# Claude가 구현해야 하는 자동학습 로직 (ML 대체 시스템)
 
-class AutoLearningSystem:
-    async def collect_feedback(self, judgment_id: UUID, feedback_type: str, value: int):
-        """사용자 피드백 수집: 👍👎, LOG 리뷰, 채팅"""
-        # 1. 피드백 저장
-        await self.db.save_feedback(judgment_id, feedback_type, value)
+**핵심 개념**: 전통적 머신러닝 대신 3개 알고리즘 + Few-shot 학습으로 자동 Rule 추출
 
-        # 2. Few-shot 샘플 업데이트 (자동)
-        if value == 1:  # 긍정 피드백
-            await self.update_few_shot_samples(judgment_id)
+#### 처리 흐름
 
-    async def manage_few_shot(self, input_data: dict) -> List[dict]:
-        """Few-shot 학습: 유사한 10-20개 예시 자동 검색"""
-        # 1. 입력 임베딩 생성
-        embedding = await self.openai.create_embedding(input_data)
+**1. 피드백 수집**:
+```
+collect_feedback(judgment_id, feedback_type, value):
+  ├─ 피드백 저장 (👍👎, LOG 리뷰, 채팅)
+  └─ value == 1 (긍정) → Few-shot 샘플 자동 추가
+```
 
-        # 2. pgvector로 유사 샘플 검색
-        similar_samples = await self.vector_search(
-            embedding=embedding,
-            table="training_samples",
-            limit=20,
-            min_accuracy=0.8
-        )
+**2. Few-shot 학습**:
+```
+manage_few_shot(input_data):
+  1. 입력 임베딩 생성 (OpenAI API)
+  2. pgvector 유사 샘플 검색
+     ├─ 테이블: training_samples
+     ├─ 개수: 10-20개
+     └─ 최소 정확도: 0.8
+  반환: 유사 예시 목록
+```
 
-        return similar_samples
+**3. 자동 Rule 추출 (3개 알고리즘)**:
+```
+extract_rules(workflow_id):
+  알고리즘 1: 빈도 분석
+    └─ 반복 패턴 발견
 
-    async def extract_rules(self, workflow_id: UUID):
-        """자동 Rule 추출: 3개 알고리즘 적용"""
-        # 알고리즘 1: 빈도 분석
-        frequency_rules = await self.frequency_analysis(workflow_id)
+  알고리즘 2: 결정 트리 학습 (sklearn)
+    └─ 조건문 자동 생성
 
-        # 알고리즘 2: 결정 트리 학습
-        tree_rules = await self.decision_tree_learning(workflow_id)
+  알고리즘 3: LLM 패턴 발견
+    └─ OpenAI로 복잡한 패턴 추출
 
-        # 알고리즘 3: LLM 패턴 발견
-        llm_rules = await self.llm_pattern_discovery(workflow_id)
-
-        # 최적 Rule 선택 및 저장
-        best_rule = self.select_best_rule(frequency_rules, tree_rules, llm_rules)
-        await self.db.save_extracted_rule(workflow_id, best_rule)
+  → 최적 Rule 선택 및 저장
 ```
 
 ### 2.4 데이터 집계 알고리즘 (할루시네이션 방지!)
-```python
-# Claude가 구현해야 하는 데이터 집계 알고리즘
 
-class DataAggregationEngine:
-    async def aggregate_for_llm(self, raw_data: List[dict], time_range: str) -> dict:
-        """LLM에 전달하기 전 데이터 집계 (토큰 최적화 + 할루시네이션 방지)"""
+**목적**: LLM 토큰 최적화 + 할루시네이션 방지
 
-        # 1. 통계 집계 (Statistical Aggregation)
-        stats = {
-            "mean": np.mean([d['value'] for d in raw_data]),
-            "median": np.median([d['value'] for d in raw_data]),
-            "std_dev": np.std([d['value'] for d in raw_data]),
-            "min": min([d['value'] for d in raw_data]),
-            "max": max([d['value'] for d in raw_data])
-        }
-
-        # 2. 평가 집계 (Evaluation Aggregation)
-        evaluation = {
-            "status": "normal" if stats['mean'] < threshold else "critical",
-            "trend": "increasing" if stats['mean'] > prev_mean else "decreasing"
-        }
-
-        # 3. 트렌드 분석 (Trend Analysis)
-        trend = {
-            "direction": self.calculate_trend_direction(raw_data),
-            "change_rate": self.calculate_change_rate(raw_data)
-        }
-
-        # 4. 집계 데이터 저장 (아카이빙 준비)
-        await self.db.save_aggregated_data(
-            aggregation_type="statistical",
-            time_range=time_range,
-            aggregated_value={"stats": stats, "evaluation": evaluation, "trend": trend}
-        )
-
-        return {"stats": stats, "evaluation": evaluation, "trend": trend}
+**처리 흐름**:
 ```
+aggregate_for_llm(raw_data, time_range):
+  1. 통계 집계 (Statistical Aggregation)
+     ├─ mean (평균)
+     ├─ median (중앙값)
+     ├─ std_dev (표준편차)
+     ├─ min (최소)
+     └─ max (최대)
+
+  2. 평가 집계 (Evaluation Aggregation)
+     ├─ status: normal | warning | critical
+     │   (평균 < threshold → normal, 아니면 critical)
+     └─ trend: increasing | decreasing
+         (현재 평균 vs 이전 평균 비교)
+
+  3. 트렌드 분석 (Trend Analysis)
+     ├─ direction: 데이터 방향성 계산
+     └─ change_rate: 변화율 계산
+
+  4. 집계 데이터 저장 (아카이빙)
+     └─ 통계 + 평가 + 트렌드 → DB 저장
+
+  반환: {stats, evaluation, trend}
+```
+
+**핵심 효과**:
+- 토큰 사용량: 원본 데이터 대비 90% 감소
+- 할루시네이션 방지: 집계된 정확한 통계 값 전달
 
 ### 2.5 보안 우선 개발
 - **AST 기반 Rule Engine**: JavaScript `eval()` 절대 금지
@@ -469,89 +466,65 @@ docs/architecture/system_overview.md → 상세 아키텍처 및 기술 선택
 ## 🚀 4. Ver2.0 개발 흐름 및 패턴
 
 ### 4.1 마이크로서비스 개발 패턴
-```python
-# Claude가 따라야 하는 FastAPI 서비스 개발 패턴
 
-# 1. 서비스 기본 구조
-app = FastAPI(title="Judgment Service", version="2.0.0")
+**FastAPI 서비스 구조**:
+```
+1. 기본 구조
+   └─ FastAPI(title="서비스명", version="2.0.0")
 
-# 2. 의존성 주입 패턴
-@app.dependency
-def get_database():
-    return PostgreSQLConnection()
+2. 의존성 주입
+   ├─ get_database() → PostgreSQL 연결
+   └─ get_redis_cache() → Redis 캐시
 
-@app.dependency  
-def get_redis_cache():
-    return RedisCache()
+3. 라우터 분리
+   ├─ /api/v2/{service} → 비즈니스 로직
+   └─ /health → 헬스체크
 
-# 3. 라우터 분리 패턴
-app.include_router(judgment_router, prefix="/api/v2/judgment")
-app.include_router(health_router, prefix="/health")
+4. 에러 처리
+   └─ @exception_handler → JSON 응답
 
-# 4. 에러 처리 패턴
-@app.exception_handler(JudgmentError)
-async def judgment_error_handler(request, exc):
-    return JSONResponse({"error": str(exc), "service": "judgment"})
-
-# 5. 로깅 패턴  
-logger = structured_logger("judgment-service")
-logger.info("judgment_executed", extra={"workflow_id": id, "result": result})
+5. 구조화 로깅
+   └─ structured_logger → workflow_id + result 포함
 ```
 
 ### 4.2 하이브리드 판단 개발 패턴
-```python
-# Claude가 구현해야 하는 판단 엔진 패턴
 
-class HybridJudgmentEngine:
-    def __init__(self, rule_engine: ASTRuleEngine, llm_engine: OpenAIEngine):
-        self.rule_engine = rule_engine
-        self.llm_engine = llm_engine
-    
-    async def judge(self, workflow_input: JudgmentInput) -> JudgmentResult:
-        # 1. Rule Engine 시도
-        rule_result = await self.rule_engine.evaluate(workflow_input)
-        
-        # 2. 성공 조건 체크
-        if rule_result.confidence >= 0.7 and not rule_result.error:
-            return self._finalize_result(rule_result, method="rule")
-        
-        # 3. LLM 보완 실행
-        llm_result = await self.llm_engine.evaluate(workflow_input)
-        
-        # 4. 최종 결과 생성
-        return self._combine_results(rule_result, llm_result)
+**클래스 구조**:
+```
+HybridJudgmentEngine:
+  초기화:
+    ├─ rule_engine: ASTRuleEngine
+    └─ llm_engine: OpenAIEngine
+
+  judge(workflow_input) → JudgmentResult:
+    1. Rule Engine 평가
+    2. 성공 조건 체크 (신뢰도 ≥ 0.7 && 에러 없음)
+       └─ 성공시 → method="rule"로 즉시 반환
+    3. LLM 보완 실행
+    4. 최종 결과 종합 (Rule + LLM)
 ```
 
 ### 4.3 자동 대시보드 생성 패턴
-```python
-# Claude가 구현해야 하는 대시보드 생성 패턴
 
-class DashboardAutoGenerator:
-    async def generate(self, user_request: str) -> DashboardConfig:
-        # 1. 요청 분석 (LLM)
-        analysis = await self.llm_analyzer.analyze_request(
-            request=user_request,
-            available_data=self.get_available_data_sources()
-        )
-        
-        # 2. 컴포넌트 선택
-        components = self.component_selector.select_optimal_charts(
-            data_types=analysis.data_types,
-            visualization_intent=analysis.intent
-        )
-        
-        # 3. React 코드 생성
-        react_code = await self.code_generator.generate_components(
-            components=components,
-            data_bindings=analysis.data_mappings
-        )
-        
-        return DashboardConfig(
-            title=analysis.suggested_title,
-            components=components, 
-            react_code=react_code,
-            real_time_config=analysis.update_frequency
-        )
+**처리 흐름**:
+```
+DashboardAutoGenerator.generate(user_request):
+  1. LLM 요청 분석
+     ├─ 필요 데이터 소스 식별
+     └─ 비즈니스 의도 파악
+
+  2. 컴포넌트 선택
+     ├─ 데이터 타입 → 차트 타입 매핑
+     └─ 시각화 의도 → 최적 레이아웃
+
+  3. React 코드 생성
+     └─ 컴포넌트 + 데이터 바인딩
+
+  반환: DashboardConfig
+    ├─ title (LLM 제안)
+    ├─ components (선택된 차트들)
+    ├─ react_code (생성된 코드)
+    └─ real_time_config (업데이트 주기)
 ```
 
 ---
@@ -1211,72 +1184,6 @@ workflow TD
 2. **기술적 성과**: 18개 에이전트가 협력하여 **9개 마이크로서비스 (Ver2.0 Final)** 완성
 3. **비즈니스 가치**: 하이브리드 판단으로 95% 정확도, 50% 비용 절감 달성
 4. **혁신 기능**: 자동학습 시스템 (ML 대체) + 데이터 집계 알고리즘으로 토큰 최적화
-
----
-
-## 🌟 14. Ver2.0 Final 아키텍처 변경 요약
-
-### 주요 변경사항 (Ver2.0 Final)
-
-**서비스 아키텍처 변화**:
-- **Ver1.0**: 6개 서비스 → **Ver2.0 Final**: 9개 마이크로서비스
-- **Learning Service (8009) 추가**: 자동학습 + Rule 추출 (ML 대체!)
-- **용어 정정**: "Dashboard" → 3개 독립 서비스 (Data Visualization + BI + Chat Interface)
-
-**핵심 혁신 기능** (상세는 해당 섹션 참조):
-- **하이브리드 판단**: [섹션 2.1](#21-하이브리드-판단-전략-rule--llm) 참조
-- **자동학습 시스템 (ML 대체)**: [섹션 2.3](#23-자동학습-시스템-전략-ver20-final---ml-대체) 참조
-- **데이터 집계 알고리즘**: [섹션 2.4](#24-데이터-집계-알고리즘-할루시네이션-방지) 참조
-- **Visual Workflow Builder**: n8n 스타일 드래그앤드롭 에디터
-- **MCP 컴포넌트 조립**: 사전 제작 컴포넌트 활용 (React 코드 생성 대신)
-
-### UI 파일 매핑
-```yaml
-UI/judgify-inventory-dashboard.html:
-  → Data Visualization Service (8006)
-
-UI/judgify-inventory-chat.html:
-  → BI Service (8007)
-
-UI/judgify-enterprise-ui.html:
-  → Chat Interface Service (8008)
-```
-
-### 서비스 간 관계 (Ver2.0 Final)
-```
-Chat Interface (8008) - 마스터 컨트롤러
-    ├─→ Workflow Service (8001): 워크플로우 실행 요청
-    ├─→ BI Service (8007): 인사이트 생성 요청
-    ├─→ Learning Service (8009): 학습 피드백 전송
-    └─→ Settings: MCP 서버 상태 표시
-
-BI Service (8007) - AI 인사이트
-    ├─→ Judgment Service (8002): 데이터 기반 판단 요청
-    ├─→ PostgreSQL: 데이터 조회
-    └─→ MCP Components: 사전 제작 컴포넌트 조립
-
-Judgment Service (8002) - 하이브리드 판단
-    ├─→ Learning Service (8009): Few-shot 샘플 요청
-    ├─→ PostgreSQL: 판단 결과 저장
-    └─→ Connector (내장): 외부 시스템 연동
-
-Learning Service (8009) - 자동학습 (ML 대체)
-    ├─→ PostgreSQL: 학습 데이터 관리
-    ├─→ pgvector: 유사 샘플 검색 (Few-shot)
-    └─→ sklearn: Rule 추출 알고리즘 (결정 트리)
-```
-
-### 개발 우선순위
-**9개 마이크로서비스 상세 목록**: [섹션 1](#🏗-1-ver20-final-마이크로서비스-아키텍처-이해) 참조
-
-**우선순위**:
-1. Judgment Service (8002) - 하이브리드 판단 엔진 ⭐
-2. Learning Service (8009) - 자동학습 시스템 (ML 대체) 🔥
-3. BI Service (8007) - MCP 기반 컴포넌트 조립
-4. Chat Interface Service (8008) - 통합 AI 어시스턴트
-5. Workflow Service (8001) - Visual Workflow Builder
-6. Data Visualization Service (8006) - 단순 대시보드
-7. 기타 지원 서비스들
 
 ---
 
