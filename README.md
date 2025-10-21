@@ -4,6 +4,8 @@
 
 Ver2.0 Final은 마이크로서비스 아키텍처 기반으로 전면 재설계된 차세대 AI 판단 플랫폼입니다.
 
+> 🚧 **Development Status**: 초기 개발 단계 - CI/CD 워크플로우는 서비스 구현 완료 후 활성화 예정 ([재활성화 가이드](docs/development/plan.md#-14-github-actions-워크플로우-관리))
+
 ---
 
 ## 🎯 핵심 혁신 (Ver2.0 Final)

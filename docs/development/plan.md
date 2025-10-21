@@ -970,6 +970,160 @@ let result = engine.eval::<bool>(rule_expression)?;
 
 ---
 
+---
+
+## 📋 14. GitHub Actions 워크플로우 관리
+
+### 14.1 현재 상태 (비활성화)
+프로젝트 초기 단계로 실제 서비스 코드가 구현되기 전까지 CI/CD 워크플로우를 비활성화했습니다.
+
+**비활성화 이유**:
+- `services/` 디렉토리 미구현 (마이크로서비스 코드 없음)
+- `docker/` 디렉토리 미생성 (Dockerfile 없음)
+- `k8s/` 디렉토리 미생성 (Kubernetes 설정 없음)
+- 워크플로우 실행시 필수 파일 부재로 인한 지속적 실패
+
+### 14.2 재활성화 필수 조건
+
+#### ✅ 최소 구현 체크리스트
+재활성화 전 반드시 다음 항목들이 준비되어야 합니다:
+
+**1. 서비스 디렉토리 구조**
+```
+services/
+├── api_gateway/
+│   ├── main.py
+│   ├── Dockerfile
+│   └── pyproject.toml
+├── workflow/
+├── judgment/
+├── action/
+├── logging/
+└── dashboard/
+```
+
+**2. Docker 설정**
+```
+docker/
+└── base/
+    └── Dockerfile.python
+```
+
+**3. Kubernetes 설정**
+```
+k8s/
+├── secrets/ (최소 1개 시크릿 파일)
+├── configmaps/ (최소 1개 ConfigMap)
+└── services/ (각 서비스별 deployment.yaml)
+```
+
+**4. 테스트 파일**
+```
+tests/
+├── unit/
+│   └── {service_name}/
+│       └── test_basic.py (최소 1개 통과 테스트)
+└── integration/
+```
+
+### 14.3 재활성화 절차
+
+#### Step 1: 최소 서비스 구현
+```bash
+# 1. 서비스 디렉토리 생성
+mkdir -p services/{api_gateway,workflow,judgment,action,logging,dashboard}
+
+# 2. 각 서비스별 기본 FastAPI 앱 생성
+# (main.py: 헬스체크 엔드포인트만 있는 최소 앱)
+
+# 3. Poetry 설정 파일 생성
+# (pyproject.toml: FastAPI 의존성)
+
+# 4. Dockerfile 생성
+# (각 서비스별 컨테이너 이미지 빌드 설정)
+```
+
+#### Step 2: CI 워크플로우 테스트
+```bash
+# 1. ci.yml.disabled → ci.yml 파일명 변경
+mv .github/workflows/ci.yml.disabled .github/workflows/ci.yml
+
+# 2. 로컬에서 워크플로우 단계별 테스트
+poetry install  # 의존성 설치 테스트
+black --check services/  # 코드 포맷 체크
+pytest tests/unit/  # 단위 테스트
+
+# 3. Docker 빌드 테스트
+docker build -f docker/base/Dockerfile.python .
+docker build -f services/api_gateway/Dockerfile .
+
+# 4. 모든 단계 통과 확인 후 커밋
+```
+
+#### Step 3: CD 워크플로우 활성화
+```bash
+# 1. Kubernetes 시크릿 설정 (GitHub Secrets)
+# - KUBE_CONFIG_STAGING
+# - KUBE_CONFIG_PRODUCTION
+# - SLACK_WEBHOOK_URL (선택)
+
+# 2. cd.yml.disabled → cd.yml 파일명 변경
+mv .github/workflows/cd.yml.disabled .github/workflows/cd.yml
+
+# 3. 수동 워크플로우 디스패치로 테스트
+# (GitHub Actions 탭에서 "Run workflow" 버튼)
+```
+
+### 14.4 트러블슈팅
+
+#### 문제: "services/ 디렉토리 없음" 오류
+```bash
+# 해결: 서비스 디렉토리 구조 생성 (Step 1 참조)
+```
+
+#### 문제: "Docker 빌드 실패"
+```bash
+# 해결: Dockerfile 문법 검증
+docker build -f docker/base/Dockerfile.python . --dry-run
+
+# Base 이미지 먼저 빌드 후 서비스 이미지 빌드
+```
+
+#### 문제: "Kubernetes 시크릿 없음"
+```bash
+# 해결: GitHub Repository Settings → Secrets 설정
+# 또는 워크플로우에서 kubectl 단계 주석 처리
+```
+
+### 14.5 권장 개발 순서
+
+**Phase 1: 로컬 개발 (1-2주)**
+- 서비스 뼈대 코드 구현
+- 로컬에서 테스트 통과 확인
+- Docker 컨테이너 로컬 실행 성공
+
+**Phase 2: CI 활성화 (3주차)**
+- ci.yml 재활성화
+- 코드 품질 체크 자동화
+- 단위/통합 테스트 자동화
+
+**Phase 3: CD 활성화 (4주차 이후)**
+- Kubernetes 클러스터 준비
+- cd.yml 재활성화
+- 스테이징 환경 자동 배포
+
+### 14.6 참고 자료
+
+**CI/CD 워크플로우 파일**:
+- [.github/workflows/ci.yml.disabled](../../.github/workflows/ci.yml.disabled) - 코드 품질/테스트
+- [.github/workflows/cd.yml.disabled](../../.github/workflows/cd.yml.disabled) - 배포 자동화
+
+**관련 문서**:
+- [GETTING-STARTED.md](../../GETTING-STARTED.md) - 개발 환경 설정
+- [CLAUDE.md](../../CLAUDE.md) - 마이크로서비스 아키텍처
+
+---
+
 **작성일**: 2025-01-16
 **버전**: 1.0.0
 **작성자**: Claude (AI Assistant)
