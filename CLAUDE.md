@@ -36,18 +36,161 @@ Claude는 **마이크로서비스 아키텍처 설계자 + 하이브리드 AI �
 
 상세 설계 (docs/)
 ├── architecture/       ← 시스템 아키텍처
-│   ├── system_overview.md
-│   └── database_design.md
+│   ├── system_overview.md              ← 전체 아키텍처
+│   ├── database_design.md              ← DB 스키마
+│   ├── api_specifications.md           ← API 명세 (2,555줄)
+│   ├── security_architecture.md        ← 보안 설계 (2,240줄)
+│   ├── microservices_communication.md  ← 서비스 간 통신 (1,534줄)
+│   └── data_pipeline_architecture.md   ← 데이터 파이프라인 (1,752줄)
 ├── services/          ← 마이크로서비스별 설계
 │   ├── judgment_engine.md              ← 핵심 판단 서비스
-│   ├── data_visualization_service.md   ← 단순 데이터 대시보드
-│   ├── bi_service.md                   ← AI 기반 인사이트 생성 (신규)
-│   ├── chat_interface_service.md       ← 통합 AI 채팅 (신규)
-│   ├── workflow_editor.md              ← 워크플로우 관리
-│   └── external_integration.md         ← 외부 시스템 연동
-└── operations/        ← 운영 관리
-    └── monitoring_guide.md
+│   ├── learning_service.md             ← 자동학습 시스템 (ML 대체, 신규!)
+│   ├── workflow_editor.md              ← Visual Workflow Builder (1,669줄)
+│   ├── dashboard_service.md            ← BI + 대시보드 (1,381줄)
+│   ├── external_integration.md         ← 외부 시스템 연동 (1,852줄)
+│   └── mcp_optimization.md             ← MCP 최적화 전략 (신규!)
+├── operations/        ← 운영 관리
+│   ├── deployment_strategy.md          ← 배포 전략 (1,721줄)
+│   └── monitoring_guide.md             ← 모니터링
+└── development/       ← 개발 관리
+    ├── plan.md                         ← Windows Desktop App 개발 계획 (1,130줄)
+    ├── requirements.md                 ← 요구사항
+    └── status.md                       ← 진행 상황
 ```
+
+### 📐 문서 관리 전략 (신규 추가!)
+
+Claude가 문서를 생성하거나 수정할 때 **반드시** 따라야 하는 규칙:
+
+#### 🎯 기본 원칙: **통합 문서 우선**
+
+**1. 통합 문서 유지 조건**
+```yaml
+조건:
+  - 파일 크기 < 2,500줄
+  - 동일한 주제 범위 (예: 개발 계획)
+  - 동일한 독자층 (예: 개발팀)
+  - 팀 규모 < 5명
+
+행동:
+  - 기존 문서에 섹션 추가 (예: plan.md에 섹션 14 추가)
+  - 새 파일 생성 금지
+  - 섹션 번호 순차 증가
+```
+
+**2. 별도 문서 분리 조건**
+```yaml
+조건:
+  - 파일 크기 > 2,500줄
+  - 독립적인 주제 (예: API 레퍼런스)
+  - 다른 독자층 (예: 사용자 매뉴얼)
+  - 팀 규모 > 5명
+
+행동:
+  - 새 파일 생성 고려
+  - 사용자에게 분리 여부 확인
+  - 기존 문서에서 참조 링크 추가
+```
+
+**3. 현재 프로젝트 적용 상황**
+```yaml
+docs/development/plan.md:
+  - 현재 줄 수: 1,130줄 ✅ 통합 유지
+  - 임계값: 2,500줄
+  - 전략: 섹션 추가로 확장 (현재 섹션 1~14)
+
+상태:
+  - ✅ 통합 문서 방식 유지
+  - ⏳ 2,500줄 도달시 분리 검토
+```
+
+#### 📋 Claude의 문서 작업 체크리스트
+
+새 정보 추가시:
+1. **파일 크기 확인**: `wc -l {파일명}` 실행
+2. **통합 가능 여부 판단**:
+   - < 2,500줄 → 기존 문서에 섹션 추가
+   - > 2,500줄 → 사용자에게 분리 여부 확인
+3. **섹션 번호 부여**: 순차적 증가 (14 → 15 → 16)
+4. **목차(TOC) 업데이트**: 필요시 상단 목차 추가
+
+#### 🚫 금지 사항
+
+```yaml
+❌ 하지 말 것:
+  - 사용자 확인 없이 새 문서 파일 생성
+  - 2,500줄 미만 파일을 임의로 분리
+  - 기존 통합 문서를 임의로 분해
+  - 중복 내용을 여러 파일에 작성
+
+✅ 해야 할 것:
+  - 항상 기존 문서 활용 우선
+  - 파일 크기 임계값 확인
+  - 사용자에게 전략 제안 및 확인
+  - Single Source of Truth 유지
+```
+
+#### 💡 실전 예시
+
+**시나리오 1: GitHub Actions 가이드 추가 (2025-01-21 작업)**
+```
+판단:
+  - plan.md 크기: 1,130줄 < 2,500줄
+  - 주제: 개발 프로세스의 일부
+  - 독자: 동일 (개발팀)
+
+행동:
+  ✅ plan.md에 섹션 14 추가
+  ❌ workflows-guide.md 별도 생성 안 함
+```
+
+**시나리오 2: 미래 - API 문서 1,500줄 추가 요청**
+```
+판단:
+  - plan.md 현재: 2,300줄
+  - 추가 시: 3,800줄 > 2,500줄
+
+행동:
+  1. 사용자에게 확인 요청:
+     "plan.md가 2,500줄 임계값을 초과합니다.
+      API 문서를 별도 파일(api-reference.md)로
+      생성할까요?"
+  2. 승인시 분리, 거부시 통합 유지
+```
+
+### 🚀 Quick Reference (빠른 참조)
+
+#### 자주 찾는 정보
+| 질문 | 답변 위치 |
+|------|----------|
+| **9개 서비스 목록은?** | [섹션 1](#-1-ver20-final-마이크로서비스-아키텍처-이해) 테이블 참조 |
+| **개발 우선순위는?** | [섹션 1](#-1-ver20-final-마이크로서비스-아키텍처-이해) → 🧠 핵심 개발 우선순위 |
+| **하이브리드 판단 로직은?** | [섹션 2.1](#21-하이브리드-판단-전략-rule--llm) 코드 예제 |
+| **자동학습 시스템은?** | [섹션 2.3](#23-자동학습-시스템-전략-ver20-final---ml-대체) 상세 구현 |
+| **데이터 집계 알고리즘은?** | [섹션 2.4](#24-데이터-집계-알고리즘-할루시네이션-방지) 구현 패턴 |
+| **AI 에이전트 팀 구성은?** | [섹션 6](#-6-ver20-ai-에이전트-팀-구성) Phase 1-3 |
+| **서비스별 에이전트 매핑은?** | [섹션 6.4](#64-서비스별-에이전트-매핑-전략-ver20-final) 테이블 |
+| **MCP 도구 목록은?** | [섹션 7.1-7.2](#71-핵심-mcp-도구-1단계---즉시-필요) 핵심/확장 도구 |
+| **문서 관리 규칙은?** | [섹션 0](#-문서-관리-전략-신규-추가) 2,500줄 임계값 |
+| **개발 체크리스트는?** | [섹션 11](#-11-ver20-claude-개발-체크리스트) 전체 체크리스트 |
+
+#### 핵심 파일 경로
+| 문서 종류 | 파일 경로 | 용도 |
+|----------|----------|------|
+| **개발 계획** | [docs/development/plan.md](docs/development/plan.md) | Windows Desktop App 계획 (1,130줄) |
+| **통합 요구사항** | [initial.md](initial.md) | Ver2.0 전체 요구사항 |
+| **Prompt 설계** | [prompt-guide.md](prompt-guide.md) | LLM Prompt 템플릿 |
+| **Judgment 설계** | [docs/services/judgment_engine.md](docs/services/judgment_engine.md) | 하이브리드 판단 엔진 |
+| **Learning 설계** | [docs/services/learning_service.md](docs/services/learning_service.md) | 자동학습 시스템 (ML 대체) |
+| **DB 스키마** | [docs/architecture/database_design.md](docs/architecture/database_design.md) | PostgreSQL + pgvector |
+| **API 명세** | [docs/architecture/api_specifications.md](docs/architecture/api_specifications.md) | REST API 스펙 (2,555줄) |
+
+#### 개발 시작 가이드
+1. **처음 시작시**: [섹션 12](#-12-ver20-quick-start-for-claude) Quick Start 4단계
+2. **서비스 개발시**: [섹션 3.2](#32-서비스별-개발-컨텍스트-매핑-ver20-final) 컨텍스트 매핑
+3. **에이전트 협업시**: [섹션 13](#-13-ver20-ai-에이전트-활용-가이드) 에이전트별 역할
+4. **테스트시**: [섹션 9](#-9-ver20-개발-검증-및-테스트-전략) 테스트 패턴
+5. **배포시**: [섹션 10](#-10-ver20-배포-및-운영-자동화) Docker + K8s
 
 ---
 
@@ -1038,7 +1181,7 @@ workflow TD
     D --> E[performance-engineer: 성능 테스트]
 ```
 
-#### 🔄 **Dashboard Service 개발 워크플로우**
+#### 🔄 **BI Service + Data Visualization 개발 워크플로우**
 ```mermaid
 workflow TD
     A[business-analyst: 요구사항 분석] --> B[frontend-architect: UI 설계]
@@ -1074,29 +1217,30 @@ workflow TD
 ## 🌟 14. Ver2.0 Final 아키텍처 변경 요약
 
 ### 주요 변경사항 (Ver2.0 Final)
-1. **서비스 증가**: 6개 → **9개 마이크로서비스 (Ver2.0 Final)**
-   - **Learning Service (8009) 추가**: 자동학습 + Rule 추출 (ML 대체!)
-2. **용어 정정**: "Dashboard" → 3개 서비스로 분리
-   - **Data Visualization (8006)**: 단순 데이터 표시 (편집 가능)
-   - **BI Service (8007)**: MCP 기반 컴포넌트 조립 + AI 인사이트
-   - **Chat Interface (8008)**: 통합 AI 채팅 어시스턴트 (마스터 컨트롤러)
-3. **Workflow Editor 혁신**: n8n 스타일 Visual Workflow Builder (드래그앤드롭)
-4. **MCP 통합 강화**:
-   - Settings 화면에서 MCP 서버 상태 실시간 표시
-   - BI Service에서 사전 제작 컴포넌트 조립 (React 코드 생성 대신)
-5. **자동학습 시스템 (ML 대체)**:
-   - 사용자 피드백 수집 (👍👎, LOG, 채팅)
-   - Few-shot 학습 관리 (10-20개 유사 예시)
-   - 자동 Rule 추출 (빈도 분석, 결정 트리, LLM 패턴 발견)
-6. **데이터 집계 알고리즘**: LLM 할루시네이션 방지 특수 알고리즘 (통계 + 평가 + 트렌드)
-7. **Judgment Engine 강화**:
-   - Connector 기능 통합 (별도 서비스 제거)
-   - BI Service 및 Learning Service와 긴밀한 통합
+
+**서비스 아키텍처 변화**:
+- **Ver1.0**: 6개 서비스 → **Ver2.0 Final**: 9개 마이크로서비스
+- **Learning Service (8009) 추가**: 자동학습 + Rule 추출 (ML 대체!)
+- **용어 정정**: "Dashboard" → 3개 독립 서비스 (Data Visualization + BI + Chat Interface)
+
+**핵심 혁신 기능** (상세는 해당 섹션 참조):
+- **하이브리드 판단**: [섹션 2.1](#21-하이브리드-판단-전략-rule--llm) 참조
+- **자동학습 시스템 (ML 대체)**: [섹션 2.3](#23-자동학습-시스템-전략-ver20-final---ml-대체) 참조
+- **데이터 집계 알고리즘**: [섹션 2.4](#24-데이터-집계-알고리즘-할루시네이션-방지) 참조
+- **Visual Workflow Builder**: n8n 스타일 드래그앤드롭 에디터
+- **MCP 컴포넌트 조립**: 사전 제작 컴포넌트 활용 (React 코드 생성 대신)
 
 ### UI 파일 매핑
-- `UI/judgify-inventory-dashboard.html` → Data Visualization Service (8006)
-- `UI/judgify-inventory-chat.html` → BI Service (8007)
-- `UI/judgify-enterprise-ui.html` → Chat Interface Service (8008)
+```yaml
+UI/judgify-inventory-dashboard.html:
+  → Data Visualization Service (8006)
+
+UI/judgify-inventory-chat.html:
+  → BI Service (8007)
+
+UI/judgify-enterprise-ui.html:
+  → Chat Interface Service (8008)
+```
 
 ### 서비스 간 관계 (Ver2.0 Final)
 ```
@@ -1120,41 +1264,20 @@ Learning Service (8009) - 자동학습 (ML 대체)
     ├─→ PostgreSQL: 학습 데이터 관리
     ├─→ pgvector: 유사 샘플 검색 (Few-shot)
     └─→ sklearn: Rule 추출 알고리즘 (결정 트리)
-
-Data Visualization (8006)
-    └─→ PostgreSQL: 데이터 직접 조회 및 표시
 ```
 
-### 데이터 관리 전략 (Ver2.0 Final)
-```
-raw_data (영구 저장)
-    └─→ 모든 데이터 영구 보관
+### 개발 우선순위
+**9개 마이크로서비스 상세 목록**: [섹션 1](#🏗-1-ver20-final-마이크로서비스-아키텍처-이해) 참조
 
-judgment_executions (90일 이내)
-    ├─→ 신규 판단 결과 저장
-    └─→ 90일 후 → archived_judgments
-
-archived_judgments (91일 이상)
-    └─→ 데이터 집계 알고리즘 적용
-        ├─→ 통계 집계 (평균, 중앙값, 표준편차, 최소, 최대)
-        ├─→ 평가 집계 (정상/경고/위험 상태 + 트렌드)
-        └─→ LLM에 전달 (토큰 최적화 + 할루시네이션 방지)
-```
-
-### 개발 우선순위 (Ver2.0 Final)
-1. **Judgment Service (8002)** - 하이브리드 판단 엔진 (최우선!)
-2. **Learning Service (8009)** 🔥 - 자동학습 시스템 (혁신 기능! ML 대체)
-3. **BI Service (8007)** - MCP 기반 컴포넌트 조립 (신규)
-4. **Chat Interface Service (8008)** - 통합 AI 어시스턴트 (마스터 컨트롤러)
-5. **Workflow Service (8001)** - Visual Workflow Builder (n8n 스타일)
-6. **Data Visualization Service (8006)** - 단순 데이터 대시보드
+**우선순위**:
+1. Judgment Service (8002) - 하이브리드 판단 엔진 ⭐
+2. Learning Service (8009) - 자동학습 시스템 (ML 대체) 🔥
+3. BI Service (8007) - MCP 기반 컴포넌트 조립
+4. Chat Interface Service (8008) - 통합 AI 어시스턴트
+5. Workflow Service (8001) - Visual Workflow Builder
+6. Data Visualization Service (8006) - 단순 대시보드
 7. 기타 지원 서비스들
 
-### 핵심 혁신 기술 (Ver2.0 Final)
-- **자동학습 시스템 (ML 대체)**: 전통적 알고리즘 (빈도 분석 + 결정 트리 + LLM) 활용
-- **데이터 집계 알고리즘**: LLM 할루시네이션 방지 특수 알고리즘
-- **Visual Workflow Builder**: n8n 스타일 드래그앤드롭 에디터
-- **MCP 컴포넌트 조립**: 사전 제작 컴포넌트 조립 (React 생성 대신)
-- **하이브리드 판단**: Rule Engine + LLM 최적 조합
+---
 
 **Happy Coding with 9 Services + AI Agents + Auto-Learning, Claude! 🤖⚡🚀🔥**
