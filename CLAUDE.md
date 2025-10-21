@@ -158,6 +158,32 @@ docs/development/plan.md:
   2. 승인시 분리, 거부시 통합 유지
 ```
 
+#### 🌿 Git 브랜치 백업 전략
+
+**큰 변화 발생시 브랜치 백업 필수**:
+- 아키텍처 변경 (예: 9개 → 12개 서비스)
+- CLAUDE.md 200줄 이상 수정
+- 개발 전략 변경 (예: 에이전트 구성 변경)
+- 기술 스택 교체 (예: PostgreSQL → MongoDB)
+
+**워크플로우 (5단계)**:
+```
+1. 현재 상태 커밋 (백업)
+2. 백업 브랜치 생성 ({category}/{description})
+3. 변경 작업 수행
+4. 비교 보고서 작성 (COMPARISON_{category}_{date}.md)
+5. 사용자 선택 (채택 or 유지)
+```
+
+**실전 예시**: CLAUDE.md Phase 3 최적화 (2025-01-21)
+- 브랜치: `docs/claude-md-phase3-test`
+- 비교 보고서: [PHASE_COMPARISON.md](PHASE_COMPARISON.md)
+- 결과: Phase 3 채택 (7.3% 파일 크기 감소, 의사코드 전환)
+
+**상세 가이드**: [docs/development/git-branch-strategy.md](docs/development/git-branch-strategy.md)
+
+---
+
 ### 🔄 Ver2.0 Final 아키텍처 변경 요약
 
 **서비스 구조 변화**:
