@@ -42,6 +42,45 @@ from scripts.notion.daily_logger import (
 )
 
 
+def remove_claude_signature(text: str) -> str:
+    """
+    커밋 메시지에서 Claude Code 서명 제거
+
+    제거 대상:
+    - 🤖 Generated with [Claude Code]...
+    - Co-Authored-By: Claude <noreply@anthropic.com>
+    - 빈 줄도 함께 정리
+
+    Args:
+        text: 원본 텍스트
+
+    Returns:
+        서명이 제거된 텍스트
+    """
+    import re
+
+    # 패턴 1: 🤖 Generated with [Claude Code]... (한 줄 또는 링크 포함)
+    text = re.sub(
+        r'\n*🤖 Generated with \[Claude Code\].*?\n*',
+        '',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # 패턴 2: Co-Authored-By: Claude... (한 줄)
+    text = re.sub(
+        r'\n*Co-Authored-By: Claude <noreply@anthropic\.com>\n*',
+        '',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # 패턴 3: 연속된 빈 줄 제거 (2개 이상 → 1개)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    return text.strip()
+
+
 def get_last_commits(repo_path: Path, count: int = None) -> List[Dict]:
     """
     마지막 push된 커밋 메시지들 가져오기
@@ -102,6 +141,9 @@ def get_last_commits(repo_path: Path, count: int = None) -> List[Dict]:
             title = match.group(2)
             body = match.group(3).strip()
             timestamp = match.group(4)
+
+            # Claude Code 서명 제거
+            body = remove_claude_signature(body)
 
             # 시간 포맷팅 (예: "2025-10-22 14:30:15" → "2:30 PM")
             try:
