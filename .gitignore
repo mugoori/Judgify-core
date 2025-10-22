@@ -66,3 +66,6 @@ env/
 # Artifacts created by path-unzip issues on Windows
 C?Users*
 
+# Notion commit backup (로컬 전용)
+scripts/notion/.commit_backup/
+

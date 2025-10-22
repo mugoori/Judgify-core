@@ -263,6 +263,123 @@ def parse_content_to_blocks(content: str) -> list:
     return blocks
 
 
+def find_or_create_today_page(notion: Client, database_id: str, date: str = None, title: str = None) -> str:
+    """
+    오늘 날짜의 페이지를 찾거나 없으면 새로 생성
+
+    Args:
+        notion: Notion 클라이언트
+        database_id: 데이터베이스 ID
+        date: 날짜 (YYYY-MM-DD 형식, 기본값: 오늘)
+        title: 페이지 제목 (기본값: "{date} 업무 일지")
+
+    Returns:
+        페이지 ID
+    """
+    # 날짜 설정 (기본값: 오늘)
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+
+    # 제목 설정 (기본값: "{date} 업무 일지")
+    if not title:
+        title = f"{date} 업무 일지"
+
+    # 데이터베이스 스키마 확인
+    schema = get_database_schema(notion, database_id)
+    if not schema:
+        raise ValueError("데이터베이스 스키마를 가져올 수 없습니다.")
+
+    # 날짜 필드 찾기
+    date_field = None
+    for field_name, field_config in schema.items():
+        if field_config.get("type") == "date":
+            date_field = field_name
+            break
+
+    if not date_field:
+        raise ValueError("데이터베이스에 날짜 필드가 없습니다.")
+
+    # 오늘 날짜로 페이지 검색
+    try:
+        results = notion.databases.query(
+            database_id=database_id,
+            filter={
+                "property": date_field,
+                "date": {
+                    "equals": date
+                }
+            }
+        )
+
+        # 페이지가 이미 존재하면 ID 반환
+        if results.get("results"):
+            page_id = results["results"][0]["id"]
+            print(f"[INFO] 기존 페이지 발견: {page_id}")
+            return page_id
+
+    except Exception as e:
+        print(f"[WARNING] 페이지 검색 실패 (새로 생성): {e}")
+
+    # 페이지가 없으면 새로 생성
+    print(f"[INFO] 새 페이지 생성 중... (날짜: {date})")
+
+    # 페이지 속성 구성
+    properties = {}
+
+    # 제목 필드 찾기
+    title_field = None
+    for field_name, field_config in schema.items():
+        if field_config.get("type") == "title":
+            title_field = field_name
+            break
+
+    if title_field:
+        properties[title_field] = {
+            "title": [{"text": {"content": title}}]
+        }
+
+    # 날짜 필드 설정
+    properties[date_field] = {
+        "date": {"start": date}
+    }
+
+    # 페이지 생성
+    new_page = notion.pages.create(
+        parent={"database_id": database_id},
+        properties=properties
+    )
+
+    page_id = new_page["id"]
+    print(f"[INFO] 페이지 생성 완료: {page_id}")
+    return page_id
+
+
+def append_blocks_to_page(notion: Client, page_id: str, blocks: list):
+    """
+    기존 페이지에 블록 추가 (append)
+
+    Args:
+        notion: Notion 클라이언트
+        page_id: 추가할 페이지 ID
+        blocks: 추가할 블록 리스트
+    """
+    if not blocks:
+        print("[WARNING] 추가할 블록이 없습니다.")
+        return
+
+    try:
+        # 페이지 하단에 블록 추가
+        notion.blocks.children.append(
+            block_id=page_id,
+            children=blocks
+        )
+        print(f"[INFO] {len(blocks)}개 블록 추가 완료")
+
+    except Exception as e:
+        print(f"[ERROR] 블록 추가 실패: {e}")
+        raise
+
+
 def create_daily_log(content: str, date: str = None) -> dict:
     """일일 업무 일지 생성
 
