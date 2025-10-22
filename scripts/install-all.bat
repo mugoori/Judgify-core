@@ -521,6 +521,28 @@ if exist ".mcp.json" (
     echo [WARNING] .mcp.json file not found
 )
 
+echo.
+echo Notion Automation:
+echo.
+
+if exist "scripts\notion\daily_logger.py" (
+    echo [OK] Notion scripts found
+    echo     - daily_logger.py ^(오늘 업무 일지^)
+    echo     - weekly_logger.py ^(주간 업무 요약^)
+    echo     - urgent_task_manager.py ^(긴급 작업 관리^)
+) else (
+    echo [WARNING] Notion scripts not found
+)
+
+if exist ".claude\skills\log-today.md" (
+    echo [OK] Claude Skills configured
+    echo     - /log-today ^(오늘 업무 기록^)
+    echo     - /log-urgent ^(긴급 작업 기록^)
+    echo     - /weekly-summary ^(주간 요약^)
+) else (
+    echo [WARNING] Claude Skills not configured
+)
+
 REM ===================================
 REM Final Instructions
 REM ===================================
@@ -544,6 +566,23 @@ echo 4. Review detailed documentation:
 echo    - README.md: Project overview
 echo    - SETUP.md: Detailed setup guide
 echo    - INSTALL.md: Installation troubleshooting
+echo.
+echo 5. Configure Notion Integration ^(optional^):
+echo    a. Create Notion Internal Integration:
+echo       https://www.notion.so/my-integrations
+echo    b. Copy API token to .env ^(NOTION_API_TOKEN^)
+echo    c. Duplicate template database and connect integration
+echo    d. Extract database IDs:
+echo       python scripts\notion\extract_notion_databases.py
+echo    e. Copy database IDs to .env file
+echo.
+echo 6. Test Notion automation:
+echo    python scripts\notion\daily_logger.py "오늘 업무 일지 테스트"
+echo.
+echo 7. Use Claude Skills for quick logging:
+echo    /log-today       # 오늘 업무 일지 작성
+echo    /log-urgent      # 긴급 작업 기록
+echo    /weekly-summary  # 주간 업무 요약
 echo.
 echo [OK] Installation complete!
 echo.
