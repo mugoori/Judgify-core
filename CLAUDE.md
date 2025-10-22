@@ -431,9 +431,16 @@ Claude는 개발시 **반드시 다음 순서로** 문서를 참조해야 함:
 ### 4.1 마이크로서비스 개발 패턴
 
 **FastAPI 서비스 구조**:
+```python
+# version.py에서 버전 가져오기
+from version import __version__
+
+app = FastAPI(title="서비스명", version=__version__)
+```
+
 ```
 1. 기본 구조
-   └─ FastAPI(title="서비스명", version="2.0.0")
+   └─ FastAPI(title="서비스명", version=__version__)
 
 2. 의존성 주입
    ├─ get_database() → PostgreSQL 연결
@@ -1086,6 +1093,117 @@ workflow TD
 2. **기술적 성과**: 18개 에이전트가 협력하여 **9개 마이크로서비스 (Ver2.0 Final)** 완성
 3. **비즈니스 가치**: 하이브리드 판단으로 95% 정확도, 50% 비용 절감 달성
 4. **혁신 기능**: 자동학습 시스템 (ML 대체) + 데이터 집계 알고리즘으로 토큰 최적화
+
+---
+
+## 📌 15. Ver2.0 버전 관리 전략
+
+### 15.1 현재 버전 정책 (초기 개발 단계)
+
+```yaml
+현재 버전: 0.1.0
+개발 단계: alpha
+버전 형식: 0.MINOR.PATCH (SemVer 0.x.x 시리즈)
+
+규칙:
+  - 0.x.x: 초기 개발 (API 변경 자유)
+  - MINOR: 주요 기능 추가 (서비스 구현)
+  - PATCH: 버그 수정, 문서 업데이트
+```
+
+### 15.2 Single Source of Truth
+
+**핵심 파일**: `version.py`
+```python
+__version__ = "0.1.0"
+__stage__ = "alpha"
+__release_date__ = "2025-10-22"
+```
+
+**자동 동기화 파일**:
+- `package.json` (Node.js/Frontend)
+- `src-tauri/Cargo.toml` (Rust/Backend)
+- FastAPI 서비스들 (`from version import __version__`)
+
+### 15.3 버전 증가 방법
+
+```bash
+# 기능 추가시 (0.1.0 → 0.2.0)
+python scripts/bump_version.py minor
+
+# 버그 수정시 (0.1.0 → 0.1.1)
+python scripts/bump_version.py patch
+
+# 자동으로 다음 파일 업데이트:
+# - version.py
+# - package.json
+# - src-tauri/Cargo.toml
+```
+
+### 15.4 3단계 버전 관리 로드맵
+
+**Phase 1: 초기 개발 (현재 ~ 3개월)**
+```
+0.1.0: Desktop App 프로토타입 ✅
+0.2.0: Judgment Service 첫 구현 (예정)
+0.3.0: Learning Service 추가 (예정)
+0.4~0.8.x: 나머지 마이크로서비스
+0.9.0: 베타 릴리스 (9개 서비스 완성)
+```
+
+**Phase 2: 베타 테스트 (3~6개월)**
+```
+0.9.0: 베타 릴리스
+0.9.x: 베타 버그 수정
+1.0.0-rc.1: Release Candidate
+1.0.0: 정식 릴리스 🎉
+```
+
+**Phase 3: 정식 운영 (1.0.0 이후)**
+```
+버전 전환: SemVer → CalVer
+- 1.0.0 (마지막 SemVer)
+- 2025.2.0 (첫 CalVer, 2025년 2월)
+
+마이크로서비스 독립 버전:
+- Judgment Service: 1.0.0 (SemVer)
+- Learning Service: 1.1.0
+- BI Service: 1.0.2
+```
+
+### 15.5 Git 태그 전략
+
+```bash
+# 주요 마일스톤마다만 태그 생성
+git tag -a v0.1.0 -m "Desktop App 프로토타입 완성"
+git tag -a v0.2.0 -m "Judgment Service 첫 구현"
+git push origin develop --tags
+
+# 브랜치 전략
+main          # 안정 버전 (태그만)
+develop       # 개발 중 (기본 브랜치)
+feature/*     # 기능 개발
+```
+
+### 15.6 Claude의 버전 관리 체크리스트
+
+**새 서비스 개발시**:
+- [ ] version.py의 `MICROSERVICES_STATUS` 업데이트
+- [ ] 완료율 정확히 반영 (0% → 50% → 100%)
+- [ ] 주요 마일스톤 달성시 `bump_version.py` 실행
+- [ ] CHANGELOG.md에 변경사항 기록
+
+**FastAPI 서비스 생성시**:
+```python
+# ✅ 올바른 방법
+from version import __version__
+app = FastAPI(title="Judgment Service", version=__version__)
+
+# ❌ 잘못된 방법 (하드코딩)
+app = FastAPI(title="Judgment Service", version="2.0.0")
+```
+
+**상세 가이드**: [docs/development/versioning-strategy.md](docs/development/versioning-strategy.md)
 
 ---
 
