@@ -37,6 +37,44 @@ def get_database_schema(notion: Client, database_id: str) -> dict:
         return {}
 
 
+def analyze_conversation_for_details(summary: str) -> str:
+    """
+    간단한 요약을 상세한 업무 일지로 확장
+
+    Claude가 오늘 대화 내용을 분석하여 자동으로:
+    1. 사용된 기술 스택/라이브러리 추출
+    2. 수정된 파일명 포함
+    3. 구현 방법 설명 추가
+
+    Args:
+        summary: 간단한 작업 요약 (예: "Notion 가독성 개선")
+
+    Returns:
+        상세한 업무 일지 (번호 + 소제목 + 상세내용 형식)
+
+    예시:
+        입력: "Notion 가독성 개선"
+        출력: "Notion 가독성 개선: 1. parse_content_to_blocks() 수정 - Python re로 정규식 구현,
+               notion-client로 블록 생성, 2. 테스트 4건 - pytest 검증"
+
+    Note:
+        이 함수는 실제로는 간단한 템플릿만 제공하며,
+        실제 상세 내용은 Claude Skills에서 대화 분석을 통해 생성됩니다.
+    """
+    # 간단한 템플릿 확장 (실제 상세 내용은 Claude가 대화 분석으로 생성)
+    if not summary or len(summary.strip()) == 0:
+        return "업무 일지"
+
+    # 이미 상세한 형식이면 그대로 반환 (번호 패턴 있으면)
+    import re
+    if re.search(r'\d+\.', summary):
+        return summary
+
+    # 간단한 요약이면 템플릿 형식으로 확장 유도
+    # 실제 상세 내용은 Claude Skills (/log-today)에서 생성
+    return summary
+
+
 def extract_summary_from_content(content: str, max_length: int = 50) -> str:
     """
     업무 내용에서 요약 키워드 추출
@@ -91,17 +129,29 @@ def parse_content_to_blocks(content: str) -> list:
     """
     업무 내용을 구조화된 Notion 블록으로 변환
 
-    파싱 규칙:
-    - 콜론(:) → heading_2 (섹션 제목)
-    - 쉼표(,) → numbered_list_item (주요 항목)
-    - 괄호() → bulleted_list_item (하위 항목)
+    파싱 규칙 (우선순위 순서):
+    1. 번호 패턴 (1. 소제목 - 상세내용) → numbered_list + bulleted_list
+    2. 콜론(:) → heading_2 (섹션 제목)
+    3. 쉼표(,) → numbered_list_item (주요 항목)
+    4. 괄호() → bulleted_list_item (하위 항목)
 
     Args:
         content: 업무 내용 텍스트
 
     Returns:
         Notion 블록 리스트
+
+    예시:
+        입력: "작업: 1. DB 설계 - ERD 작성, 2. API 구현 - 3개 엔드포인트"
+        출력:
+          작업 (heading_2)
+          1. DB 설계 (numbered_list)
+             • ERD 작성 (bulleted_list)
+          2. API 구현 (numbered_list)
+             • 3개 엔드포인트 (bulleted_list)
     """
+    import re
+
     blocks = []
 
     # 1. "제목: 내용" 형식 분리
@@ -122,48 +172,83 @@ def parse_content_to_blocks(content: str) -> list:
         # 콜론이 없으면 전체를 본문으로 처리
         body = content
 
-    # 2. 쉼표로 주요 항목 분리
-    items = [item.strip() for item in body.split(',')]
+    # 2. 번호 패턴 체크 (1., 2., 3. 등)
+    # 패턴: "숫자. 텍스트 - 상세내용" 또는 "숫자. 텍스트"
+    numbered_pattern = re.compile(r'(\d+)\.\s*([^-,]+?)(?:\s*-\s*([^,]+))?(?:,|$)')
+    matches = list(numbered_pattern.finditer(body))
 
-    for item in items:
-        if not item:
-            continue
+    if matches:
+        # 번호 패턴이 있으면 상세 구조로 파싱
+        for match in matches:
+            number = match.group(1)
+            subtitle = match.group(2).strip()
+            details = match.group(3).strip() if match.group(3) else None
 
-        # 3. 괄호로 하위 항목 추출
-        if '(' in item and ')' in item:
-            # 주요 항목과 하위 항목 분리
-            main_item = item[:item.index('(')].strip()
-            sub_items_str = item[item.index('(')+1:item.index(')')].strip()
-            sub_items = [s.strip() for s in sub_items_str.split(',')]
-
-            # 주요 항목 블록 (numbered_list)
+            # 소제목 블록 (numbered_list)
             blocks.append({
                 "object": "block",
                 "type": "numbered_list_item",
                 "numbered_list_item": {
-                    "rich_text": [{"type": "text", "text": {"content": main_item}}]
+                    "rich_text": [{"type": "text", "text": {"content": subtitle}}]
                 }
             })
 
-            # 하위 항목 블록들 (bulleted_list)
-            for sub_item in sub_items:
-                if sub_item:
+            # 상세 내용이 있으면 bulleted_list로 추가
+            if details:
+                # 상세 내용에 쉼표가 있으면 여러 항목으로 분리
+                detail_items = [d.strip() for d in details.split(',') if d.strip()]
+                for detail in detail_items:
                     blocks.append({
                         "object": "block",
                         "type": "bulleted_list_item",
                         "bulleted_list_item": {
-                            "rich_text": [{"type": "text", "text": {"content": sub_item}}]
+                            "rich_text": [{"type": "text", "text": {"content": f"• {detail}"}}]
                         }
                     })
-        else:
-            # 단순 항목 (numbered_list)
-            blocks.append({
-                "object": "block",
-                "type": "numbered_list_item",
-                "numbered_list_item": {
-                    "rich_text": [{"type": "text", "text": {"content": item}}]
-                }
-            })
+    else:
+        # 번호 패턴이 없으면 기존 로직 사용
+        # 3. 쉼표로 주요 항목 분리
+        items = [item.strip() for item in body.split(',')]
+
+        for item in items:
+            if not item:
+                continue
+
+            # 4. 괄호로 하위 항목 추출
+            if '(' in item and ')' in item:
+                # 주요 항목과 하위 항목 분리
+                main_item = item[:item.index('(')].strip()
+                sub_items_str = item[item.index('(')+1:item.index(')')].strip()
+                sub_items = [s.strip() for s in sub_items_str.split(',')]
+
+                # 주요 항목 블록 (numbered_list)
+                blocks.append({
+                    "object": "block",
+                    "type": "numbered_list_item",
+                    "numbered_list_item": {
+                        "rich_text": [{"type": "text", "text": {"content": main_item}}]
+                    }
+                })
+
+                # 하위 항목 블록들 (bulleted_list)
+                for sub_item in sub_items:
+                    if sub_item:
+                        blocks.append({
+                            "object": "block",
+                            "type": "bulleted_list_item",
+                            "bulleted_list_item": {
+                                "rich_text": [{"type": "text", "text": {"content": sub_item}}]
+                            }
+                        })
+            else:
+                # 단순 항목 (numbered_list)
+                blocks.append({
+                    "object": "block",
+                    "type": "numbered_list_item",
+                    "numbered_list_item": {
+                        "rich_text": [{"type": "text", "text": {"content": item}}]
+                    }
+                })
 
     # 블록이 없으면 원본 텍스트를 paragraph로 반환 (fallback)
     if not blocks:
