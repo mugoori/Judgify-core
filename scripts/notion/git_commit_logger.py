@@ -145,11 +145,24 @@ def parse_commit_message(commit: Dict) -> Dict:
             title = title[len(prefix):].strip()
             break
 
-    # 본문이 있으면 파싱, 없으면 제목만 사용
+    # 본문이 있으면 Quote Block으로 처리 (가독성 우선)
+    # parse_content_to_blocks() 대신 간단한 Quote 사용
+    content_blocks = []
     if commit["body"]:
-        content_blocks = parse_content_to_blocks(commit["body"])
-    else:
-        content_blocks = []
+        content_blocks.append({
+            "object": "block",
+            "type": "quote",
+            "quote": {
+                "rich_text": [{
+                    "type": "text",
+                    "text": {"content": commit["body"]},
+                    "annotations": {
+                        "color": "default"
+                    }
+                }],
+                "color": "gray_background"
+            }
+        })
 
     # 커밋 헤더 블록 생성
     blocks = []
