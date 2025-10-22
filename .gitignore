@@ -69,3 +69,11 @@ C?Users*
 # Notion commit backup (로컬 전용)
 scripts/notion/.commit_backup/
 
+# Notion 분석 임시 스크립트 (개발용)
+scripts/analyze_notion_*.py
+scripts/capture_notion_*.py
+scripts/extract_notion_*.py
+scripts/notion_page_analysis.json
+scripts/notion_screenshots/
+scripts/nul
+
