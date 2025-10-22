@@ -208,42 +208,6 @@ docs/development/plan.md:
 
 ---
 
-### 🚀 Quick Reference (빠른 참조)
-
-#### 자주 찾는 정보
-| 질문 | 답변 위치 |
-|------|----------|
-| **9개 서비스 목록은?** | [섹션 1](#-1-ver20-final-마이크로서비스-아키텍처-이해) 테이블 참조 |
-| **개발 우선순위는?** | [섹션 1](#-1-ver20-final-마이크로서비스-아키텍처-이해) → 🧠 핵심 개발 우선순위 |
-| **하이브리드 판단 로직은?** | [섹션 2.1](#21-하이브리드-판단-전략-rule--llm) 코드 예제 |
-| **자동학습 시스템은?** | [섹션 2.3](#23-자동학습-시스템-전략-ver20-final---ml-대체) 상세 구현 |
-| **데이터 집계 알고리즘은?** | [섹션 2.4](#24-데이터-집계-알고리즘-할루시네이션-방지) 구현 패턴 |
-| **AI 에이전트 팀 구성은?** | [섹션 6](#-6-ver20-ai-에이전트-팀-구성) Phase 1-3 |
-| **서비스별 에이전트 매핑은?** | [섹션 6.4](#64-서비스별-에이전트-매핑-전략-ver20-final) 테이블 |
-| **MCP 도구 목록은?** | [섹션 7.1-7.2](#71-핵심-mcp-도구-1단계---즉시-필요) 핵심/확장 도구 |
-| **문서 관리 규칙은?** | [섹션 0](#-문서-관리-전략-신규-추가) 2,500줄 임계값 |
-| **개발 체크리스트는?** | [섹션 11](#-11-ver20-claude-개발-체크리스트) 전체 체크리스트 |
-
-#### 핵심 파일 경로
-| 문서 종류 | 파일 경로 | 용도 |
-|----------|----------|------|
-| **개발 계획** | [docs/development/plan.md](docs/development/plan.md) | Windows Desktop App 계획 (1,130줄) |
-| **통합 요구사항** | [initial.md](initial.md) | Ver2.0 전체 요구사항 |
-| **Prompt 설계** | [prompt-guide.md](prompt-guide.md) | LLM Prompt 템플릿 |
-| **Judgment 설계** | [docs/services/judgment_engine.md](docs/services/judgment_engine.md) | 하이브리드 판단 엔진 |
-| **Learning 설계** | [docs/services/learning_service.md](docs/services/learning_service.md) | 자동학습 시스템 (ML 대체) |
-| **DB 스키마** | [docs/architecture/database_design.md](docs/architecture/database_design.md) | PostgreSQL + pgvector |
-| **API 명세** | [docs/architecture/api_specifications.md](docs/architecture/api_specifications.md) | REST API 스펙 (2,555줄) |
-
-#### 개발 시작 가이드
-1. **처음 시작시**: [섹션 12](#-12-ver20-quick-start-for-claude) Quick Start 4단계
-2. **서비스 개발시**: [섹션 3.2](#32-서비스별-개발-컨텍스트-매핑-ver20-final) 컨텍스트 매핑
-3. **에이전트 협업시**: [섹션 13](#-13-ver20-ai-에이전트-활용-가이드) 에이전트별 역할
-4. **테스트시**: [섹션 9](#-9-ver20-개발-검증-및-테스트-전략) 테스트 패턴
-5. **배포시**: [섹션 10](#-10-ver20-배포-및-운영-자동화) Docker + K8s
-
----
-
 ## 🏗 1. Ver2.0 Final 마이크로서비스 아키텍처 이해
 
 Claude가 개발할 **9개 핵심 마이크로서비스**:
@@ -450,42 +414,15 @@ Claude는 개발시 **반드시 다음 순서로** 문서를 참조해야 함:
 5. **`prompt-guide.md`** - LLM 관련 개발시 Prompt 설계 가이드
 
 ### 3.2 서비스별 개발 컨텍스트 매핑 (Ver2.0 Final)
-```bash
-# Judgment Service 개발시 (최우선!)
-docs/services/judgment_engine.md → AST Rule Engine + LLM 통합 로직
-docs/architecture/database_design.md → judgment_executions 테이블 설계
-prompt-guide.md → LLM 판단용 Prompt 템플릿
 
-# Learning Service 개발시 (혁신 기능! ML 대체)
-docs/services/learning_service.md → 자동학습 시스템 상세 설계
-docs/algorithms/auto_rule_extraction.md → 3개 알고리즘 구현 가이드
-docs/algorithms/data_aggregation.md → 데이터 집계 알고리즘 설계
-docs/architecture/database_design.md → Learning 관련 테이블들
-prompt-guide.md → Few-shot 학습 + Rule 추출 Prompt 템플릿
+**핵심 원칙**: 각 서비스 개발시 관련 문서를 순서대로 참조
 
-# Workflow Service 개발시 (Visual Builder!)
-docs/services/workflow_editor.md → n8n 스타일 드래그앤드롭 에디터
-docs/architecture/database_design.md → workflows 테이블 설계
+1. **서비스별 상세 설계**: `docs/services/{service-name}.md`
+2. **아키텍처 참조**: `docs/architecture/` 디렉토리 문서들
+3. **LLM 관련**: `prompt-guide.md` 프롬프트 템플릿
+4. **UI 디자인**: `UI/` 디렉토리 HTML 파일들
 
-# BI Service 개발시 (MCP 기반 컴포넌트 조립)
-docs/services/bi_service.md → MCP 컴포넌트 조립 + 인사이트 생성
-docs/services/judgment_engine.md → Judgment Service와 통합 방법
-prompt-guide.md → BI 인사이트 생성용 Prompt 템플릿
-UI/judgify-inventory-chat.html → UI 디자인 참조
-
-# Chat Interface Service 개발시 (마스터 컨트롤러)
-docs/services/chat_interface_service.md → 멀티턴 대화 + 의도 분류 로직
-prompt-guide.md → 채팅 어시스턴트용 Prompt 설계
-UI/judgify-enterprise-ui.html → UI 디자인 참조
-
-# Data Visualization Service 개발시 (단순 대시보드)
-docs/services/data_visualization_service.md → 미리 정의된 차트 렌더링 로직
-UI/judgify-inventory-dashboard.html → UI 디자인 참조
-
-# 전체 시스템 이해시
-system-structure.md → 9개 마이크로서비스 간 통신 구조
-docs/architecture/system_overview.md → 상세 아키텍처 및 기술 선택
-```
+**전체 문서 목록**: [섹션 0](#-0-ver20-final-문서-목적-및-범위)의 "📚 Ver2.0 핵심 문서 구조" 참조
 
 ---
 
@@ -881,56 +818,17 @@ class ActionExecutor:
 
 ## 🎨 8. Ver2.0 Frontend 자동 생성 전략
 
-### 8.1 React 컴포넌트 자동 생성
-```typescript
-// Claude가 생성해야 하는 자동 대시보드 컴포넌트 패턴
+**핵심 개념**: BI Service와 Data Visualization Service에서 React 컴포넌트 자동 생성
 
-export const AutoGeneratedDashboard = ({ config }: DashboardProps) => {
-  const { data, loading } = useRealTimeData({
-    dataSource: config.dataSource,
-    refreshInterval: config.refreshInterval || 30000
-  });
+**전략**:
+- **BI Service (8007)**: MCP 기반 **사전 제작 컴포넌트 조립** (React 코드 생성 대신)
+- **Data Visualization Service (8006)**: 미리 정의된 차트로 단순 렌더링
 
-  return (
-    <div className="dashboard-container">
-      <h1 className="text-2xl font-bold mb-6">{config.title}</h1>
-      <div className="grid grid-cols-12 gap-4">
-        {config.components.map((component, index) => (
-          <div 
-            key={index} 
-            className={`col-span-${component.width} h-${component.height}`}
-          >
-            {component.type === 'BarChart' && (
-              <BarChart data={data[component.dataKey]} {...component.props} />
-            )}
-            {component.type === 'MetricCard' && (
-              <MetricCard value={data[component.dataKey]} {...component.props} />
-            )}
-            {/* 기타 차트 타입들 */}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// 실시간 데이터 훅 (Claude가 구현)
-const useRealTimeData = ({ dataSource, refreshInterval }) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  
-  useEffect(() => {
-    const ws = new WebSocket(`ws://localhost:8006/realtime/${dataSource}`);
-    ws.onmessage = (event) => {
-      setData(JSON.parse(event.data));
-      setLoading(false);
-    };
-    return () => ws.close();
-  }, [dataSource]);
-  
-  return { data, loading };
-};
-```
+**상세 구현**: [docs/guides/frontend-auto-generation.md](../docs/guides/frontend-auto-generation.md)
+- React 컴포넌트 패턴
+- 실시간 데이터 훅 (WebSocket)
+- 지원 차트 타입 (MetricCard, BarChart, LineChart, GaugeChart)
+- 자동 대시보드 생성 흐름
 
 ---
 
@@ -976,31 +874,19 @@ class TestJudgmentService:
 ```
 
 ### 9.2 E2E 테스트 자동화
-```python
-# Claude가 구현하는 Playwright E2E 테스트
 
-async def test_dashboard_auto_generation_e2e():
-    """대시보드 자동 생성 E2E 테스트"""
-    
-    # 1. 사용자 요청 시뮬레이션
-    page = await browser.new_page()
-    await page.goto("http://localhost:3000/dashboard")
-    
-    # 2. 자연어 요청 입력
-    await page.fill('[data-testid="dashboard-request"]', 
-                   "지난 주 워크플로우별 성공률을 보여줘")
-    await page.click('[data-testid="generate-button"]')
-    
-    # 3. 대시보드 생성 확인
-    await page.wait_for_selector('[data-testid="generated-dashboard"]')
-    
-    # 4. 차트 컴포넌트 로딩 확인
-    chart = await page.query_selector('[data-testid="bar-chart"]')
-    assert chart is not None
-    
-    # 5. 실시간 데이터 업데이트 확인
-    await page.wait_for_function("() => document.querySelectorAll('.chart-data').length > 0")
-```
+**도구**: Playwright MCP 서버 활용
+
+**핵심 테스트 시나리오**:
+- Judgment Service: 하이브리드 판단 워크플로우
+- Learning Service: 피드백 수집 + Few-shot 학습
+- Chat Interface: 멀티턴 대화 + 컨텍스트 유지
+- BI Service: 자동 대시보드 생성
+
+**상세 구현**: [docs/guides/e2e-testing.md](../docs/guides/e2e-testing.md)
+- Playwright 설정 및 테스트 패턴
+- Page Object Model (POM) 패턴
+- 네트워크 모킹 및 테스트 격리
 
 ---
 
