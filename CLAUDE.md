@@ -182,6 +182,45 @@ docs/development/plan.md:
 
 **상세 가이드**: [docs/development/git-branch-strategy.md](docs/development/git-branch-strategy.md)
 
+#### 📅 날짜 사용 규칙 (필수!)
+
+Claude가 문서나 보고서를 작성할 때 **반드시** 따라야 하는 날짜 규칙:
+
+**1. 새 문서 작성시**
+```yaml
+규칙: <env>의 "Today's date" 확인 후 현재 날짜 사용
+
+예시:
+  - <env> Today's date: 2025-10-22
+  - 파일명: COMPARISON_code_reusability_2025-10-22.md ✅
+  - 내용: "생성일: 2025-10-22" ✅
+
+잘못된 예:
+  - 과거 예시 날짜 복사: 2025-01-21 ❌
+  - 임의 날짜: 2025-01-22 ❌
+```
+
+**2. 기존 문서 참조시**
+```yaml
+규칙: 과거 작업의 날짜는 절대 수정 금지
+
+예시:
+  - "실전 예시: CLAUDE.md Phase 3 최적화 (2025-01-21)" → 유지 ✅
+  - 과거 비교 보고서 날짜 → 유지 ✅
+
+잘못된 예:
+  - 과거 날짜를 현재 날짜로 변경 ❌
+```
+
+**3. 날짜 형식**
+```yaml
+표준 형식: YYYY-MM-DD
+
+파일명: COMPARISON_{category}_{YYYY-MM-DD}.md
+문서 내: "생성일: YYYY-MM-DD"
+참조: "작업명 (YYYY-MM-DD)"
+```
+
 ---
 
 ### 🔄 Ver2.0 Final 아키텍처 변경 요약
