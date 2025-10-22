@@ -558,46 +558,33 @@ class RAGExplanationGenerator:
 
 ## 🤖 6. Ver2.0 AI 에이전트 팀 구성
 
-### 6.1 Phase 1: 핵심 기능 구현 에이전트 (8개)
-```bash
-# AI 판단 엔진 전문가
-ai-engineer → 하이브리드 판단 로직 설계 및 구현
-prompt-engineer → LLM 판단용 프롬프트 최적화
+### 18개 AI 에이전트 요약
 
-# 데이터 및 백엔드 전문가  
-database-optimization → PostgreSQL + pgvector 최적화
-data-engineer → ETL 파이프라인 및 데이터 처리
-graphql-architect → 마이크로서비스 간 API 설계
+| Phase | 에이전트 | 역할 | 주요 서비스 |
+|-------|---------|------|------------|
+| **Phase 1 (8개)** | ai-engineer | 하이브리드 판단 로직 설계 | Judgment (8002), Learning (8009) |
+| | prompt-engineer | LLM 프롬프트 최적화 | Judgment, Chat (8008) |
+| | database-optimization | PostgreSQL + pgvector | 전체 |
+| | data-engineer | ETL 파이프라인, 데이터 처리 | 전체 |
+| | graphql-architect | 마이크로서비스 간 API | 전체 |
+| | business-analyst | KPI, 비즈니스 메트릭 | BI (8007) |
+| | task-decomposition-expert | 복잡한 워크플로우 분해 | Workflow (8001) |
+| | search-specialist | RAG, 벡터 검색 | Judgment, Learning |
+| **Phase 2 (6개)** | devops-engineer | Docker/K8s 배포 자동화 | 전체 |
+| | security-engineer | JWT, RBAC, 암호화 | API Gateway (8000) |
+| | performance-engineer | 성능 테스트, 최적화 | 전체 |
+| | mlops-engineer | AI 모델 배포, 모니터링 | Learning (8009) |
+| | customer-support | 사용자 가이드, 문서화 | 전체 |
+| | risk-manager | 안정성, 장애 대응 | 전체 |
+| **Phase 3 (4개)** | technical-writer | 문서화 표준화 | 전체 |
+| | observability-engineer | 모니터링, 로그 분석 | Logging (8005) |
+| | frontend-architect | 대시보드 UI/UX | Data Viz (8006), BI (8007) |
+| | academic-researcher | AI 논문, 기술 동향 | 전체 |
 
-# 비즈니스 로직 전문가
-business-analyst → KPI 설계 및 비즈니스 메트릭
-task-decomposition-expert → 복잡한 워크플로우 분해 설계
-search-specialist → RAG 시스템 및 벡터 검색 구현
-```
-
-### 6.2 Phase 2: 확장 및 연동 에이전트 (6개)
-```bash
-# 인프라 및 보안
-devops-engineer → Docker/Kubernetes 배포 자동화
-security-engineer → JWT, RBAC, 데이터 암호화
-performance-engineer → 성능 테스트 및 최적화
-
-# MLOps 및 운영
-mlops-engineer → AI 모델 배포 및 모니터링
-customer-support → 사용자 가이드 및 문서화
-risk-manager → 시스템 안정성 및 장애 대응
-```
-
-### 6.3 Phase 3: 고급 기능 에이전트 (4개)
-```bash
-# 문서화 및 모니터링
-technical-writer → 프로젝트 문서화 표준화
-observability-engineer → 모니터링 및 로그 분석
-
-# UI/UX 및 연구
-frontend-architect → 자동 생성 대시보드 UI/UX
-academic-researcher → 최신 AI 논문 및 기술 동향 분석
-```
+**상세 가이드**: [docs/guides/hybrid-ai-strategy.md](../docs/guides/hybrid-ai-strategy.md)
+- 18개 에이전트 상세 설명
+- 8개 Skill 상세 설명
+- 워크플로우 패턴 및 사용 예시
 
 ### 6.4 서비스별 에이전트 매핑 전략 (Ver2.0 Final)
 | 서비스 | 주담당 에이전트 | 협업 에이전트 |
@@ -725,94 +712,28 @@ Task tool (performance-engineer): 문제 분석 (30분)
 
 ## 🔄 7. Ver2.0 MCP 및 외부 연동 전략
 
-### 7.1 핵심 MCP 도구 (1단계 - 즉시 필요)
-```python
-# Ver2.0에서 Claude가 활용하는 핵심 MCP 도구들
+### 핵심 MCP 도구
 
-CORE_MCP_TOOLS = {
-    # 데이터베이스 및 파일시스템
-    "postgresql-integration": "PostgreSQL 직접 연결 (Supabase 대체)",
-    "filesystem-access": "프로젝트 코드 관리 및 파일 처리",
-    
-    # 코드 관리 및 협업
-    "github-integration": "코드 관리 및 CI/CD 파이프라인",
-    "memory-integration": "AI 판단 컨텍스트 및 세션 관리",
-    
-    # 테스트 및 모니터링
-    "playwright-mcp-server": "마이크로서비스 E2E 테스트 자동화"
-}
-```
+| 우선순위 | 도구 | 용도 | 관련 서비스 |
+|---------|------|------|------------|
+| **1단계 (필수)** | postgresql-integration | DB 직접 연결 | 전체 |
+| | filesystem-access | 프로젝트 코드 관리 | 전체 |
+| | github-integration | CI/CD | 전체 |
+| | memory-integration | 컨텍스트 관리 | Judgment, Chat |
+| | playwright-mcp-server | E2E 테스트 | 전체 |
+| **2단계 (확장)** | context7 | 라이브러리 문서 | 개발 |
+| | circleci | CI/CD 자동화 | 배포 |
+| | deepgraph-typescript | 코드 분석 | Workflow |
+| | openai | LLM 판단, 대시보드 | Judgment, BI |
+| | slack | 알림 | Action (8003) |
+| | notion | 문서 관리 | 문서화 |
+| | terminal | Docker/K8s 명령 | 배포 |
+| | redis | 캐시, 세션 | 전체 |
 
-### 7.2 확장 MCP 도구 (2단계 - 기능 확장)
-```python
-EXTENDED_MCP_TOOLS = {
-    # 개발 도구
-    "context7": "최신 라이브러리 문서 및 API 참조",
-    "circleci": "CI/CD 파이프라인 자동화",
-    "deepgraph-typescript": "코드 분석 및 아키텍처 검증",
-    
-    # AI/LLM 관련  
-    "openai": "하이브리드 판단 및 대시보드 생성용 LLM",
-    
-    # 외부 연동
-    "slack": "판단 결과 알림 및 실시간 보고",
-    "notion": "프로젝트 문서 및 설계 문서 관리",
-    
-    # 운영 도구
-    "terminal": "Docker/Kubernetes 배포 명령",
-    "redis": "캐시 및 세션 관리"
-}
-```
-
-### 7.3 Judgify-core 특화 MCP 활용 시나리오
-```bash
-# PostgreSQL MCP 활용 예시
-/query "SELECT * FROM judgment_executions WHERE confidence_score > 0.8"
-/analyze-workflow-performance
-/optimize-database-schema
-
-# Memory MCP 활용 예시  
-/save-context "하이브리드 판단 로직 개선사항"
-/restore-context "마이크로서비스 아키텍처 설계"
-
-# GitHub MCP 활용 예시
-/create-issue "Judgment Service 성능 최적화"
-/review-pr 123
-/generate-release-notes v2.0.0
-
-# Context7 MCP 활용 예시
-/get-docs "fastapi async patterns"
-/search-examples "postgresql pgvector integration"
-```
-
-### 7.4 외부 시스템 연동 패턴
-```python
-# Claude가 구현해야 하는 Action Service 패턴
-
-class ActionExecutor:
-    async def execute_action(self, judgment_result: JudgmentResult) -> ActionResult:
-        actions = judgment_result.recommended_actions
-        
-        results = []
-        for action in actions:
-            if action.type == "slack_notification":
-                result = await self.slack_client.send_alert(
-                    channel="#alerts",
-                    message=f"판단 완료: {judgment_result.result}",
-                    confidence=judgment_result.confidence
-                )
-            
-            elif action.type == "mcp_control":
-                result = await self.mcp_client.execute_command(
-                    system=action.target_system,
-                    command=action.command,
-                    parameters=action.parameters
-                )
-            
-            results.append(result)
-            
-        return ActionResult(executed_actions=results)
-```
+**상세 가이드**: [docs/guides/mcp-integration.md](../docs/guides/mcp-integration.md)
+- MCP 도구별 활용 시나리오 (PostgreSQL, Memory, GitHub, Context7)
+- 외부 시스템 연동 패턴 (Action Service 코드)
+- 설치 및 설정 가이드
 
 ---
 
@@ -892,58 +813,19 @@ class TestJudgmentService:
 
 ## 🚀 10. Ver2.0 배포 및 운영 자동화
 
-### 10.1 Docker + Kubernetes 배포 패턴
-```yaml
-# Claude가 생성하는 Kubernetes 배포 설정
+### 10.1 Docker + Kubernetes 배포 전략
 
-# judgment-service-deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: judgment-service
-  namespace: judgify-prod
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: judgment-service
-  template:
-    spec:
-      containers:
-      - name: judgment-service
-        image: judgify/judgment-service:v2.0.0
-        ports:
-        - containerPort: 8002
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: postgres-secret
-              key: connection-url
-        - name: REDIS_URL
-          valueFrom:
-            secretKeyRef:
-              name: redis-secret  
-              key: connection-url
-        - name: OPENAI_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: openai-secret
-              key: api-key
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi" 
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8002
-          initialDelaySeconds: 30
-          periodSeconds: 10
-```
+**핵심 원칙**:
+- 마이크로서비스별 독립 배포 (9개 서비스)
+- 환경별 설정 분리 (dev/staging/prod)
+- Secret 관리 (PostgreSQL, Redis, OpenAI API)
+- 헬스체크 및 리소스 제한 (CPU/Memory)
+- 롤링 업데이트 (무중단 배포)
+
+**상세 구현**: [docs/operations/deployment_guide.md](../operations/deployment_guide.md)
+- Kubernetes 배포 YAML 템플릿
+- Docker 이미지 빌드 전략
+- CI/CD 파이프라인 설정
 
 ### 10.2 모니터링 및 알림 자동화
 ```python
