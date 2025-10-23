@@ -170,6 +170,80 @@ def get_last_commits(repo_path: Path, count: int = None) -> List[Dict]:
         return []
 
 
+def extract_keywords(title: str, body: str, max_keywords: int = 4) -> str:
+    """
+    커밋 제목과 본문에서 핵심 키워드 추출 (3-5개)
+
+    Args:
+        title: 커밋 제목
+        body: 커밋 본문
+        max_keywords: 최대 키워드 개수 (기본 4개)
+
+    Returns:
+        쉼표로 구분된 키워드 문자열 (예: "Judgment Engine, Rule, LLM, Few-shot")
+    """
+    import re
+
+    # 불용어 (제거할 단어들)
+    stopwords = {
+        "추가", "개선", "수정", "제거", "변경", "업데이트", "구현", "완료", "작업", "진행",
+        "Week", "Phase", "Day", "완료", "시작", "종료", "등", "및", "또는", "그리고",
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with"
+    }
+
+    # 1. 제목에서 키워드 추출
+    # Conventional Commits 타입 제거
+    clean_title = title
+    for prefix in ["feat:", "fix:", "docs:", "style:", "refactor:", "test:", "chore:", "perf:"]:
+        if clean_title.lower().startswith(prefix):
+            clean_title = clean_title[len(prefix):].strip()
+            break
+
+    # 제목을 단어로 분리 (공백, -, /, 등으로 분리)
+    title_words = re.split(r'[\s\-/,]+', clean_title)
+
+    # 2. 본문 첫 5줄에서 키워드 추출
+    body_keywords = []
+    if body:
+        lines = body.split('\n')[:5]  # 첫 5줄만
+        for line in lines:
+            # "- ", "* ", "✅ " 등으로 시작하는 항목 우선 추출
+            if re.match(r'^[\-\*\+✅❌🔥]', line.strip()):
+                words = re.split(r'[\s\-/,:()\[\]]+', line)
+                body_keywords.extend(words)
+
+    # 3. 모든 단어 정리
+    all_words = title_words + body_keywords
+
+    # 4. 필터링 및 점수 계산
+    keyword_scores = {}
+    for word in all_words:
+        word = word.strip()
+
+        # 조건: 2글자 이상, 불용어 아님, 특수문자 아님
+        if (len(word) >= 2 and
+            word.lower() not in stopwords and
+            not re.match(r'^[\d\W]+$', word)):
+
+            # 영문/한글 혼합 단어 우선 (기술 용어)
+            is_tech_term = bool(re.search(r'[A-Za-z]', word)) and bool(re.search(r'[가-힣]', word))
+
+            # 점수 계산
+            score = keyword_scores.get(word, 0)
+            score += 2 if is_tech_term else 1  # 기술 용어는 가중치 2배
+            keyword_scores[word] = score
+
+    # 5. 상위 키워드 선택 (점수 순)
+    sorted_keywords = sorted(keyword_scores.items(), key=lambda x: x[1], reverse=True)
+    top_keywords = [kw for kw, score in sorted_keywords[:max_keywords]]
+
+    # 6. 결과 반환 (없으면 제목 앞 30자)
+    if top_keywords:
+        return ", ".join(top_keywords)
+    else:
+        return clean_title[:30] + ("..." if len(clean_title) > 30 else "")
+
+
 def parse_commit_message(commit: Dict) -> Dict:
     """
     커밋 메시지 파싱하여 Notion 블록으로 변환
@@ -180,11 +254,14 @@ def parse_commit_message(commit: Dict) -> Dict:
     Returns:
         {"title": "...", "blocks": [...]}
     """
-    # 제목에서 Conventional Commits 타입 제거 (feat:, fix:, docs: 등)
-    title = commit["title"]
+    # 제목 요약 (3-5개 키워드)
+    summary_title = extract_keywords(commit["title"], commit["body"])
+
+    # 원본 제목 (Conventional Commits 타입 제거)
+    full_title = commit["title"]
     for prefix in ["feat:", "fix:", "docs:", "style:", "refactor:", "test:", "chore:", "perf:"]:
-        if title.lower().startswith(prefix):
-            title = title[len(prefix):].strip()
+        if full_title.lower().startswith(prefix):
+            full_title = full_title[len(prefix):].strip()
             break
 
     # 본문이 있으면 Quote Block으로 처리 (가독성 우선)
@@ -232,24 +309,41 @@ def parse_commit_message(commit: Dict) -> Dict:
         }
     })
 
-    # 3. 커밋 제목 (heading_3)
+    # 3. 커밋 제목 (heading_3) - 요약된 키워드
     blocks.append({
         "object": "block",
         "type": "heading_3",
         "heading_3": {
             "rich_text": [{
                 "type": "text",
-                "text": {"content": title},
+                "text": {"content": summary_title},  # ← 키워드 요약 사용
                 "annotations": {"bold": True}
             }]
         }
     })
 
+    # 3-1. 원본 제목 (작은 글씨로 표시, 선택적)
+    if summary_title != full_title:
+        blocks.append({
+            "object": "block",
+            "type": "paragraph",
+            "paragraph": {
+                "rich_text": [{
+                    "type": "text",
+                    "text": {"content": f"📄 {full_title}"},
+                    "annotations": {
+                        "color": "gray",
+                        "italic": True
+                    }
+                }]
+            }
+        })
+
     # 4. 본문 블록들 추가
     blocks.extend(content_blocks)
 
     return {
-        "title": title,
+        "title": summary_title,  # ← 요약된 키워드 반환
         "blocks": blocks
     }
 
