@@ -77,6 +77,11 @@ jsonschema==4.21.1       # JSON validation
 shortuuid==1.0.12        # Short UUID generation
 
 # ===================================
+# Notion Integration
+# ===================================
+notion-client==2.5.0     # Notion API client
+
+# ===================================
 # Testing
 # ===================================
 pytest==8.0.0

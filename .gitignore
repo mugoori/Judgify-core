@@ -41,6 +41,9 @@ dist/
 build/
 out/
 
+# Rust build artifacts (Tauri)
+src-tauri/target/
+
 # Temporary files
 *.tmp
 *.temp
