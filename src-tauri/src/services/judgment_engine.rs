@@ -40,7 +40,7 @@ impl JudgmentEngine {
         match self.rule_engine.evaluate(&input) {
             Ok(rule_result) if rule_result.confidence >= 0.7 => {
                 // Rule succeeded with high confidence
-                self.save_result(&rule_result)?;
+                self.save_result(&rule_result, &input)?;
                 return Ok(rule_result);
             }
             Ok(rule_result) => {
@@ -48,12 +48,12 @@ impl JudgmentEngine {
                 match self.llm_engine.evaluate(&input).await {
                     Ok(llm_result) => {
                         let final_result = self.combine_results(rule_result, llm_result);
-                        self.save_result(&final_result)?;
+                        self.save_result(&final_result, &input)?;
                         Ok(final_result)
                     }
                     Err(_) => {
                         // LLM failed, use rule result
-                        self.save_result(&rule_result)?;
+                        self.save_result(&rule_result, &input)?;
                         Ok(rule_result)
                     }
                 }
@@ -61,7 +61,7 @@ impl JudgmentEngine {
             Err(_) => {
                 // Rule failed, use LLM only
                 let llm_result = self.llm_engine.evaluate(&input).await?;
-                self.save_result(&llm_result)?;
+                self.save_result(&llm_result, &input)?;
                 Ok(llm_result)
             }
         }
@@ -86,11 +86,11 @@ impl JudgmentEngine {
         }
     }
 
-    fn save_result(&self, result: &JudgmentResult) -> anyhow::Result<()> {
+    fn save_result(&self, result: &JudgmentResult, input: &JudgmentInput) -> anyhow::Result<()> {
         let judgment = Judgment {
             id: result.id.clone(),
             workflow_id: result.workflow_id.clone(),
-            input_data: serde_json::to_string(&serde_json::json!({}))?,
+            input_data: serde_json::to_string(&input.input_data)?,
             result: result.result,
             confidence: result.confidence,
             method_used: result.method_used.clone(),

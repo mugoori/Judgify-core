@@ -1,6 +1,5 @@
 use crate::services::judgment_engine::{JudgmentEngine, JudgmentInput, JudgmentResult};
 use serde::{Deserialize, Serialize};
-use tauri::State;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExecuteJudgmentRequest {

@@ -1,4 +1,4 @@
-use crate::services::bi_service::{BiService, BiInsight};
+use crate::services::bi_service::BiService;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]

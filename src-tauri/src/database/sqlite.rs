@@ -105,6 +105,33 @@ impl Database {
         Ok(())
     }
 
+    pub fn get_judgment(&self, id: &str) -> Result<Option<Judgment>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, workflow_id, input_data, result, confidence, method_used, explanation, created_at
+             FROM judgments WHERE id = ?1"
+        )?;
+
+        let result = stmt.query_row([id], |row| {
+            Ok(Judgment {
+                id: row.get(0)?,
+                workflow_id: row.get(1)?,
+                input_data: row.get(2)?,
+                result: row.get::<_, i32>(3)? != 0,
+                confidence: row.get(4)?,
+                method_used: row.get(5)?,
+                explanation: row.get(6)?,
+                created_at: row.get::<_, String>(7)?.parse().unwrap_or(Utc::now()),
+            })
+        });
+
+        match result {
+            Ok(judgment) => Ok(Some(judgment)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
     pub fn get_judgment_history(&self, workflow_id: Option<String>, limit: u32) -> Result<Vec<Judgment>> {
         let conn = self.conn.lock().unwrap();
 
@@ -150,7 +177,13 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT INTO workflows (id, name, definition, rule_expression, version, is_active, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                definition = excluded.definition,
+                rule_expression = excluded.rule_expression,
+                version = excluded.version,
+                is_active = excluded.is_active",
             params![
                 &workflow.id,
                 &workflow.name,

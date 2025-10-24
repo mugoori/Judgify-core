@@ -123,8 +123,10 @@ impl LLMEngine {
 
     fn get_few_shot_samples(&self, workflow_id: &str, limit: u32) -> anyhow::Result<Vec<crate::database::TrainingSample>> {
         // 정확도가 높은 훈련 샘플만 가져오기 (accuracy >= 0.8)
-        Ok(self.db.get_training_samples(workflow_id, limit)
-            .unwrap_or_default()
+        let samples = self.db.get_training_samples(workflow_id, limit)
+            .map_err(|e| anyhow::anyhow!("Failed to retrieve training samples: {}", e))?;
+
+        Ok(samples
             .into_iter()
             .filter(|s| s.accuracy.unwrap_or(0.0) >= 0.8)
             .collect())

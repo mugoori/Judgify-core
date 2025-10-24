@@ -34,11 +34,11 @@ impl WorkflowService {
     }
 
     pub fn get_workflow(&self, id: &str) -> anyhow::Result<Option<Workflow>> {
-        self.db.get_workflow(id)
+        self.db.get_workflow(id).map_err(|e| anyhow::anyhow!(e))
     }
 
     pub fn get_all_workflows(&self) -> anyhow::Result<Vec<Workflow>> {
-        self.db.get_all_workflows()
+        self.db.get_all_workflows().map_err(|e| anyhow::anyhow!(e))
     }
 
     pub fn update_workflow(

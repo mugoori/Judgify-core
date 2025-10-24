@@ -28,8 +28,8 @@ MICROSERVICES_STATUS = {
 # Desktop App 구현 상태
 DESKTOP_APP_STATUS = {
     "frontend": ("React + TypeScript", "in_progress", 60),
-    "backend": ("Tauri + Rust", "in_progress", 60),
-    "database": ("SQLite", "in_progress", 70),
+    "backend": ("Tauri + Rust", "in_progress", 75),  # Week 2 Phase 1 완료: Judgment Engine 고도화
+    "database": ("SQLite", "in_progress", 80),  # Feedback, TrainingSample 테이블 활용
 }
 
 # 문서화 상태

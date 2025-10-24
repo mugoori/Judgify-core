@@ -85,7 +85,18 @@
       "Bash(git mv:*)",
       "Bash(git rm:*)",
       "Bash(git push:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(dir:*)",
+      "Bash(where:*)",
+      "Bash(copy \"C:\\Users\\dilel\\AppData\\Roaming\\Claude\\claude_desktop_config.json\" \"C:\\Users\\dilel\\AppData\\Roaming\\Claude\\claude_desktop_config.json.backup\")",
+      "Bash(playwright install:*)",
+      "Bash(iconv:*)",
+      "Bash(git config:*)",
+      "Bash(if exist .githooks dir .githooks)",
+      "Bash(chmod:*)",
+      "Bash(bash:*)",
+      "Bash(git reset:*)",
+      "Bash(cargo add:*)"
     ],
     "deny": [],
     "additionalDirectories": [

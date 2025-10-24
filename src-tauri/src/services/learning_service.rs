@@ -33,7 +33,23 @@ impl LearningService {
 
         // If positive feedback, create training sample
         if value > 0 {
-            // TODO: Create training sample from judgment
+            // Retrieve judgment to create training sample
+            if let Some(judgment) = self.db.get_judgment(&feedback.judgment_id)
+                .map_err(|e| anyhow::anyhow!("Failed to retrieve judgment: {}", e))?
+            {
+                let training_sample = TrainingSample {
+                    id: Uuid::new_v4().to_string(),
+                    workflow_id: judgment.workflow_id.clone(),
+                    input_data: judgment.input_data.clone(),
+                    expected_result: judgment.result,
+                    actual_result: Some(judgment.result),  // 피드백이 긍정이므로 예상과 실제 동일
+                    accuracy: Some(judgment.confidence),
+                    created_at: Utc::now(),
+                };
+
+                self.db.save_training_sample(&training_sample)
+                    .map_err(|e| anyhow::anyhow!("Failed to save training sample: {}", e))?;
+            }
         }
 
         Ok(())

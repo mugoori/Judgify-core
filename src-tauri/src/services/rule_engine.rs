@@ -13,7 +13,6 @@ struct CachedRule {
 }
 
 pub struct RuleEngine {
-    engine: Engine,
     db: Database,
     // Rule 표현식 캐시 (성능 최적화)
     rule_cache: Arc<Mutex<HashMap<String, CachedRule>>>,
@@ -21,30 +20,56 @@ pub struct RuleEngine {
 
 impl RuleEngine {
     pub fn new() -> anyhow::Result<Self> {
+        Ok(Self {
+            db: Database::new()?,
+            rule_cache: Arc::new(Mutex::new(HashMap::new())),
+        })
+    }
+
+    // Engine 생성 헬퍼 (매 호출시 새로 생성하여 Send 트레잇 문제 해결)
+    fn create_engine() -> Engine {
         let mut engine = Engine::new();
         engine.set_max_operations(10000);
 
         // 사용자 정의 함수 등록 (Array/Object 헬퍼)
         engine.register_fn("contains", |arr: Array, val: Dynamic| -> bool {
-            arr.iter().any(|v| v.eq(&val))
+            arr.into_iter().any(|v| {
+                // Dynamic 값 비교 (Rhai의 내부 비교 로직 사용)
+                if let (Some(v_i), Some(val_i)) = (v.as_int().ok(), val.as_int().ok()) {
+                    v_i == val_i
+                } else if let (Some(v_f), Some(val_f)) = (v.as_float().ok(), val.as_float().ok()) {
+                    v_f == val_f
+                } else if let (Some(v_s), Some(val_s)) = (v.clone().into_immutable_string().ok(), val.clone().into_immutable_string().ok()) {
+                    v_s == val_s
+                } else if let (Some(v_b), Some(val_b)) = (v.as_bool().ok(), val.as_bool().ok()) {
+                    v_b == val_b
+                } else {
+                    false
+                }
+            })
         });
 
         engine.register_fn("len", |arr: Array| -> i64 {
             arr.len() as i64
         });
 
-        engine.register_fn("has_key", |map: Map, key: String| -> bool {
-            map.contains_key(&key)
+        engine.register_fn("has_key", |map: Map, key: &str| -> bool {
+            map.contains_key(key)
         });
 
-        Ok(Self {
-            engine,
-            db: Database::new()?,
-            rule_cache: Arc::new(Mutex::new(HashMap::new())),
-        })
+        engine
     }
 
     pub fn evaluate(&self, input: &JudgmentInput) -> anyhow::Result<JudgmentResult> {
+        // 주기적으로 캐시 정리 (캐시 크기 기반)
+        {
+            let cache = self.rule_cache.lock().unwrap();
+            if cache.len() > 100 {  // 100개 이상일 때 정리
+                drop(cache);  // lock 해제
+                self.cleanup_cache();
+            }
+        }
+
         let workflow = self
             .db
             .get_workflow(&input.workflow_id)?
@@ -121,9 +146,9 @@ impl RuleEngine {
             }
         }
 
-        // Execute rule with detailed error handling
-        let result: bool = self
-            .engine
+        // Execute rule with detailed error handling (매번 새 Engine 생성)
+        let engine = Self::create_engine();
+        let result: bool = engine
             .eval_with_scope(&mut scope, &rule_expression)
             .map_err(|e| {
                 anyhow::anyhow!(

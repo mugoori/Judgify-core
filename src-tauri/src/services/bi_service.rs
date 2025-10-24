@@ -15,7 +15,7 @@ impl BiService {
         Ok(Self)
     }
 
-    pub async fn generate_insight(&self, user_request: String) -> anyhow::Result<BiInsight> {
+    pub async fn generate_insight(&self, _user_request: String) -> anyhow::Result<BiInsight> {
         // Simplified BI insight generation
         Ok(BiInsight {
             title: "불량률 분석 결과".to_string(),

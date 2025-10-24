@@ -62,7 +62,7 @@ pub async fn send_chat_message(
 }
 
 #[tauri::command]
-pub async fn get_chat_history(session_id: String) -> Result<Vec<ChatMessage>, String> {
+pub async fn get_chat_history(_session_id: String) -> Result<Vec<ChatMessage>, String> {
     // Simplified - in real implementation, this would retrieve from database
     Ok(vec![])
 }
