@@ -45,9 +45,28 @@ impl LLMEngine {
         })
     }
 
+    /// Few-shot 샘플을 명시적으로 전달받는 메서드 (Judgment Engine 통합용)
+    pub async fn evaluate_with_few_shot(
+        &self,
+        input: &JudgmentInput,
+        few_shot_samples: &[crate::database::TrainingSample],
+    ) -> anyhow::Result<JudgmentResult> {
+        self.evaluate_internal(input, few_shot_samples).await
+    }
+
+    /// 기존 evaluate() 메서드 (내부적으로 Few-shot 샘플 검색)
     pub async fn evaluate(&self, input: &JudgmentInput) -> anyhow::Result<JudgmentResult> {
         // Few-shot 학습 샘플 가져오기 (10-20개)
         let few_shot_samples = self.get_few_shot_samples(&input.workflow_id, 15)?;
+        self.evaluate_internal(input, &few_shot_samples).await
+    }
+
+    /// 실제 평가 로직 (내부 메서드)
+    async fn evaluate_internal(
+        &self,
+        input: &JudgmentInput,
+        few_shot_samples: &[crate::database::TrainingSample],
+    ) -> anyhow::Result<JudgmentResult> {
 
         let prompt = self.build_prompt(input, &few_shot_samples)?;
 
@@ -59,7 +78,7 @@ impl LLMEngine {
         ];
 
         // Few-shot 예시를 메시지에 추가
-        for sample in &few_shot_samples {
+        for sample in few_shot_samples {
             messages.push(Message {
                 role: "user".to_string(),
                 content: format!("입력 데이터:\n{}", sample.input_data),

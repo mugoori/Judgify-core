@@ -67,12 +67,13 @@ pub async fn get_few_shot_samples(
 }
 
 #[tauri::command]
-pub async fn extract_rules(workflow_id: String) -> Result<Vec<String>, String> {
+pub async fn extract_rules(workflow_id: String) -> Result<String, String> {
     let service = LearningService::new().map_err(|e| e.to_string())?;
 
-    let rules = service
+    let result = service
         .extract_rules(workflow_id)
+        .await
         .map_err(|e| e.to_string())?;
 
-    Ok(rules)
+    Ok(result)
 }

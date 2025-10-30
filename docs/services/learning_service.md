@@ -1,5 +1,8 @@
 # Learning Service 상세 설계 (Port 8009, Ver2.0 Final) 🔥
 
+**완료율**: 100% ✅ (2025-10-30 완성)
+**상태**: ✅ Rule 저장 기능 추가 완료, 3개 알고리즘 구현 완료 (빈도 분석 + LLM 패턴 발견), 테스트 25개 통과
+
 ## 1. 개요
 
 ### 1.1 서비스 목적
@@ -496,7 +499,50 @@ async def extract_rules(
     # ... 기타 알고리즘
 ```
 
-### 5.2 Few-shot 샘플 검색 API
+### 5.2 Rule 저장 API (신규 추가! 🆕)
+```python
+@app.post("/api/v2/learning/save-rule")
+async def save_extracted_rule(
+    workflow_id: str,
+    rule_expression: str,
+    confidence: float
+) -> SaveRuleResponse:
+    """
+    추출된 Rule을 Workflow에 자동 저장
+
+    요청 예시:
+    POST /api/v2/learning/save-rule
+    {
+      "workflow_id": "temp_monitoring_v2",
+      "rule_expression": "temperature > 85 && vibration > 40",
+      "confidence": 0.92
+    }
+
+    응답 예시:
+    {
+      "success": true,
+      "workflow_id": "temp_monitoring_v2",
+      "old_version": 1,
+      "new_version": 2,
+      "updated_at": "2025-10-30T14:23:45Z",
+      "message": "Rule이 Workflow에 성공적으로 저장되었습니다."
+    }
+
+    에러 응답 (Workflow 없음):
+    {
+      "success": false,
+      "error": "Workflow not found: temp_monitoring_v2"
+    }
+    """
+    # Learning Service의 save_extracted_rule() 호출
+    learning_service.save_extracted_rule(workflow_id, rule_expression, confidence)
+
+    return {"success": True, "workflow_id": workflow_id, ...}
+```
+
+**자동 통합**: `extract_rules()` API는 내부적으로 `save_extracted_rule()`을 자동 호출하여 추출된 Rule을 즉시 Workflow에 저장합니다.
+
+### 5.3 Few-shot 샘플 검색 API
 ```python
 @app.post("/api/v2/learning/few-shot-samples")
 async def get_few_shot_samples(
