@@ -23,6 +23,7 @@ fn main() {
 
             // BI Service Commands
             bi::generate_bi_insight,
+            bi::generate_bi_insight_stream,  // Phase 5: 실시간 스트리밍
 
             // Chat Service Commands
             chat::send_chat_message,

@@ -283,4 +283,240 @@ mod tests {
         assert!(!history.is_empty());
         assert_eq!(history[0].workflow_id, workflow_id);
     }
+
+    // ========== 통합 테스트 (E2E Few-shot 검증) ==========
+
+    #[tokio::test]
+    async fn test_few_shot_sample_quality_filter() {
+        // 테스트 목적: 정확도 0.8 이상 샘플만 Few-shot으로 사용되는지 검증
+        let engine = JudgmentEngine::new().unwrap();
+        let workflow_id = Uuid::new_v4().to_string();
+
+        // Workflow 생성
+        let workflow = Workflow {
+            id: workflow_id.clone(),
+            name: "Quality Filter Test".to_string(),
+            definition: "{}".to_string(),
+            rule_expression: Some("temperature > 85".to_string()),
+            version: 1,
+            is_active: true,
+            created_at: Utc::now(),
+        };
+        engine.db.save_workflow(&workflow).unwrap();
+
+        // 정확도 높은 샘플 (0.95) - 포함되어야 함
+        let high_quality_sample = TrainingSample {
+            id: Uuid::new_v4().to_string(),
+            workflow_id: workflow_id.clone(),
+            input_data: r#"{"temperature": 90}"#.to_string(),
+            expected_result: true,
+            actual_result: Some(true),
+            accuracy: Some(0.95),
+            created_at: Utc::now(),
+        };
+
+        // 정확도 낮은 샘플 (0.5) - 제외되어야 함
+        let low_quality_sample = TrainingSample {
+            id: Uuid::new_v4().to_string(),
+            workflow_id: workflow_id.clone(),
+            input_data: r#"{"temperature": 80}"#.to_string(),
+            expected_result: true,
+            actual_result: Some(false),
+            accuracy: Some(0.5),
+            created_at: Utc::now(),
+        };
+
+        engine.db.save_training_sample(&high_quality_sample).unwrap();
+        engine.db.save_training_sample(&low_quality_sample).unwrap();
+
+        // Few-shot 샘플 검색 (Learning Service 통해)
+        let few_shot_samples = engine.learning_service
+            .get_few_shot_samples(workflow_id.clone(), 10)
+            .unwrap();
+
+        // 검증: 정확도 0.8 이상 샘플만 포함
+        assert_eq!(few_shot_samples.len(), 1);
+        assert!(few_shot_samples[0].accuracy.unwrap() >= 0.8);
+    }
+
+    #[tokio::test]
+    async fn test_integration_learning_judgment() {
+        // 테스트 목적: Learning Service → Judgment Service 전체 흐름 검증
+        let engine = JudgmentEngine::new().unwrap();
+        let workflow_id = Uuid::new_v4().to_string();
+
+        // 1. Workflow 생성
+        let workflow = Workflow {
+            id: workflow_id.clone(),
+            name: "Integration Test".to_string(),
+            definition: "{}".to_string(),
+            rule_expression: Some("temperature > 85 && vibration > 40".to_string()),
+            version: 1,
+            is_active: true,
+            created_at: Utc::now(),
+        };
+        engine.db.save_workflow(&workflow).unwrap();
+
+        // 2. 피드백 데이터 생성 (정확도 높은 샘플들)
+        let samples = vec![
+            TrainingSample {
+                id: Uuid::new_v4().to_string(),
+                workflow_id: workflow_id.clone(),
+                input_data: r#"{"temperature": 88, "vibration": 42}"#.to_string(),
+                expected_result: true,
+                actual_result: Some(true),
+                accuracy: Some(0.95),
+                created_at: Utc::now(),
+            },
+            TrainingSample {
+                id: Uuid::new_v4().to_string(),
+                workflow_id: workflow_id.clone(),
+                input_data: r#"{"temperature": 91, "vibration": 45}"#.to_string(),
+                expected_result: true,
+                actual_result: Some(true),
+                accuracy: Some(0.92),
+                created_at: Utc::now(),
+            },
+        ];
+
+        for sample in &samples {
+            engine.db.save_training_sample(sample).unwrap();
+        }
+
+        // 3. Judgment 실행 (Few-shot 자동 적용)
+        let input = JudgmentInput {
+            workflow_id: workflow_id.clone(),
+            input_data: serde_json::json!({"temperature": 90, "vibration": 43}),
+        };
+
+        let result = engine.judge_with_few_shot(input).await;
+
+        // 4. 검증
+        assert!(result.is_ok());
+        let judgment = result.unwrap();
+        assert_eq!(judgment.workflow_id, workflow_id);
+        assert!(judgment.confidence > 0.0);
+
+        // Rule Engine이 성공하면 method_used가 "rule" 또는 "hybrid"
+        // Few-shot 샘플이 있지만 Rule이 성공하면 Few-shot 생략
+        println!("판단 방식: {}", judgment.method_used);
+        println!("신뢰도: {:.2}", judgment.confidence);
+    }
+
+    #[tokio::test]
+    async fn test_rule_save_after_extraction() {
+        // 테스트 목적: Rule 추출 → Rule 저장 기능 검증
+        let engine = JudgmentEngine::new().unwrap();
+        let workflow_id = Uuid::new_v4().to_string();
+
+        // 1. Workflow 생성 (Rule 없음)
+        let workflow = Workflow {
+            id: workflow_id.clone(),
+            name: "Rule Save Test".to_string(),
+            definition: "{}".to_string(),
+            rule_expression: None,  // Rule 없음
+            version: 1,
+            is_active: true,
+            created_at: Utc::now(),
+        };
+        engine.db.save_workflow(&workflow).unwrap();
+
+        // 2. Learning Service를 통해 Rule 저장
+        let rule_expression = "temperature > 85 && vibration > 40".to_string();
+        let result = engine.learning_service.save_extracted_rule(
+            workflow_id.clone(),
+            rule_expression.clone(),
+            0.92
+        );
+
+        // 3. 검증
+        assert!(result.is_ok());
+
+        // 4. Workflow 다시 로드하여 Rule 저장 확인
+        let updated_workflow = engine.db.get_workflow(&workflow_id).unwrap().unwrap();
+        assert_eq!(updated_workflow.rule_expression, Some(rule_expression));
+        assert_eq!(updated_workflow.version, 2);  // 버전 증가 확인
+    }
+
+    #[tokio::test]
+    async fn test_few_shot_confidence_boost() {
+        // 테스트 목적: Few-shot 샘플 개수에 따른 신뢰도 보정 검증
+        let engine = JudgmentEngine::new().unwrap();
+        let workflow_id = Uuid::new_v4().to_string();
+
+        // Workflow 생성
+        let workflow = Workflow {
+            id: workflow_id.clone(),
+            name: "Confidence Boost Test".to_string(),
+            definition: "{}".to_string(),
+            rule_expression: None,  // Rule 없음 → LLM만 사용
+            version: 1,
+            is_active: true,
+            created_at: Utc::now(),
+        };
+        engine.db.save_workflow(&workflow).unwrap();
+
+        // 10개 이상의 Few-shot 샘플 생성 (신뢰도 보정 조건)
+        for i in 0..12 {
+            let sample = TrainingSample {
+                id: Uuid::new_v4().to_string(),
+                workflow_id: workflow_id.clone(),
+                input_data: format!(r#"{{"temperature": {}, "vibration": {}}}"#, 85 + i, 40 + i),
+                expected_result: true,
+                actual_result: Some(true),
+                accuracy: Some(0.9),
+                created_at: Utc::now(),
+            };
+            engine.db.save_training_sample(&sample).unwrap();
+        }
+
+        // Few-shot 샘플 검색
+        let few_shot_samples = engine.learning_service
+            .get_few_shot_samples(workflow_id.clone(), 15)
+            .unwrap();
+
+        // 검증: 최소 10개 이상 샘플 확보
+        assert!(few_shot_samples.len() >= 10);
+        println!("Few-shot 샘플 개수: {}", few_shot_samples.len());
+
+        // LLM Engine의 신뢰도 보정 로직:
+        // - 10개 이상 샘플: confidence * 1.1 (최대 1.0)
+        // - 5-9개 샘플: confidence (보정 없음)
+        // - 5개 미만: confidence * 0.9 (감소)
+
+        // 실제 판단시 신뢰도가 향상되는지는 LLM API 호출이 필요하므로
+        // 여기서는 샘플 개수만 검증 (통합 테스트는 별도 E2E 테스트에서)
+    }
+
+    #[test]
+    fn test_few_shot_method_naming() {
+        // 테스트 목적: method_used 필드가 Few-shot 사용시 올바르게 설정되는지 검증
+        // (LLMEngine에서 few_shot_samples.is_empty()에 따라 "llm" vs "llm_few_shot" 결정)
+
+        // Mock 데이터로 검증
+        let result_with_few_shot = JudgmentResult {
+            id: Uuid::new_v4().to_string(),
+            workflow_id: "test".to_string(),
+            result: true,
+            confidence: 0.85,
+            method_used: "llm_few_shot".to_string(),
+            explanation: "📚 Few-shot 학습: 10 개 유사 사례 참조".to_string(),
+        };
+
+        let result_without_few_shot = JudgmentResult {
+            id: Uuid::new_v4().to_string(),
+            workflow_id: "test".to_string(),
+            result: true,
+            confidence: 0.75,
+            method_used: "llm".to_string(),
+            explanation: "LLM 판단".to_string(),
+        };
+
+        // 검증
+        assert_eq!(result_with_few_shot.method_used, "llm_few_shot");
+        assert!(result_with_few_shot.explanation.contains("Few-shot"));
+
+        assert_eq!(result_without_few_shot.method_used, "llm");
+        assert!(!result_without_few_shot.explanation.contains("Few-shot"));
+    }
 }

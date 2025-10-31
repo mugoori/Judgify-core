@@ -66,8 +66,15 @@ impl LearningService {
         workflow_id: String,
         limit: u32,
     ) -> anyhow::Result<Vec<TrainingSample>> {
-        self.db.get_training_samples(&workflow_id, limit)
-            .map_err(|e| anyhow::anyhow!(e))
+        // 정확도가 높은 훈련 샘플만 가져오기 (accuracy >= 0.8)
+        let samples = self.db.get_training_samples(&workflow_id, limit * 2)
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+        Ok(samples
+            .into_iter()
+            .filter(|s| s.accuracy.unwrap_or(0.0) >= 0.8)
+            .take(limit as usize)
+            .collect())
     }
 
     /// 추출된 Rule을 Workflow에 저장

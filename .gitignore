@@ -44,6 +44,9 @@ out/
 # Rust build artifacts (Tauri)
 src-tauri/target/
 
+# Chat Service Database (SQLite)
+src-tauri/chat_service.db
+
 # Temporary files
 *.tmp
 *.temp
@@ -68,6 +71,9 @@ ENV/
 env/
 # Artifacts created by path-unzip issues on Windows
 C?Users*
+
+# Poetry lock files (auto-generated)
+common/poetry.lock
 
 # Notion commit backup (로컬 전용)
 scripts/notion/.commit_backup/
