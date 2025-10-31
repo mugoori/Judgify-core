@@ -10,6 +10,12 @@ mod utils;
 use commands::*;
 
 fn main() {
+    // Load .env file from project root (one level up from src-tauri)
+    if let Err(e) = dotenvy::from_path("../.env") {
+        eprintln!("Warning: Failed to load .env file: {}", e);
+        eprintln!("Using system environment variables instead");
+    }
+
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             // Judgment Service Commands

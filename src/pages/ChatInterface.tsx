@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { sendChatMessage, type ChatMessageRequest, type ChatMessageResponse } from '@/lib/tauri-api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { Send, Bot, User } from 'lucide-react';
+import { Send, Bot, User, Trash2 } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -22,6 +22,35 @@ export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>();
 
+  // Load chat history from localStorage on mount
+  useEffect(() => {
+    const savedMessages = localStorage.getItem('chat-messages');
+    const savedSessionId = localStorage.getItem('chat-session-id');
+
+    if (savedMessages) {
+      try {
+        setMessages(JSON.parse(savedMessages));
+      } catch (error) {
+        console.error('Failed to parse saved messages:', error);
+      }
+    }
+    if (savedSessionId) {
+      setSessionId(savedSessionId);
+    }
+  }, []);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('chat-messages', JSON.stringify(messages));
+  }, [messages]);
+
+  // Save session ID to localStorage
+  useEffect(() => {
+    if (sessionId) {
+      localStorage.setItem('chat-session-id', sessionId);
+    }
+  }, [sessionId]);
+
   const sendMessageMutation = useMutation({
     mutationFn: (request: ChatMessageRequest) => sendChatMessage(request),
     onSuccess: (response: ChatMessageResponse) => {
@@ -32,6 +61,16 @@ export default function ChatInterface() {
           role: 'assistant',
           content: response.response,
           intent: response.intent,
+        },
+      ]);
+    },
+    onError: (error: Error) => {
+      console.error('Chat error:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `❌ 오류가 발생했습니다: ${error.message}\n\n설정 페이지에서 OpenAI API 키가 올바르게 설정되었는지 확인해주세요.`,
         },
       ]);
     },
@@ -62,14 +101,38 @@ export default function ChatInterface() {
     }
   };
 
+  const handleClearHistory = () => {
+    if (confirm('채팅 내역을 모두 삭제하시겠습니까?')) {
+      const initialMessage: Message = {
+        role: 'assistant',
+        content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
+      };
+      setMessages([initialMessage]);
+      setSessionId(undefined);
+      localStorage.removeItem('chat-messages');
+      localStorage.removeItem('chat-session-id');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">AI 어시스턴트</h1>
-        <p className="text-muted-foreground">
-          자연어로 대화하며 판단 실행, 워크플로우 관리, 데이터 분석을 수행하세요.
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">AI 어시스턴트</h1>
+          <p className="text-muted-foreground">
+            자연어로 대화하며 판단 실행, 워크플로우 관리, 데이터 분석을 수행하세요.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleClearHistory}
+          className="flex items-center gap-2"
+        >
+          <Trash2 className="w-4 h-4" />
+          대화 초기화
+        </Button>
       </div>
 
       {/* Messages */}

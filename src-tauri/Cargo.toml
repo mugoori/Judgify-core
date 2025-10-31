@@ -27,6 +27,7 @@ rhai = "1.16"
 tiktoken-rs = "0.5"
 dirs = "5.0"
 rand = "0.8"
+dotenvy = "0.15"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
