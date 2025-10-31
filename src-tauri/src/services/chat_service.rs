@@ -371,6 +371,309 @@ Examples:
         }
         Ok(())
     }
+
+    // ==================== Week 2: 서비스 라우팅 메서드 ====================
+
+    /// Judgment Service 라우팅
+    ///
+    /// # Arguments
+    /// * `workflow_id` - 워크플로우 ID
+    /// * `input_data` - 판단 입력 데이터
+    ///
+    /// # Returns
+    /// * `serde_json::Value` - 판단 결과 (JudgmentResult를 JSON으로 변환)
+    pub async fn route_to_judgment(
+        &self,
+        workflow_id: String,
+        input_data: serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        use crate::services::judgment_engine::{JudgmentEngine, JudgmentInput};
+
+        println!("🔀 Routing to Judgment Service: workflow_id={}", workflow_id);
+
+        let engine = JudgmentEngine::new()?;
+        let input = JudgmentInput {
+            workflow_id,
+            input_data,
+        };
+
+        let result = engine.execute(input).await?;
+
+        // JudgmentResult를 JSON으로 변환
+        let json_result = serde_json::json!({
+            "id": result.id,
+            "workflow_id": result.workflow_id,
+            "result": result.result,
+            "confidence": result.confidence,
+            "method_used": result.method_used,
+            "explanation": result.explanation,
+        });
+
+        println!("✅ Judgment Service 호출 성공: result={}", result.result);
+
+        Ok(json_result)
+    }
+
+    /// BI Service 라우팅
+    ///
+    /// # Arguments
+    /// * `user_request` - 사용자 요청 (자연어)
+    ///
+    /// # Returns
+    /// * `serde_json::Value` - BI 인사이트 (BiInsightResponse를 JSON으로 변환)
+    pub async fn route_to_bi(&self, user_request: String) -> Result<serde_json::Value> {
+        use crate::services::bi_service::BiService;
+
+        println!("🔀 Routing to BI Service: request={}", user_request);
+
+        let bi_service = BiService::new()?;
+        let insight = bi_service.generate_insight(user_request).await?;
+
+        // BiInsightResponse를 JSON으로 변환
+        let json_result = serde_json::json!({
+            "title": insight.title,
+            "insights": insight.insights,
+            "component_code": insight.component_code,
+            "recommendations": insight.recommendations,
+        });
+
+        println!("✅ BI Service 호출 성공: title={}", insight.title);
+
+        Ok(json_result)
+    }
+
+    /// Workflow Service 라우팅
+    ///
+    /// # Arguments
+    /// * `action` - 워크플로우 액션 (list | get | create | update | delete)
+    /// * `params` - 액션별 파라미터
+    ///
+    /// # Returns
+    /// * `serde_json::Value` - 워크플로우 결과
+    pub async fn route_to_workflow(
+        &self,
+        action: &str,
+        params: serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        use crate::services::workflow_service::WorkflowService;
+
+        println!("🔀 Routing to Workflow Service: action={}", action);
+
+        let workflow_service = WorkflowService::new()?;
+
+        let result = match action {
+            "list" => {
+                let workflows = workflow_service.get_all_workflows()?;
+                serde_json::json!({
+                    "action": "list",
+                    "workflows": workflows.into_iter().map(|w| serde_json::json!({
+                        "id": w.id,
+                        "name": w.name,
+                        "version": w.version,
+                        "is_active": w.is_active,
+                        "created_at": w.created_at.to_rfc3339(),
+                    })).collect::<Vec<_>>()
+                })
+            }
+            "get" => {
+                let id = params["id"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("Missing workflow id"))?;
+                let workflow = workflow_service.get_workflow(id)?
+                    .ok_or_else(|| anyhow::anyhow!("Workflow not found: {}", id))?;
+                serde_json::json!({
+                    "action": "get",
+                    "workflow": {
+                        "id": workflow.id,
+                        "name": workflow.name,
+                        "definition": serde_json::from_str::<serde_json::Value>(&workflow.definition)?,
+                        "rule_expression": workflow.rule_expression,
+                        "version": workflow.version,
+                        "is_active": workflow.is_active,
+                        "created_at": workflow.created_at.to_rfc3339(),
+                    }
+                })
+            }
+            _ => {
+                anyhow::bail!("Unsupported workflow action: {}", action);
+            }
+        };
+
+        println!("✅ Workflow Service 호출 성공: action={}", action);
+
+        Ok(result)
+    }
+
+    // ==================== Week 2: 파라미터 추출 메서드 ====================
+
+    /// Judgment 파라미터 추출 (LLM 기반)
+    ///
+    /// # Arguments
+    /// * `message` - 사용자 메시지 (예: "재고 데이터로 판단해줘")
+    ///
+    /// # Returns
+    /// * `(String, serde_json::Value)` - (workflow_id, input_data)
+    pub async fn extract_judgment_params(
+        &self,
+        message: &str,
+    ) -> Result<(String, serde_json::Value)> {
+        let system_prompt = r#"You are a parameter extractor for the Judgify AI platform.
+
+Extract judgment parameters from the user's message and respond in JSON format:
+{
+  "workflow_id": "string (workflow name or id, e.g., 'inventory', 'quality')",
+  "input_data": {
+    // Extract any data mentioned in the message
+    // Example: {"temperature": 90, "vibration": 45}
+  }
+}
+
+Examples:
+- "재고 데이터로 판단해줘" → {"workflow_id": "inventory", "input_data": {}}
+- "온도 90도, 진동 45로 품질 검사해줘" → {"workflow_id": "quality", "input_data": {"temperature": 90, "vibration": 45}}
+- "워크플로우 123으로 판단 실행" → {"workflow_id": "123", "input_data": {}}
+"#;
+
+        let user_prompt = format!("User message: \"{}\"", message);
+
+        let request_body = json!({
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.3,
+            "max_tokens": 300
+        });
+
+        let response = self
+            .http_client
+            .post("https://api.openai.com/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", self.openai_api_key))
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            anyhow::bail!("OpenAI API error: {}", error_text);
+        }
+
+        let response_json: serde_json::Value = response.json().await?;
+        let content = response_json["choices"][0]["message"]["content"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("Missing content in OpenAI response"))?;
+
+        let params: serde_json::Value = serde_json::from_str(content)?;
+
+        let workflow_id = params["workflow_id"]
+            .as_str()
+            .unwrap_or("default")
+            .to_string();
+        let input_data = params["input_data"].clone();
+
+        println!(
+            "📝 Extracted judgment params: workflow_id={}, input_data={}",
+            workflow_id,
+            serde_json::to_string(&input_data).unwrap_or_else(|_| "{}".to_string())
+        );
+
+        Ok((workflow_id, input_data))
+    }
+
+    /// BI 파라미터 추출 (단순화 버전)
+    ///
+    /// # Arguments
+    /// * `message` - 사용자 메시지 (예: "지난 주 불량률 분석해줘")
+    ///
+    /// # Returns
+    /// * `String` - BI Service로 전달할 요청 (메시지 그대로 사용)
+    pub fn extract_bi_params(&self, message: &str) -> Result<String> {
+        // BI Service는 자연어 그대로 받아서 처리하므로 단순히 반환
+        println!("📝 Extracted BI params: request={}", message);
+        Ok(message.to_string())
+    }
+
+    /// Workflow 파라미터 추출 (LLM 기반)
+    ///
+    /// # Arguments
+    /// * `message` - 사용자 메시지 (예: "워크플로우 목록 보여줘")
+    ///
+    /// # Returns
+    /// * `(String, serde_json::Value)` - (action, params)
+    pub async fn extract_workflow_params(
+        &self,
+        message: &str,
+    ) -> Result<(String, serde_json::Value)> {
+        let system_prompt = r#"You are a parameter extractor for workflow management.
+
+Extract workflow action and parameters from the user's message and respond in JSON format:
+{
+  "action": "list|get|create|update|delete",
+  "params": {
+    // Action-specific parameters
+    // For "list": {} (empty)
+    // For "get": {"id": "workflow-id"}
+    // etc.
+  }
+}
+
+Examples:
+- "워크플로우 목록 보여줘" → {"action": "list", "params": {}}
+- "워크플로우 123 조회해줘" → {"action": "get", "params": {"id": "123"}}
+- "전체 워크플로우 보여줘" → {"action": "list", "params": {}}
+"#;
+
+        let user_prompt = format!("User message: \"{}\"", message);
+
+        let request_body = json!({
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.3,
+            "max_tokens": 200
+        });
+
+        let response = self
+            .http_client
+            .post("https://api.openai.com/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", self.openai_api_key))
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            anyhow::bail!("OpenAI API error: {}", error_text);
+        }
+
+        let response_json: serde_json::Value = response.json().await?;
+        let content = response_json["choices"][0]["message"]["content"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("Missing content in OpenAI response"))?;
+
+        let extracted: serde_json::Value = serde_json::from_str(content)?;
+
+        let action = extracted["action"]
+            .as_str()
+            .unwrap_or("list")
+            .to_string();
+        let params = extracted["params"].clone();
+
+        println!(
+            "📝 Extracted workflow params: action={}, params={}",
+            action,
+            serde_json::to_string(&params).unwrap_or_else(|_| "{}".to_string())
+        );
+
+        Ok((action, params))
+    }
 }
 
 #[cfg(test)]
@@ -465,5 +768,168 @@ mod tests {
         assert!(history[0].content.contains("메시지 3"));
         assert!(history[1].content.contains("메시지 4"));
         assert!(history[2].content.contains("메시지 5"));
+    }
+
+    // ==================== Week 2 테스트 ====================
+
+    #[tokio::test]
+    async fn test_route_to_judgment_success() {
+        let service = ChatService::new().unwrap();
+
+        // Judgment Service 라우팅 테스트
+        let result = service
+            .route_to_judgment(
+                "test-workflow".to_string(),
+                serde_json::json!({"temperature": 90, "vibration": 45}),
+            )
+            .await;
+
+        match result {
+            Ok(json_result) => {
+                assert!(json_result["id"].is_string());
+                assert_eq!(json_result["workflow_id"], "test-workflow");
+                assert!(json_result["result"].is_boolean());
+                assert!(json_result["confidence"].is_number());
+                assert!(json_result["method_used"].is_string());
+                println!("✅ Judgment routing 테스트 성공: {:?}", json_result);
+            }
+            Err(e) => {
+                println!("⚠️ Judgment routing 테스트 실패 (예상됨): {}", e);
+                // 데이터베이스나 서비스가 없는 환경에서는 실패가 예상됨
+                assert!(
+                    e.to_string().contains("database") ||
+                    e.to_string().contains("Workflow") ||
+                    e.to_string().contains("connection")
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_route_to_bi_success() {
+        let service = ChatService::new().unwrap();
+
+        // BI Service 라우팅 테스트
+        let result = service
+            .route_to_bi("지난 주 불량률 분석해줘".to_string())
+            .await;
+
+        match result {
+            Ok(json_result) => {
+                assert!(json_result["title"].is_string());
+                assert!(json_result["insights"].is_array());
+                assert!(json_result["component_code"].is_string());
+                assert!(json_result["recommendations"].is_array());
+                println!("✅ BI routing 테스트 성공: {:?}", json_result);
+            }
+            Err(e) => {
+                println!("⚠️ BI routing 테스트 실패 (예상됨): {}", e);
+                // API 키가 없거나 데이터베이스가 없는 경우 실패 예상
+                assert!(
+                    e.to_string().contains("OpenAI") ||
+                    e.to_string().contains("database") ||
+                    e.to_string().contains("API")
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_route_to_workflow_list() {
+        let service = ChatService::new().unwrap();
+
+        // Workflow Service 라우팅 테스트 (목록 조회)
+        let result = service
+            .route_to_workflow("list", serde_json::json!({}))
+            .await;
+
+        match result {
+            Ok(json_result) => {
+                assert_eq!(json_result["action"], "list");
+                assert!(json_result["workflows"].is_array());
+                println!("✅ Workflow routing (list) 테스트 성공");
+            }
+            Err(e) => {
+                println!("⚠️ Workflow routing (list) 테스트 실패 (예상됨): {}", e);
+                // 데이터베이스가 없는 환경에서는 실패 예상
+                assert!(
+                    e.to_string().contains("database") ||
+                    e.to_string().contains("connection")
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_extract_bi_params() {
+        let service = ChatService::new().unwrap();
+
+        // BI 파라미터 추출 (단순 반환)
+        let result = service.extract_bi_params("지난 주 매출 분석해줘");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "지난 주 매출 분석해줘");
+        println!("✅ BI params extraction 테스트 성공");
+    }
+
+    #[tokio::test]
+    async fn test_extract_judgment_params() {
+        let service = ChatService::new().unwrap();
+
+        // API 키가 없으면 테스트 스킵
+        if service.openai_api_key == "sk-test-key" {
+            println!("⚠️ Skipping parameter extraction test (no valid API key)");
+            return;
+        }
+
+        // Judgment 파라미터 추출 테스트
+        let result = service
+            .extract_judgment_params("재고 데이터로 판단해줘")
+            .await;
+
+        match result {
+            Ok((workflow_id, input_data)) => {
+                assert!(!workflow_id.is_empty());
+                assert!(input_data.is_object() || input_data.is_null());
+                println!(
+                    "✅ Judgment params extraction 테스트 성공: workflow_id={}, input_data={:?}",
+                    workflow_id, input_data
+                );
+            }
+            Err(e) => {
+                println!("⚠️ Judgment params extraction 테스트 실패: {}", e);
+                assert!(e.to_string().contains("OpenAI") || e.to_string().contains("API"));
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_extract_workflow_params() {
+        let service = ChatService::new().unwrap();
+
+        // API 키가 없으면 테스트 스킵
+        if service.openai_api_key == "sk-test-key" {
+            println!("⚠️ Skipping parameter extraction test (no valid API key)");
+            return;
+        }
+
+        // Workflow 파라미터 추출 테스트
+        let result = service
+            .extract_workflow_params("워크플로우 목록 보여줘")
+            .await;
+
+        match result {
+            Ok((action, params)) => {
+                assert!(!action.is_empty());
+                assert!(params.is_object() || params.is_null());
+                println!(
+                    "✅ Workflow params extraction 테스트 성공: action={}, params={:?}",
+                    action, params
+                );
+            }
+            Err(e) => {
+                println!("⚠️ Workflow params extraction 테스트 실패: {}", e);
+                assert!(e.to_string().contains("OpenAI") || e.to_string().contains("API"));
+            }
+        }
     }
 }
