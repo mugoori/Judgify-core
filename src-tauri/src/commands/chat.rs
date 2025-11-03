@@ -201,10 +201,45 @@ pub async fn send_chat_message(
             "설정 변경 기능입니다. 어떤 설정을 변경하시겠습니까?".to_string(),
             None,
         ),
-        Intent::GeneralQuery => (
-            "Judgify AI 어시스턴트입니다. 판단 실행, 워크플로우 관리, 데이터 분석 등을 도와드릴 수 있습니다.".to_string(),
-            None,
-        ),
+        Intent::GeneralQuery => {
+            // Week 3: 대화형 응답 생성 (하드코딩 제거)
+            // 1. 대화 이력 조회 (최근 5개)
+            let history = service
+                .get_history(&session_id, 5)
+                .await
+                .unwrap_or_else(|e| {
+                    eprintln!("⚠️ Failed to get history for GeneralQuery: {}", e);
+                    Vec::new()
+                });
+
+            println!("🧠 GeneralQuery detected - using conversational AI");
+            println!("   History: {} messages", history.len());
+
+            // 2. Claude API로 대화형 응답 생성
+            match service
+                .generate_conversational_response(&request.message, history)
+                .await
+            {
+                Ok(response) => {
+                    println!("✅ Conversational response generated: {}",
+                        if response.len() > 80 {
+                            format!("{}...", &response[..80])
+                        } else {
+                            response.clone()
+                        }
+                    );
+                    (response, None)
+                }
+                Err(e) => {
+                    eprintln!("❌ GeneralQuery 응답 생성 실패: {}", e);
+                    // Fallback: 간단한 안내 메시지
+                    (
+                        "죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요.".to_string(),
+                        None,
+                    )
+                }
+            }
+        }
     };
 
     // 5. 어시스턴트 응답 저장

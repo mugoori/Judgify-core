@@ -681,6 +681,118 @@ Examples:
         Ok(message.to_string())
     }
 
+    /// 대화형 응답 생성 (GeneralQuery용)
+    ///
+    /// # Arguments
+    /// * `message` - 사용자 메시지
+    /// * `history` - 최근 대화 이력 (컨텍스트)
+    ///
+    /// # Returns
+    /// * `String` - Claude가 생성한 자연스러운 대화 응답
+    pub async fn generate_conversational_response(
+        &self,
+        message: &str,
+        history: Vec<ChatMessage>,
+    ) -> Result<String> {
+        // 시스템 프롬프트 (Judgify AI Assistant 역할)
+        let system_prompt = r#"You are Judgify AI Assistant, a helpful AI assistant for the Judgify platform.
+
+Capabilities you can help with:
+- Judgment execution (판단 실행): Execute rules and LLM-based judgments on data
+- Workflow management (워크플로우 관리): Create, modify, and manage workflows
+- Data visualization (데이터 시각화): Display charts, dashboards, and metrics
+- BI insights (비즈니스 인사이트): Generate AI-powered business insights
+
+Response guidelines:
+- Be conversational, friendly, and helpful
+- Use Korean language naturally
+- Provide practical information about Judgify features
+- If user asks about capabilities, explain briefly with examples
+- Keep responses concise (2-4 sentences)
+- If user asks how to do something, give step-by-step guidance
+- Reference conversation history when relevant
+
+Examples:
+- User: "안녕" → "안녕하세요! Judgify AI 어시스턴트입니다. 판단 실행, 워크플로우 관리, 데이터 분석 등을 도와드릴 수 있어요. 무엇을 도와드릴까요?"
+- User: "뭘 할 수 있어?" → "저는 워크플로우 기반 판단 실행, 실시간 데이터 분석, BI 인사이트 생성 등을 할 수 있어요. 예를 들어 '재고 데이터로 판단해줘' 또는 '지난 주 불량률 분석해줘'처럼 말씀해주시면 됩니다!"
+- User: "워크플로우 어떻게 만들어?" → "워크플로우는 채팅에서 '워크플로우 만들어줘'라고 말씀하시거나, 워크플로우 페이지에서 직접 생성하실 수 있어요. 필요하신 워크플로우 종류를 말씀해주시면 더 자세히 안내해드릴게요!"
+"#;
+
+        // 대화 이력을 컨텍스트로 변환 (최근 5개)
+        let mut conversation_context = String::new();
+        if !history.is_empty() {
+            conversation_context.push_str("\n\nRecent conversation:\n");
+            for msg in history.iter().take(5) {
+                conversation_context.push_str(&format!(
+                    "{}: {}\n",
+                    if msg.role == "user" { "User" } else { "Assistant" },
+                    msg.content
+                ));
+            }
+        }
+
+        let user_prompt = format!(
+            "{}{}",
+            conversation_context,
+            if !conversation_context.is_empty() {
+                format!("\n\nUser's new message: \"{}\"", message)
+            } else {
+                format!("User message: \"{}\"", message)
+            }
+        );
+
+        println!("📤 [generate_conversational_response] Calling Claude API...");
+        println!("   Context: {} history messages", history.len());
+
+        // Claude API 호출
+        let request_body = json!({
+            "model": "claude-sonnet-4-5-20250929",
+            "system": system_prompt,
+            "messages": [
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.7,  // 대화형 응답은 약간 더 창의적으로
+            "max_tokens": 512
+        });
+
+        let response = self
+            .http_client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.claude_api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let status = response.status();
+        println!("📥 [generate_conversational_response] Response status: {}", status);
+
+        if !status.is_success() {
+            let error_text = response.text().await?;
+            eprintln!("❌ [generate_conversational_response] Claude API error ({}): {}", status, error_text);
+            anyhow::bail!("Claude API error ({}): {}", status, error_text);
+        }
+
+        let response_json: serde_json::Value = response.json().await?;
+        let content = response_json["content"][0]["text"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("Missing content in Claude response"))?;
+
+        // 마크다운 코드 블록 제거 (혹시 JSON 형식으로 응답하는 경우 대비)
+        let clean_content = strip_markdown_code_block(content);
+
+        println!("✅ [generate_conversational_response] Response generated: {}",
+            if clean_content.len() > 100 {
+                format!("{}...", &clean_content[..100])
+            } else {
+                clean_content.to_string()
+            }
+        );
+
+        Ok(clean_content.to_string())
+    }
+
     /// Workflow 파라미터 추출 (LLM 기반)
     ///
     /// # Arguments
@@ -832,7 +944,7 @@ mod tests {
         let service = ChatService::new().unwrap();
 
         // API 키가 없으면 테스트 스킵
-        if service.openai_api_key == "sk-test-key" {
+        if service.claude_api_key == "sk-ant-test-key" {
             println!("⚠️ Skipping LLM test (no valid API key)");
             return;
         }
@@ -980,7 +1092,7 @@ mod tests {
         let service = ChatService::new().unwrap();
 
         // API 키가 없으면 테스트 스킵
-        if service.openai_api_key == "sk-test-key" {
+        if service.claude_api_key == "sk-ant-test-key" {
             println!("⚠️ Skipping parameter extraction test (no valid API key)");
             return;
         }
@@ -1011,7 +1123,7 @@ mod tests {
         let service = ChatService::new().unwrap();
 
         // API 키가 없으면 테스트 스킵
-        if service.openai_api_key == "sk-test-key" {
+        if service.claude_api_key == "sk-ant-test-key" {
             println!("⚠️ Skipping parameter extraction test (no valid API key)");
             return;
         }
