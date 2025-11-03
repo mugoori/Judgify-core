@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { sendChatMessage, type ChatMessageRequest, type ChatMessageResponse } from '@/lib/tauri-api';
+import { sendChatMessage, getChatHistory, type ChatMessageRequest, type ChatMessageResponse } from '@/lib/tauri-api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
@@ -16,18 +16,30 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>();
+  const mountedRef = useRef(true);
 
-  // Load chat history from localStorage on mount
+  // Load chat history from localStorage on mount + recover pending responses
   useEffect(() => {
-    const savedMessages = localStorage.getItem('chat-messages');
-    const savedSessionId = localStorage.getItem('chat-session-id');
+    const loadHistory = async () => {
+      const savedMessages = localStorage.getItem('chat-messages');
+      const savedSessionId = localStorage.getItem('chat-session-id');
+      const pendingRequest = localStorage.getItem('chat-pending-request');
 
-    if (savedMessages) {
-      try {
-        setMessages(JSON.parse(savedMessages));
-      } catch (error) {
-        console.error('Failed to parse saved messages:', error);
-        // If parsing fails, set initial welcome message
+      if (savedMessages) {
+        try {
+          setMessages(JSON.parse(savedMessages));
+        } catch (error) {
+          console.error('Failed to parse saved messages:', error);
+          // If parsing fails, set initial welcome message
+          setMessages([
+            {
+              role: 'assistant',
+              content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
+            },
+          ]);
+        }
+      } else {
+        // No saved messages, set initial welcome message
         setMessages([
           {
             role: 'assistant',
@@ -35,18 +47,44 @@ export default function ChatInterface() {
           },
         ]);
       }
-    } else {
-      // No saved messages, set initial welcome message
-      setMessages([
-        {
-          role: 'assistant',
-          content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
-        },
-      ]);
-    }
-    if (savedSessionId) {
-      setSessionId(savedSessionId);
-    }
+
+      if (savedSessionId) {
+        setSessionId(savedSessionId);
+
+        // 🔄 답변 대기 중이던 요청 복구
+        if (pendingRequest) {
+          console.log('⏳ Recovering pending chat response...');
+          try {
+            const backendHistory = await getChatHistory(savedSessionId);
+            const savedMsgArray = savedMessages ? JSON.parse(savedMessages) : [];
+
+            // 백엔드에 더 많은 메시지가 있으면 (답변이 와있음)
+            if (backendHistory.length > savedMsgArray.length) {
+              console.log('✅ Found new messages from backend!');
+              const newMessages = backendHistory.map((msg: any) => ({
+                role: msg.role,
+                content: msg.content,
+                intent: msg.intent,
+              }));
+              setMessages(newMessages);
+              localStorage.removeItem('chat-pending-request');
+            } else {
+              console.log('⚠️ No new messages yet, clearing pending flag');
+              localStorage.removeItem('chat-pending-request');
+            }
+          } catch (error) {
+            console.error('Failed to recover pending request:', error);
+            localStorage.removeItem('chat-pending-request');
+          }
+        }
+      }
+    };
+
+    loadHistory();
+
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   // Save messages to localStorage whenever they change (but not empty array)
@@ -64,27 +102,45 @@ export default function ChatInterface() {
   }, [sessionId]);
 
   const sendMessageMutation = useMutation({
-    mutationFn: (request: ChatMessageRequest) => sendChatMessage(request),
+    mutationFn: (request: ChatMessageRequest) => {
+      // 📝 답변 대기 플래그 저장 (탭 전환 대비)
+      localStorage.setItem('chat-pending-request', 'true');
+      return sendChatMessage(request);
+    },
     onSuccess: (response: ChatMessageResponse) => {
+      // ✅ 답변 성공 - 플래그 제거
+      localStorage.removeItem('chat-pending-request');
+
       setSessionId(response.session_id);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: response.response,
-          intent: response.intent,
-        },
-      ]);
+
+      // 컴포넌트가 마운트되어 있을 때만 상태 업데이트
+      if (mountedRef.current) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: response.response,
+            intent: response.intent,
+          },
+        ]);
+      }
     },
     onError: (error: Error) => {
+      // ❌ 답변 실패 - 플래그 제거
+      localStorage.removeItem('chat-pending-request');
+
       console.error('Chat error:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: `❌ 오류가 발생했습니다: ${error.message}\n\n설정 페이지에서 OpenAI API 키가 올바르게 설정되었는지 확인해주세요.`,
-        },
-      ]);
+
+      // 컴포넌트가 마운트되어 있을 때만 상태 업데이트
+      if (mountedRef.current) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: `❌ 오류가 발생했습니다: ${error.message}\n\n설정 페이지에서 OpenAI API 키가 올바르게 설정되었는지 확인해주세요.`,
+          },
+        ]);
+      }
     },
   });
 
@@ -114,7 +170,10 @@ export default function ChatInterface() {
   };
 
   const handleClearHistory = () => {
-    if (confirm('채팅 내역을 모두 삭제하시겠습니까?')) {
+    // 먼저 확인 후 삭제 (confirm이 true일 때만 실행)
+    const confirmed = window.confirm('채팅 내역을 모두 삭제하시겠습니까?');
+
+    if (confirmed) {
       const initialMessage: Message = {
         role: 'assistant',
         content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
