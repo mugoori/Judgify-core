@@ -96,7 +96,20 @@
       "Bash(chmod:*)",
       "Bash(bash:*)",
       "Bash(git reset:*)",
-      "Bash(cargo add:*)"
+      "Bash(cargo add:*)",
+      "Bash(poetry --version:*)",
+      "Bash(.\\venv\\Scripts\\python.exe -m pip:*)",
+      "Bash(./venv/Scripts/python.exe -m pip install:*)",
+      "Bash(./venv/Scripts/python.exe:*)",
+      "Bash(cargo test:*)",
+      "Bash(cd:*)",
+      "Bash(git diff:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo run:*)",
+      "Bash(if [ -f \"src-tauri/app.log\" ])",
+      "Bash(then tail -100 src-tauri/app.log)",
+      "Bash(else echo \"Log file not found\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "additionalDirectories": [
