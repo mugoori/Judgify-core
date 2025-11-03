@@ -16,6 +16,7 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>();
+  const messagesRef = useRef<Message[]>([]); // 🔧 최신 messages 추적용 ref
 
   // Load chat history from localStorage on mount + recover pending responses
   useEffect(() => {
@@ -100,6 +101,12 @@ export default function ChatInterface() {
     }
   }, [messages]);
 
+  // 🔧 Track latest messages in ref for visibility handler (클로저 문제 해결)
+  useEffect(() => {
+    messagesRef.current = messages;
+    console.log('📝 [messagesRef] Updated to', messages.length, 'messages');
+  }, [messages]);
+
   // Save session ID to localStorage
   useEffect(() => {
     if (sessionId) {
@@ -119,7 +126,7 @@ export default function ChatInterface() {
 
         console.log('   Pending request flag:', pendingRequest);
         console.log('   Session ID:', savedSessionId);
-        console.log('   Current messages count:', messages.length);
+        console.log('   Current messages count (ref):', messagesRef.current.length);
 
         if (pendingRequest && savedSessionId) {
           console.log('⏳ [Tab Return] Recovering pending chat response...');
@@ -129,9 +136,9 @@ export default function ChatInterface() {
             console.log(`   Backend history count: ${backendHistory.length}`);
             console.log(`   Backend history:`, backendHistory);
 
-            // 백엔드에 더 많은 메시지가 있으면 (답변이 와있음)
-            if (backendHistory.length > messages.length) {
-              console.log(`✅ [Tab Return] Found new messages! (${backendHistory.length} vs ${messages.length})`);
+            // 🔧 백엔드에 더 많은 메시지가 있으면 (답변이 와있음) - ref 사용으로 최신 값 비교
+            if (backendHistory.length > messagesRef.current.length) {
+              console.log(`✅ [Tab Return] Found new messages! (${backendHistory.length} vs ${messagesRef.current.length})`);
               const newMessages: Message[] = backendHistory.map((msg: any) => ({
                 role: msg.role,
                 content: msg.content,
@@ -157,7 +164,7 @@ export default function ChatInterface() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [messages.length, sessionId]); // messages.length, sessionId 변경시에도 재등록
+  }, []); // 🔧 의존성 제거 - messagesRef.current로 항상 최신 값 참조
 
   const sendMessageMutation = useMutation({
     mutationFn: (request: ChatMessageRequest) => {
