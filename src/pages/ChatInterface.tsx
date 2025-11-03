@@ -58,8 +58,13 @@ export default function ChatInterface() {
         // 🔄 답변 대기 중이던 요청 복구
         if (pendingRequest) {
           console.log('⏳ Recovering pending chat response...');
+          console.log(`   Session ID: ${savedSessionId}`);
+          console.log(`   Current messages count: ${parsedMessages.length}`);
+
           try {
             const backendHistory = await getChatHistory(savedSessionId);
+            console.log(`   Backend history count: ${backendHistory.length}`);
+            console.log(`   Backend history:`, backendHistory);
 
             // 백엔드에 더 많은 메시지가 있으면 (답변이 와있음)
             if (backendHistory.length > parsedMessages.length) {
@@ -69,6 +74,7 @@ export default function ChatInterface() {
                 content: msg.content,
                 intent: msg.intent,
               }));
+              console.log('   Setting messages:', newMessages);
               setMessages(newMessages);
               localStorage.removeItem('chat-pending-request');
             } else {
@@ -76,9 +82,11 @@ export default function ChatInterface() {
               localStorage.removeItem('chat-pending-request');
             }
           } catch (error) {
-            console.error('Failed to recover pending request:', error);
+            console.error('❌ Failed to recover pending request:', error);
             localStorage.removeItem('chat-pending-request');
           }
+        } else {
+          console.log('ℹ️ No pending request found');
         }
       }
     };
