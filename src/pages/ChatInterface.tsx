@@ -112,6 +112,58 @@ export default function ChatInterface() {
     }
   }, [sessionId]);
 
+  // 🔄 Page Visibility API: 탭 복귀시 답변 복구 체크
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      console.log('👁️ [Visibility Change] Document visible:', !document.hidden);
+
+      if (!document.hidden) {
+        // 탭이 다시 활성화됨
+        const pendingRequest = localStorage.getItem('chat-pending-request');
+        const savedSessionId = localStorage.getItem('chat-session-id');
+
+        console.log('   Pending request flag:', pendingRequest);
+        console.log('   Session ID:', savedSessionId);
+        console.log('   Current messages count:', messages.length);
+
+        if (pendingRequest && savedSessionId) {
+          console.log('⏳ [Tab Return] Recovering pending chat response...');
+
+          try {
+            const backendHistory = await getChatHistory(savedSessionId);
+            console.log(`   Backend history count: ${backendHistory.length}`);
+            console.log(`   Backend history:`, backendHistory);
+
+            // 백엔드에 더 많은 메시지가 있으면 (답변이 와있음)
+            if (backendHistory.length > messages.length) {
+              console.log(`✅ [Tab Return] Found new messages! (${backendHistory.length} vs ${messages.length})`);
+              const newMessages: Message[] = backendHistory.map((msg: any) => ({
+                role: msg.role,
+                content: msg.content,
+                intent: msg.intent,
+              }));
+              console.log('   Updating messages with backend data');
+              setMessages(newMessages);
+              localStorage.removeItem('chat-pending-request');
+            } else {
+              console.log('⚠️ [Tab Return] No new messages yet');
+            }
+          } catch (error) {
+            console.error('❌ [Tab Return] Failed to recover:', error);
+          }
+        } else {
+          console.log('ℹ️ [Tab Return] No pending request to recover');
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [messages.length, sessionId]); // messages.length, sessionId 변경시에도 재등록
+
   const sendMessageMutation = useMutation({
     mutationFn: (request: ChatMessageRequest) => {
       // 📝 답변 대기 플래그 저장 (탭 전환 대비)
