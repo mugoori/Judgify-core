@@ -166,11 +166,27 @@ export default function ChatInterface() {
 
   const sendMessageMutation = useMutation({
     mutationFn: (request: ChatMessageRequest) => {
+      console.log('🚀 [Mutation] Starting chat request:', {
+        message: request.message.substring(0, 50) + '...',
+        session_id: request.session_id,
+      });
+
       // 📝 답변 대기 플래그 저장 (탭 전환 대비)
       localStorage.setItem('chat-pending-request', 'true');
+
       return sendChatMessage(request);
     },
     onSuccess: (response: ChatMessageResponse) => {
+      console.log('✅ [Mutation] onSuccess called!');
+      console.log('   Response data:', {
+        session_id: response.session_id,
+        intent: response.intent,
+        response_length: response.response?.length || 0,
+        response_preview: response.response?.substring(0, 100),
+      });
+      console.log('   mountedRef.current:', mountedRef.current);
+      console.log('   Current messages count:', messages.length);
+
       // ✅ 답변 성공 - 플래그 제거
       localStorage.removeItem('chat-pending-request');
 
@@ -178,17 +194,30 @@ export default function ChatInterface() {
 
       // 컴포넌트가 마운트되어 있을 때만 상태 업데이트
       if (mountedRef.current) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: 'assistant',
-            content: response.response,
-            intent: response.intent,
-          },
-        ]);
+        console.log('🔄 [Mutation] Updating messages state...');
+        setMessages((prev) => {
+          const newMessages: Message[] = [
+            ...prev,
+            {
+              role: 'assistant' as const,
+              content: response.response,
+              intent: response.intent,
+            },
+          ];
+          console.log('   New messages count:', newMessages.length);
+          return newMessages;
+        });
+        console.log('✅ [Mutation] setMessages called successfully');
+      } else {
+        console.warn('⚠️ [Mutation] Component unmounted, skipping state update');
       }
     },
     onError: (error: Error) => {
+      console.error('❌ [Mutation] onError called!');
+      console.error('   Error:', error);
+      console.error('   Error message:', error.message);
+      console.error('   Error stack:', error.stack);
+
       // ❌ 답변 실패 - 플래그 제거
       localStorage.removeItem('chat-pending-request');
 
