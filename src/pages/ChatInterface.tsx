@@ -25,27 +25,31 @@ export default function ChatInterface() {
       const savedSessionId = localStorage.getItem('chat-session-id');
       const pendingRequest = localStorage.getItem('chat-pending-request');
 
+      // 파싱된 메시지를 저장할 변수 (복구 로직에서 재사용)
+      let parsedMessages: Message[] = [];
+
       if (savedMessages) {
         try {
-          setMessages(JSON.parse(savedMessages));
+          parsedMessages = JSON.parse(savedMessages);
+          setMessages(parsedMessages);
         } catch (error) {
           console.error('Failed to parse saved messages:', error);
           // If parsing fails, set initial welcome message
-          setMessages([
-            {
-              role: 'assistant',
-              content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
-            },
-          ]);
+          const initialMessage: Message = {
+            role: 'assistant',
+            content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
+          };
+          parsedMessages = [initialMessage];
+          setMessages(parsedMessages);
         }
       } else {
         // No saved messages, set initial welcome message
-        setMessages([
-          {
-            role: 'assistant',
-            content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
-          },
-        ]);
+        const initialMessage: Message = {
+          role: 'assistant',
+          content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
+        };
+        parsedMessages = [initialMessage];
+        setMessages(parsedMessages);
       }
 
       if (savedSessionId) {
@@ -56,12 +60,11 @@ export default function ChatInterface() {
           console.log('⏳ Recovering pending chat response...');
           try {
             const backendHistory = await getChatHistory(savedSessionId);
-            const savedMsgArray = savedMessages ? JSON.parse(savedMessages) : [];
 
             // 백엔드에 더 많은 메시지가 있으면 (답변이 와있음)
-            if (backendHistory.length > savedMsgArray.length) {
-              console.log('✅ Found new messages from backend!');
-              const newMessages = backendHistory.map((msg: any) => ({
+            if (backendHistory.length > parsedMessages.length) {
+              console.log(`✅ Found new messages from backend! (${backendHistory.length} vs ${parsedMessages.length})`);
+              const newMessages: Message[] = backendHistory.map((msg: any) => ({
                 role: msg.role,
                 content: msg.content,
                 intent: msg.intent,
