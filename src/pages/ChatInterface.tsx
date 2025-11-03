@@ -231,18 +231,32 @@ export default function ChatInterface() {
     onSuccess: (response: ChatMessageResponse) => {
       console.log('✅ [Mutation] onSuccess called!');
       console.log('   Session ID:', response.session_id);
+      console.log('   Response:', response.response.substring(0, 50) + '...');
+      console.log('   Document hidden:', document.hidden);
 
       // ✅ 답변 성공 - 플래그 제거
       localStorage.removeItem('chat-pending-request');
 
-      // Session ID만 설정 (UI 업데이트는 useEffect에서 처리)
-      setSessionId(response.session_id);
-
-      // 백그라운드 응답 플래그 설정 (탭 전환 대비)
+      // ✅ 핵심 수정: 탭 상태에 따라 처리 분기
       if (document.hidden) {
+        // 🔄 탭이 백그라운드 → 플래그 설정 (기존 기능 유지)
         console.log('⏳ [Mutation] Tab is hidden - setting pending flag');
         localStorage.setItem('chat-pending-response', 'true');
+      } else {
+        // ✅ 탭이 활성 상태 → 즉시 메시지 추가 (새 기능!)
+        console.log('✅ [Mutation] Tab is visible - adding message immediately');
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: response.response,
+            intent: response.intent,
+          },
+        ]);
       }
+
+      // Session ID 설정
+      setSessionId(response.session_id);
     },
     onError: (error: Error) => {
       console.error('❌ [Mutation] onError called!');
