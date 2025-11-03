@@ -4,13 +4,6 @@ use uuid::Uuid;
 use crate::services::judgment_engine::{JudgmentInput, JudgmentResult};
 use crate::database::Database;
 
-#[derive(Serialize)]
-struct OpenAIRequest {
-    model: String,
-    messages: Vec<Message>,
-    temperature: f32,
-}
-
 #[derive(Serialize, Deserialize)]
 struct Message {
     role: String,
@@ -18,13 +11,15 @@ struct Message {
 }
 
 #[derive(Deserialize)]
-struct OpenAIResponse {
-    choices: Vec<Choice>,
+struct ClaudeResponse {
+    content: Vec<ClaudeContent>,
 }
 
 #[derive(Deserialize)]
-struct Choice {
-    message: Message,
+struct ClaudeContent {
+    #[serde(rename = "type")]
+    content_type: String,
+    text: String,
 }
 
 pub struct LLMEngine {
@@ -35,8 +30,8 @@ pub struct LLMEngine {
 
 impl LLMEngine {
     pub fn new() -> anyhow::Result<Self> {
-        let api_key = std::env::var("OPENAI_API_KEY")
-            .unwrap_or_else(|_| "sk-test-key".to_string());
+        let api_key = std::env::var("ANTHROPIC_API_KEY")
+            .unwrap_or_else(|_| "sk-ant-test-key".to_string());
 
         Ok(Self {
             client: Client::new(),
@@ -98,23 +93,26 @@ impl LLMEngine {
             content: prompt,
         });
 
-        let request = OpenAIRequest {
-            model: "gpt-4".to_string(),
-            messages,
-            temperature: 0.3,
-        };
+        let request = serde_json::json!({
+            "model": "claude-sonnet-4-5-20250929",
+            "messages": messages,
+            "temperature": 0.3,
+            "max_tokens": 1024,
+        });
 
         let response = self
             .client
-            .post("https://api.openai.com/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", self.api_key))
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("Content-Type", "application/json")
             .json(&request)
             .send()
             .await?
-            .json::<OpenAIResponse>()
+            .json::<ClaudeResponse>()
             .await?;
 
-        let llm_response = &response.choices[0].message.content;
+        let llm_response = &response.content[0].text;
         let (result, confidence, explanation) = self.parse_llm_response(llm_response)?;
 
         // Few-shot 샘플 수에 따라 신뢰도 보정

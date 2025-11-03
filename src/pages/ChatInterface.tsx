@@ -103,8 +103,12 @@ export default function ChatInterface() {
 
   // 🔧 Track latest messages in ref for visibility handler (클로저 문제 해결)
   useEffect(() => {
-    messagesRef.current = messages;
-    console.log('📝 [messagesRef] Updated to', messages.length, 'messages');
+    if (messages.length > 0) {  // ✅ Fix: empty array 체크 추가
+      messagesRef.current = messages;
+      console.log('📝 [messagesRef] Updated to', messages.length, 'messages');
+    } else {
+      console.log('⚠️ [messagesRef] Skipping update for empty messages array');
+    }
   }, [messages]);
 
   // Save session ID to localStorage
@@ -114,47 +118,91 @@ export default function ChatInterface() {
     }
   }, [sessionId]);
 
-  // 🔄 Page Visibility API: 탭 복귀시 답변 복구 체크
+  // 🔄 Session ID 변경시 백엔드 히스토리 동기화 (새 메시지 응답 처리)
+  useEffect(() => {
+    const syncWithBackend = async () => {
+      if (!sessionId) {
+        return; // 세션 없으면 스킵
+      }
+
+      // 탭이 숨겨져 있으면 동기화 스킵 (visibilitychange에서 처리)
+      if (document.hidden) {
+        console.log('⏩ [SessionSync] Tab hidden - skipping sync');
+        return;
+      }
+
+      console.log('🔄 [SessionSync] Syncing with backend...');
+      console.log('   Session ID:', sessionId);
+      console.log('   Current messages:', messages.length);
+
+      try {
+        const backendHistory = await getChatHistory(sessionId);
+        console.log(`   Backend history: ${backendHistory.length} messages`);
+
+        // 백엔드에 새 메시지가 있으면 동기화
+        if (backendHistory.length > messages.length) {
+          console.log(`✅ [SessionSync] Found ${backendHistory.length - messages.length} new messages!`);
+          const newMessages: Message[] = backendHistory.map((msg: any) => ({
+            role: msg.role,
+            content: msg.content,
+            intent: msg.intent,
+          }));
+          setMessages(newMessages);
+        } else {
+          console.log('ℹ️ [SessionSync] Already up to date');
+        }
+      } catch (error) {
+        console.error('❌ [SessionSync] Failed:', error);
+      }
+    };
+
+    // 약간의 지연을 주어 백엔드가 메시지를 저장할 시간 확보
+    const timeoutId = setTimeout(syncWithBackend, 300);
+    return () => clearTimeout(timeoutId);
+  }, [sessionId, messages.length]); // sessionId 변경시 실행
+
+  // 🔄 Page Visibility API: 탭 복귀시 백엔드 히스토리와 무조건 동기화
   useEffect(() => {
     const handleVisibilityChange = async () => {
       console.log('👁️ [Visibility Change] Document visible:', !document.hidden);
 
-      if (!document.hidden) {
-        // 탭이 다시 활성화됨
-        const pendingRequest = localStorage.getItem('chat-pending-request');
-        const savedSessionId = localStorage.getItem('chat-session-id');
-
-        console.log('   Pending request flag:', pendingRequest);
-        console.log('   Session ID:', savedSessionId);
+      if (!document.hidden && sessionId) {
+        // 탭이 다시 활성화됨 - 백엔드와 동기화
+        console.log('🔄 [Tab Return] Syncing with backend...');
+        console.log('   Session ID:', sessionId);
         console.log('   Current messages count (ref):', messagesRef.current.length);
 
-        if (pendingRequest && savedSessionId) {
-          console.log('⏳ [Tab Return] Recovering pending chat response...');
+        try {
+          const backendHistory = await getChatHistory(sessionId);
+          console.log(`   Backend history count: ${backendHistory.length}`);
 
-          try {
-            const backendHistory = await getChatHistory(savedSessionId);
-            console.log(`   Backend history count: ${backendHistory.length}`);
-            console.log(`   Backend history:`, backendHistory);
+          // ✅ 백그라운드 응답 플래그 확인 (탭 전환 시 누락된 응답 감지)
+          const hasPendingResponse = localStorage.getItem('chat-pending-response');
+          console.log(`   Pending response flag: ${hasPendingResponse ? 'YES' : 'NO'}`);
 
-            // 🔧 백엔드에 더 많은 메시지가 있으면 (답변이 와있음) - ref 사용으로 최신 값 비교
-            if (backendHistory.length > messagesRef.current.length) {
-              console.log(`✅ [Tab Return] Found new messages! (${backendHistory.length} vs ${messagesRef.current.length})`);
-              const newMessages: Message[] = backendHistory.map((msg: any) => ({
-                role: msg.role,
-                content: msg.content,
-                intent: msg.intent,
-              }));
-              console.log('   Updating messages with backend data');
-              setMessages(newMessages);
-              localStorage.removeItem('chat-pending-request');
-            } else {
-              console.log('⚠️ [Tab Return] No new messages yet');
+          // 백엔드에 더 많은 메시지가 있거나, 백그라운드 응답 플래그가 있으면 동기화
+          if (backendHistory.length > messagesRef.current.length || hasPendingResponse) {
+            console.log(`✅ [Tab Return] Syncing ${backendHistory.length} messages!`);
+            if (hasPendingResponse) {
+              console.log('   🔄 [Tab Return] Processing background response...');
             }
-          } catch (error) {
-            console.error('❌ [Tab Return] Failed to recover:', error);
+            const newMessages: Message[] = backendHistory.map((msg: any) => ({
+              role: msg.role,
+              content: msg.content,
+              intent: msg.intent,
+            }));
+            setMessages(newMessages);
+            console.log('   Sync complete - new total:', newMessages.length);
+          } else {
+            console.log('ℹ️ [Tab Return] Already up to date');
           }
-        } else {
-          console.log('ℹ️ [Tab Return] No pending request to recover');
+
+          // 플래그 정리 (항상)
+          console.log('🧹 [Tab Return] Cleaning up flags...');
+          localStorage.removeItem('chat-pending-request');
+          localStorage.removeItem('chat-pending-response'); // 백그라운드 응답 플래그 제거
+        } catch (error) {
+          console.error('❌ [Tab Return] Failed to sync:', error);
         }
       }
     };
@@ -164,10 +212,10 @@ export default function ChatInterface() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []); // 🔧 의존성 제거 - messagesRef.current로 항상 최신 값 참조
+  }, [sessionId]); // sessionId만 의존 - messagesRef.current로 최신 값 참조
 
   const sendMessageMutation = useMutation({
-    mutationFn: (request: ChatMessageRequest) => {
+    mutationFn: async (request: ChatMessageRequest) => {
       console.log('🚀 [Mutation] Starting chat request:', {
         message: request.message.substring(0, 50) + '...',
         session_id: request.session_id,
@@ -175,39 +223,26 @@ export default function ChatInterface() {
 
       // 📝 답변 대기 플래그 저장 (탭 전환 대비)
       localStorage.setItem('chat-pending-request', 'true');
+      console.log('🏁 [Mutation] Pending flag set:', localStorage.getItem('chat-pending-request'));
+      console.log('🏁 [Mutation] Session ID:', request.session_id);
 
-      return sendChatMessage(request);
+      return await sendChatMessage(request);
     },
     onSuccess: (response: ChatMessageResponse) => {
       console.log('✅ [Mutation] onSuccess called!');
-      console.log('   Response data:', {
-        session_id: response.session_id,
-        intent: response.intent,
-        response_length: response.response?.length || 0,
-        response_preview: response.response?.substring(0, 100),
-      });
-      console.log('   Current messages count:', messages.length);
+      console.log('   Session ID:', response.session_id);
 
       // ✅ 답변 성공 - 플래그 제거
       localStorage.removeItem('chat-pending-request');
 
+      // Session ID만 설정 (UI 업데이트는 useEffect에서 처리)
       setSessionId(response.session_id);
 
-      // 상태 업데이트 (React Query가 언마운트 처리함)
-      console.log('🔄 [Mutation] Updating messages state...');
-      setMessages((prev) => {
-        const newMessages: Message[] = [
-          ...prev,
-          {
-            role: 'assistant' as const,
-            content: response.response,
-            intent: response.intent,
-          },
-        ];
-        console.log('   New messages count:', newMessages.length);
-        return newMessages;
-      });
-      console.log('✅ [Mutation] setMessages called successfully');
+      // 백그라운드 응답 플래그 설정 (탭 전환 대비)
+      if (document.hidden) {
+        console.log('⏳ [Mutation] Tab is hidden - setting pending flag');
+        localStorage.setItem('chat-pending-response', 'true');
+      }
     },
     onError: (error: Error) => {
       console.error('❌ [Mutation] onError called!');
@@ -216,7 +251,9 @@ export default function ChatInterface() {
       console.error('   Error stack:', error.stack);
 
       // ❌ 답변 실패 - 플래그 제거
+      console.log('🧹 [Cleanup] Removing pending flag (onError)');
       localStorage.removeItem('chat-pending-request');
+      console.log('🧹 [Cleanup] Flag removed, current value:', localStorage.getItem('chat-pending-request'));
 
       console.error('Chat error:', error);
 
