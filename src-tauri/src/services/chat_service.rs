@@ -783,8 +783,8 @@ Examples:
         let clean_content = strip_markdown_code_block(content);
 
         println!("✅ [generate_conversational_response] Response generated: {}",
-            if clean_content.len() > 100 {
-                format!("{}...", &clean_content[..100])
+            if clean_content.chars().count() > 100 {
+                format!("{}...", clean_content.chars().take(100).collect::<String>())
             } else {
                 clean_content.to_string()
             }

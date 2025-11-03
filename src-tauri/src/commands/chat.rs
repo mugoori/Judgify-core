@@ -222,8 +222,8 @@ pub async fn send_chat_message(
             {
                 Ok(response) => {
                     println!("✅ Conversational response generated: {}",
-                        if response.len() > 80 {
-                            format!("{}...", &response[..80])
+                        if response.chars().count() > 80 {
+                            format!("{}...", response.chars().take(80).collect::<String>())
                         } else {
                             response.clone()
                         }
