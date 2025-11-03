@@ -53,6 +53,28 @@ struct IntentAnalysisResponse {
     reasoning: Option<String>,
 }
 
+/// Claude 응답에서 마크다운 코드 블록 제거
+fn strip_markdown_code_block(content: &str) -> &str {
+    let trimmed = content.trim();
+    if trimmed.starts_with("```json") {
+        trimmed
+            .strip_prefix("```json")
+            .unwrap()
+            .strip_suffix("```")
+            .unwrap_or(trimmed)
+            .trim()
+    } else if trimmed.starts_with("```") {
+        trimmed
+            .strip_prefix("```")
+            .unwrap()
+            .strip_suffix("```")
+            .unwrap_or(trimmed)
+            .trim()
+    } else {
+        trimmed
+    }
+}
+
 /// Chat Service 핵심 구조
 pub struct ChatService {
     claude_api_key: String,
@@ -228,11 +250,25 @@ Examples:
 
         let response_json: serde_json::Value = response.json().await?;
 
+        println!("📥 Claude response JSON: {}", serde_json::to_string_pretty(&response_json).unwrap_or_default());
+
         let content = response_json["content"][0]["text"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing content in Claude response"))?;
 
-        let analysis: IntentAnalysisResponse = serde_json::from_str(content)?;
+        println!("📝 Extracted content: {}", content);
+
+        // 마크다운 코드 블록 제거
+        let clean_content = strip_markdown_code_block(content);
+        println!("🧹 Cleaned content: {}", clean_content);
+
+        let analysis: IntentAnalysisResponse = serde_json::from_str(clean_content)
+            .map_err(|e| {
+                eprintln!("❌ Failed to parse Claude response as JSON: {}", e);
+                eprintln!("   Raw content: {}", content);
+                eprintln!("   Cleaned content: {}", clean_content);
+                anyhow::anyhow!("Failed to parse intent analysis: {}", e)
+            })?;
 
         println!(
             "🧠 Intent Analysis: {} (confidence: {:.2})",
@@ -612,7 +648,10 @@ Examples:
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing content in Claude response"))?;
 
-        let params: serde_json::Value = serde_json::from_str(content)?;
+        // 마크다운 코드 블록 제거
+        let clean_content = strip_markdown_code_block(content);
+
+        let params: serde_json::Value = serde_json::from_str(clean_content)?;
 
         let workflow_id = params["workflow_id"]
             .as_str()
@@ -720,7 +759,10 @@ Examples:
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing content in Claude response"))?;
 
-        let extracted: serde_json::Value = serde_json::from_str(content)?;
+        // 마크다운 코드 블록 제거
+        let clean_content = strip_markdown_code_block(content);
+
+        let extracted: serde_json::Value = serde_json::from_str(clean_content)?;
 
         let action = extracted["action"]
             .as_str()
