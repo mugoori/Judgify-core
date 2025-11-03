@@ -13,12 +13,7 @@ interface Message {
 }
 
 export default function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>();
 
@@ -32,16 +27,33 @@ export default function ChatInterface() {
         setMessages(JSON.parse(savedMessages));
       } catch (error) {
         console.error('Failed to parse saved messages:', error);
+        // If parsing fails, set initial welcome message
+        setMessages([
+          {
+            role: 'assistant',
+            content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
+          },
+        ]);
       }
+    } else {
+      // No saved messages, set initial welcome message
+      setMessages([
+        {
+          role: 'assistant',
+          content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
+        },
+      ]);
     }
     if (savedSessionId) {
       setSessionId(savedSessionId);
     }
   }, []);
 
-  // Save messages to localStorage whenever they change
+  // Save messages to localStorage whenever they change (but not empty array)
   useEffect(() => {
-    localStorage.setItem('chat-messages', JSON.stringify(messages));
+    if (messages.length > 0) {
+      localStorage.setItem('chat-messages', JSON.stringify(messages));
+    }
   }, [messages]);
 
   // Save session ID to localStorage
