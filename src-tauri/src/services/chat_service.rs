@@ -55,7 +55,7 @@ struct IntentAnalysisResponse {
 
 /// Chat Service 핵심 구조
 pub struct ChatService {
-    openai_api_key: String,
+    claude_api_key: String,
     http_client: Client,
     db: Arc<Mutex<Connection>>,
     app_handle: Option<AppHandle>,
@@ -64,8 +64,8 @@ pub struct ChatService {
 impl ChatService {
     /// 새 ChatService 인스턴스 생성 (테스트용, AppHandle 없음)
     pub fn new() -> Result<Self> {
-        let openai_api_key =
-            env::var("OPENAI_API_KEY").unwrap_or_else(|_| "sk-test-key".to_string());
+        let claude_api_key =
+            env::var("ANTHROPIC_API_KEY").unwrap_or_else(|_| "sk-ant-test-key".to_string());
 
         let db_path = "chat_service.db";
         let db = Connection::open(db_path)?;
@@ -74,7 +74,7 @@ impl ChatService {
         Self::init_db(&db)?;
 
         Ok(Self {
-            openai_api_key,
+            claude_api_key,
             http_client: Client::new(),
             db: Arc::new(Mutex::new(db)),
             app_handle: None,
@@ -83,8 +83,8 @@ impl ChatService {
 
     /// AppHandle 포함 생성 (Tauri 환경용)
     pub fn with_app_handle(app_handle: Option<AppHandle>) -> Result<Self> {
-        let openai_api_key =
-            env::var("OPENAI_API_KEY").unwrap_or_else(|_| "sk-test-key".to_string());
+        let claude_api_key =
+            env::var("ANTHROPIC_API_KEY").unwrap_or_else(|_| "sk-ant-test-key".to_string());
 
         let db_path = "chat_service.db";
         let db = Connection::open(db_path)?;
@@ -92,7 +92,7 @@ impl ChatService {
         Self::init_db(&db)?;
 
         Ok(Self {
-            openai_api_key,
+            claude_api_key,
             http_client: Client::new(),
             db: Arc::new(Mutex::new(db)),
             app_handle,
@@ -170,22 +170,22 @@ Examples:
 
         let user_prompt = format!("User message: \"{}\"", message);
 
-        // OpenAI API 호출
+        // Claude API 호출
         let request_body = json!({
-            "model": "gpt-4o-mini",
+            "model": "claude-3-5-sonnet-20241022",
+            "system": system_prompt,
             "messages": [
-                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            "response_format": {"type": "json_object"},
             "temperature": 0.3,
-            "max_tokens": 200
+            "max_tokens": 1024
         });
 
         let response = self
             .http_client
-            .post("https://api.openai.com/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", self.openai_api_key))
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.claude_api_key)
+            .header("anthropic-version", "2023-06-01")
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()
@@ -193,14 +193,14 @@ Examples:
 
         if !response.status().is_success() {
             let error_text = response.text().await?;
-            anyhow::bail!("OpenAI API error: {}", error_text);
+            anyhow::bail!("Claude API error: {}", error_text);
         }
 
         let response_json: serde_json::Value = response.json().await?;
 
-        let content = response_json["choices"][0]["message"]["content"]
+        let content = response_json["content"][0]["text"]
             .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing content in OpenAI response"))?;
+            .ok_or_else(|| anyhow::anyhow!("Missing content in Claude response"))?;
 
         let analysis: IntentAnalysisResponse = serde_json::from_str(content)?;
 
@@ -537,20 +537,20 @@ Examples:
         let user_prompt = format!("User message: \"{}\"", message);
 
         let request_body = json!({
-            "model": "gpt-4o-mini",
+            "model": "claude-3-5-sonnet-20241022",
+            "system": system_prompt,
             "messages": [
-                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            "response_format": {"type": "json_object"},
             "temperature": 0.3,
-            "max_tokens": 300
+            "max_tokens": 1024
         });
 
         let response = self
             .http_client
-            .post("https://api.openai.com/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", self.openai_api_key))
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.claude_api_key)
+            .header("anthropic-version", "2023-06-01")
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()
@@ -558,13 +558,13 @@ Examples:
 
         if !response.status().is_success() {
             let error_text = response.text().await?;
-            anyhow::bail!("OpenAI API error: {}", error_text);
+            anyhow::bail!("Claude API error: {}", error_text);
         }
 
         let response_json: serde_json::Value = response.json().await?;
-        let content = response_json["choices"][0]["message"]["content"]
+        let content = response_json["content"][0]["text"]
             .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing content in OpenAI response"))?;
+            .ok_or_else(|| anyhow::anyhow!("Missing content in Claude response"))?;
 
         let params: serde_json::Value = serde_json::from_str(content)?;
 
@@ -629,20 +629,20 @@ Examples:
         let user_prompt = format!("User message: \"{}\"", message);
 
         let request_body = json!({
-            "model": "gpt-4o-mini",
+            "model": "claude-3-5-sonnet-20241022",
+            "system": system_prompt,
             "messages": [
-                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            "response_format": {"type": "json_object"},
             "temperature": 0.3,
-            "max_tokens": 200
+            "max_tokens": 1024
         });
 
         let response = self
             .http_client
-            .post("https://api.openai.com/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", self.openai_api_key))
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.claude_api_key)
+            .header("anthropic-version", "2023-06-01")
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()
@@ -650,13 +650,13 @@ Examples:
 
         if !response.status().is_success() {
             let error_text = response.text().await?;
-            anyhow::bail!("OpenAI API error: {}", error_text);
+            anyhow::bail!("Claude API error: {}", error_text);
         }
 
         let response_json: serde_json::Value = response.json().await?;
-        let content = response_json["choices"][0]["message"]["content"]
+        let content = response_json["content"][0]["text"]
             .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing content in OpenAI response"))?;
+            .ok_or_else(|| anyhow::anyhow!("Missing content in Claude response"))?;
 
         let extracted: serde_json::Value = serde_json::from_str(content)?;
 

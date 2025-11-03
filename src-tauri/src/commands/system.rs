@@ -22,7 +22,7 @@ pub async fn get_system_status() -> Result<SystemStatus, String> {
     use crate::database::Database;
 
     let db_connected = Database::new().is_ok();
-    let openai_configured = std::env::var("OPENAI_API_KEY").is_ok();
+    let openai_configured = std::env::var("ANTHROPIC_API_KEY").is_ok();
 
     let db_path = if let Some(data_dir) = dirs::data_local_dir() {
         data_dir
