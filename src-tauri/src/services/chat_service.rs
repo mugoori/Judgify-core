@@ -170,9 +170,21 @@ Examples:
 
         let user_prompt = format!("User message: \"{}\"", message);
 
+        // API 키 마스킹 로그
+        let masked_key = if self.claude_api_key.len() > 20 {
+            format!(
+                "{}...{}",
+                &self.claude_api_key[..10],
+                &self.claude_api_key[self.claude_api_key.len() - 10..]
+            )
+        } else {
+            "***".to_string()
+        };
+        println!("🔑 Using Anthropic API key: {}", masked_key);
+
         // Claude API 호출
         let request_body = json!({
-            "model": "claude-3-5-sonnet-20241022",
+            "model": "claude-sonnet-4-5-20250929",
             "system": system_prompt,
             "messages": [
                 {"role": "user", "content": user_prompt}
@@ -180,6 +192,10 @@ Examples:
             "temperature": 0.3,
             "max_tokens": 1024
         });
+
+        println!("📤 Sending request to Claude API...");
+        println!("   Model: claude-sonnet-4-5-20250929");
+        println!("   Endpoint: https://api.anthropic.com/v1/messages");
 
         let response = self
             .http_client
@@ -191,9 +207,23 @@ Examples:
             .send()
             .await?;
 
-        if !response.status().is_success() {
+        let status = response.status();
+        println!("📥 Response status: {}", status);
+
+        if !status.is_success() {
             let error_text = response.text().await?;
-            anyhow::bail!("Claude API error: {}", error_text);
+            eprintln!("❌ Claude API error ({}): {}", status, error_text);
+
+            // Parse error response for better error messages
+            if let Ok(error_json) = serde_json::from_str::<serde_json::Value>(&error_text) {
+                if let Some(error_type) = error_json["error"]["type"].as_str() {
+                    if let Some(error_message) = error_json["error"]["message"].as_str() {
+                        anyhow::bail!("Claude API error ({}): {} - {}", status, error_type, error_message);
+                    }
+                }
+            }
+
+            anyhow::bail!("Claude API error ({}): {}", status, error_text);
         }
 
         let response_json: serde_json::Value = response.json().await?;
@@ -536,8 +566,10 @@ Examples:
 
         let user_prompt = format!("User message: \"{}\"", message);
 
+        println!("📤 [extract_judgment_params] Calling Claude API...");
+
         let request_body = json!({
-            "model": "claude-3-5-sonnet-20241022",
+            "model": "claude-sonnet-4-5-20250929",
             "system": system_prompt,
             "messages": [
                 {"role": "user", "content": user_prompt}
@@ -556,9 +588,23 @@ Examples:
             .send()
             .await?;
 
-        if !response.status().is_success() {
+        let status = response.status();
+        println!("📥 [extract_judgment_params] Response status: {}", status);
+
+        if !status.is_success() {
             let error_text = response.text().await?;
-            anyhow::bail!("Claude API error: {}", error_text);
+            eprintln!("❌ [extract_judgment_params] Claude API error ({}): {}", status, error_text);
+
+            // Parse error response for better error messages
+            if let Ok(error_json) = serde_json::from_str::<serde_json::Value>(&error_text) {
+                if let Some(error_type) = error_json["error"]["type"].as_str() {
+                    if let Some(error_message) = error_json["error"]["message"].as_str() {
+                        anyhow::bail!("Claude API error ({}): {} - {}", status, error_type, error_message);
+                    }
+                }
+            }
+
+            anyhow::bail!("Claude API error ({}): {}", status, error_text);
         }
 
         let response_json: serde_json::Value = response.json().await?;
@@ -628,8 +674,10 @@ Examples:
 
         let user_prompt = format!("User message: \"{}\"", message);
 
+        println!("📤 [extract_workflow_params] Calling Claude API...");
+
         let request_body = json!({
-            "model": "claude-3-5-sonnet-20241022",
+            "model": "claude-sonnet-4-5-20250929",
             "system": system_prompt,
             "messages": [
                 {"role": "user", "content": user_prompt}
@@ -648,9 +696,23 @@ Examples:
             .send()
             .await?;
 
-        if !response.status().is_success() {
+        let status = response.status();
+        println!("📥 [extract_workflow_params] Response status: {}", status);
+
+        if !status.is_success() {
             let error_text = response.text().await?;
-            anyhow::bail!("Claude API error: {}", error_text);
+            eprintln!("❌ [extract_workflow_params] Claude API error ({}): {}", status, error_text);
+
+            // Parse error response for better error messages
+            if let Ok(error_json) = serde_json::from_str::<serde_json::Value>(&error_text) {
+                if let Some(error_type) = error_json["error"]["type"].as_str() {
+                    if let Some(error_message) = error_json["error"]["message"].as_str() {
+                        anyhow::bail!("Claude API error ({}): {} - {}", status, error_type, error_message);
+                    }
+                }
+            }
+
+            anyhow::bail!("Claude API error ({}): {}", status, error_text);
         }
 
         let response_json: serde_json::Value = response.json().await?;

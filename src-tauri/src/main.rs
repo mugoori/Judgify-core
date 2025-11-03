@@ -11,9 +11,26 @@ use commands::*;
 
 fn main() {
     // Load .env file from project root (one level up from src-tauri)
-    if let Err(e) = dotenvy::from_path("../.env") {
-        eprintln!("Warning: Failed to load .env file: {}", e);
-        eprintln!("Using system environment variables instead");
+    match dotenvy::from_path("../.env") {
+        Ok(_) => {
+            eprintln!("✅ Successfully loaded .env file");
+
+            // Verify critical environment variables
+            if let Ok(api_key) = std::env::var("ANTHROPIC_API_KEY") {
+                let masked_key = if api_key.len() > 20 {
+                    format!("{}...{}", &api_key[..10], &api_key[api_key.len()-10..])
+                } else {
+                    "***".to_string()
+                };
+                eprintln!("✅ ANTHROPIC_API_KEY loaded: {}", masked_key);
+            } else {
+                eprintln!("⚠️  ANTHROPIC_API_KEY not found in environment");
+            }
+        }
+        Err(e) => {
+            eprintln!("⚠️  Failed to load .env file: {}", e);
+            eprintln!("Using system environment variables instead");
+        }
     }
 
     tauri::Builder::default()
