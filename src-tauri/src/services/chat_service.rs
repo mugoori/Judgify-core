@@ -8,6 +8,7 @@ use std::env;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager};
 use uuid::Uuid;
+use crate::services::cache_service::{CacheService, ChatMessage as CachedMessage};
 
 /// 사용자 의도 분류 (LLM 기반)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -81,6 +82,7 @@ pub struct ChatService {
     http_client: Client,
     db: Arc<Mutex<Connection>>,
     app_handle: Option<AppHandle>,
+    cache: CacheService, // ✅ Memory-First Hybrid Cache 추가
 }
 
 impl ChatService {
@@ -100,6 +102,7 @@ impl ChatService {
             http_client: Client::new(),
             db: Arc::new(Mutex::new(db)),
             app_handle: None,
+            cache: CacheService::new(5, 20), // ✅ 5 세션, 20 메시지
         })
     }
 
@@ -118,6 +121,7 @@ impl ChatService {
             http_client: Client::new(),
             db: Arc::new(Mutex::new(db)),
             app_handle,
+            cache: CacheService::new(5, 20), // ✅ 5 세션, 20 메시지
         })
     }
 
@@ -343,6 +347,10 @@ Examples:
             ],
         )?;
 
+        // 🧹 캐시 무효화 (새 메시지 추가시 기존 캐시 삭제)
+        println!("🧹 [Cache] Invalidating cache for session: {}", session_id);
+        self.cache.invalidate(session_id);
+
         Ok(ChatMessage {
             id: message_id,
             session_id: session_id.to_string(),
@@ -358,7 +366,34 @@ Examples:
     /// # Arguments
     /// * `session_id` - 세션 ID
     /// * `limit` - 최대 메시지 개수 (기본 50개)
+    /// 캐시 우선 히스토리 조회 (Memory-First Hybrid Cache)
+    ///
+    /// 흐름: 1. 메모리 캐시 → 2. SQLite DB → 3. 캐시 업데이트
     pub async fn get_history(&self, session_id: &str, limit: u32) -> Result<Vec<ChatMessage>> {
+        println!("📦 [ChatService] get_history called - session: {}, limit: {}", session_id, limit);
+
+        // 1️⃣ 메모리 캐시 조회
+        if let Some(cached) = self.cache.get(session_id) {
+            println!("✅ [Cache] HIT - returning {} cached messages", cached.len());
+            return Ok(self.convert_cached_to_service_messages(cached));
+        }
+
+        println!("❌ [Cache] MISS - querying database");
+
+        // 2️⃣ SQLite 직접 쿼리
+        let messages = self.query_database(session_id, limit)?;
+
+        // 3️⃣ 캐시 업데이트
+        let cached_messages = self.convert_service_to_cached_messages(&messages);
+        self.cache.put(session_id.to_string(), cached_messages);
+
+        println!("💾 [Cache] Stored {} messages in cache", messages.len());
+
+        Ok(messages)
+    }
+
+    /// SQLite 직접 쿼리 (private 헬퍼)
+    fn query_database(&self, session_id: &str, limit: u32) -> Result<Vec<ChatMessage>> {
         let db = self.db.lock().unwrap();
 
         let mut stmt = db.prepare(
@@ -390,6 +425,31 @@ Examples:
         sorted.reverse();
 
         Ok(sorted)
+    }
+
+    /// CachedMessage → ChatMessage 변환
+    fn convert_cached_to_service_messages(&self, cached: Vec<CachedMessage>) -> Vec<ChatMessage> {
+        cached.into_iter().map(|m| ChatMessage {
+            id: m.id,
+            session_id: m.session_id,
+            role: m.role,
+            content: m.content,
+            intent: m.intent,
+            created_at: m.created_at.parse::<DateTime<Utc>>()
+                .unwrap_or_else(|_| Utc::now()),
+        }).collect()
+    }
+
+    /// ChatMessage → CachedMessage 변환
+    fn convert_service_to_cached_messages(&self, messages: &[ChatMessage]) -> Vec<CachedMessage> {
+        messages.iter().map(|m| CachedMessage {
+            id: m.id.clone(),
+            session_id: m.session_id.clone(),
+            role: m.role.clone(),
+            content: m.content.clone(),
+            intent: m.intent.clone(),
+            created_at: m.created_at.to_rfc3339(),
+        }).collect()
     }
 
     /// 채팅 세션 생성
