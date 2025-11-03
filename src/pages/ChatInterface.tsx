@@ -16,7 +16,6 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>();
-  const mountedRef = useRef(true);
 
   // Load chat history from localStorage on mount + recover pending responses
   useEffect(() => {
@@ -92,10 +91,6 @@ export default function ChatInterface() {
     };
 
     loadHistory();
-
-    return () => {
-      mountedRef.current = false;
-    };
   }, []);
 
   // Save messages to localStorage whenever they change (but not empty array)
@@ -184,7 +179,6 @@ export default function ChatInterface() {
         response_length: response.response?.length || 0,
         response_preview: response.response?.substring(0, 100),
       });
-      console.log('   mountedRef.current:', mountedRef.current);
       console.log('   Current messages count:', messages.length);
 
       // ✅ 답변 성공 - 플래그 제거
@@ -192,25 +186,21 @@ export default function ChatInterface() {
 
       setSessionId(response.session_id);
 
-      // 컴포넌트가 마운트되어 있을 때만 상태 업데이트
-      if (mountedRef.current) {
-        console.log('🔄 [Mutation] Updating messages state...');
-        setMessages((prev) => {
-          const newMessages: Message[] = [
-            ...prev,
-            {
-              role: 'assistant' as const,
-              content: response.response,
-              intent: response.intent,
-            },
-          ];
-          console.log('   New messages count:', newMessages.length);
-          return newMessages;
-        });
-        console.log('✅ [Mutation] setMessages called successfully');
-      } else {
-        console.warn('⚠️ [Mutation] Component unmounted, skipping state update');
-      }
+      // 상태 업데이트 (React Query가 언마운트 처리함)
+      console.log('🔄 [Mutation] Updating messages state...');
+      setMessages((prev) => {
+        const newMessages: Message[] = [
+          ...prev,
+          {
+            role: 'assistant' as const,
+            content: response.response,
+            intent: response.intent,
+          },
+        ];
+        console.log('   New messages count:', newMessages.length);
+        return newMessages;
+      });
+      console.log('✅ [Mutation] setMessages called successfully');
     },
     onError: (error: Error) => {
       console.error('❌ [Mutation] onError called!');
@@ -223,16 +213,14 @@ export default function ChatInterface() {
 
       console.error('Chat error:', error);
 
-      // 컴포넌트가 마운트되어 있을 때만 상태 업데이트
-      if (mountedRef.current) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: 'assistant',
-            content: `❌ 오류가 발생했습니다: ${error.message}\n\n설정 페이지에서 OpenAI API 키가 올바르게 설정되었는지 확인해주세요.`,
-          },
-        ]);
-      }
+      // 에러 메시지 표시 (React Query가 언마운트 처리함)
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `❌ 오류가 발생했습니다: ${error.message}\n\n설정 페이지에서 OpenAI API 키가 올바르게 설정되었는지 확인해주세요.`,
+        },
+      ]);
     },
   });
 
