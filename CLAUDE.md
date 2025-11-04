@@ -182,6 +182,28 @@ docs/development/plan.md:
 
 **상세 가이드**: [docs/development/git-branch-strategy.md](docs/development/git-branch-strategy.md)
 
+#### 🔒 GitHub 브랜치 보호 전략
+
+**팀 확장을 고려한 3단계 로드맵**:
+- **Phase 1 (1인)**: Self-review, 0 approvals, CI required
+- **Phase 2 (2인)**: 1 approval, CODEOWNERS, GPG 권장
+- **Phase 3 (3-5인)**: 2 approvals, GPG 필수, Linear History
+
+**핵심 보호 설정**:
+```yaml
+main 브랜치:
+  - Pull Request 필수
+  - Status Checks: Lighthouse CI + Criterion.rs
+  - Force Push/Deletion 방지
+  - (Phase 2+) CODEOWNERS 자동 리뷰어
+  - (Phase 3) GPG 서명 필수
+```
+
+**관련 문서**:
+- **브랜치 보호 전략**: [docs/guides/branch-protection-strategy.md](docs/guides/branch-protection-strategy.md)
+- **GPG 설정 가이드**: [docs/guides/gpg-setup.md](docs/guides/gpg-setup.md)
+- **Git 브랜치 전략**: [docs/development/git-branch-strategy.md](docs/development/git-branch-strategy.md)
+
 #### 📅 날짜 사용 규칙 (필수!)
 
 Claude가 문서나 보고서를 작성할 때 **반드시** 따라야 하는 날짜 규칙:

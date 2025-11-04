@@ -1,0 +1,62 @@
+# CODEOWNERS Template - Phase 2 (2인 팀)
+# 사용 시기: 팀원 1명 추가 (총 2명)
+# 활성화 방법: 이 파일을 `.github/CODEOWNERS`로 복사
+
+# ====================
+# 기본 소유자 (모든 파일)
+# ====================
+* @mugoori
+
+# ====================
+# Frontend (UI/UX, React, Vite)
+# ====================
+/src/                           @frontend-dev
+/UI/                            @frontend-dev
+/public/                        @frontend-dev
+package.json                    @frontend-dev
+package-lock.json               @frontend-dev
+vite.config.ts                  @frontend-dev
+tsconfig.json                   @frontend-dev
+tailwind.config.js              @frontend-dev
+postcss.config.js               @frontend-dev
+
+# ====================
+# Backend (Rust, Tauri, 마이크로서비스)
+# ====================
+/src-tauri/                     @mugoori
+/services/                      @mugoori
+Cargo.toml                      @mugoori
+Cargo.lock                      @mugoori
+
+# ====================
+# 문서 (공동 관리)
+# ====================
+/docs/                          @mugoori @frontend-dev
+README.md                       @mugoori @frontend-dev
+CLAUDE.md                       @mugoori @frontend-dev
+
+# ====================
+# CI/CD (공동 관리)
+# ====================
+/.github/workflows/             @mugoori @frontend-dev
+lighthouserc.json               @frontend-dev
+.github/PULL_REQUEST_TEMPLATE.md @mugoori @frontend-dev
+
+# ====================
+# 중요 파일 (2명 승인 필요)
+# ====================
+version.py                      @mugoori @frontend-dev
+.env.example                    @mugoori @frontend-dev
+.gitignore                      @mugoori @frontend-dev
+SECURITY.md                     @mugoori @frontend-dev
+
+# ====================
+# 성능 벤치마크
+# ====================
+/src-tauri/benches/             @mugoori
+.github/workflows/performance-benchmarks.yml @mugoori
+
+# ====================
+# 스크립트 및 도구
+# ====================
+/scripts/                       @mugoori @frontend-dev

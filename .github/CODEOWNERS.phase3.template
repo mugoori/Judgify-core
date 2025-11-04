@@ -1,0 +1,139 @@
+# CODEOWNERS Template - Phase 3 (3-5인 팀)
+# 사용 시기: 팀원 2-4명 추가 (총 3-5명)
+# 활성화 방법: 이 파일을 `.github/CODEOWNERS`로 복사
+# GitHub Teams: @judgify-core/maintainers, @judgify-core/frontend, @judgify-core/backend
+
+# ====================
+# 기본 소유자 (모든 파일)
+# ====================
+* @mugoori
+
+# ====================
+# 9개 마이크로서비스별 소유권
+# ====================
+
+# 1. Judgment Service (8002) - 하이브리드 판단 엔진
+/services/judgment/             @mugoori @ai-engineer-dev
+/docs/services/judgment_engine.md @mugoori @ai-engineer-dev
+
+# 2. Learning Service (8009) - 자동학습 시스템 (혁신!)
+/services/learning/             @mugoori @mlops-engineer-dev
+/docs/services/learning_service.md @mugoori @mlops-engineer-dev
+/docs/algorithms/auto_rule_extraction.md @mlops-engineer-dev
+
+# 3. Workflow Service (8001) - Visual Workflow Builder
+/services/workflow/             @mugoori @frontend-dev
+/docs/services/workflow_editor.md @mugoori @frontend-dev
+
+# 4. BI Service (8007) - MCP 기반 BI
+/services/bi/                   @mugoori @data-engineer-dev
+/docs/services/dashboard_service.md @data-engineer-dev
+
+# 5. Chat Interface Service (8008) - 통합 AI 어시스턴트
+/services/chat/                 @mugoori @frontend-dev @ai-engineer-dev
+/docs/services/chat_interface_service.md @frontend-dev @ai-engineer-dev
+
+# 6. Data Visualization Service (8006) - 대시보드
+/services/data-viz/             @frontend-dev @data-engineer-dev
+
+# 7. Action Service (8003) - 외부 시스템 연동
+/services/action/               @backend-dev @devops-dev
+/docs/services/external_integration.md @backend-dev
+
+# 8. Notification Service (8004) - 알림
+/services/notification/         @backend-dev
+
+# 9. Logging Service (8005) - 로그 수집
+/services/logging/              @devops-dev @backend-dev
+/docs/operations/monitoring_guide.md @devops-dev
+
+# ====================
+# Frontend (Desktop App)
+# ====================
+/src/                           @frontend-dev
+/UI/                            @frontend-dev
+/public/                        @frontend-dev
+package.json                    @frontend-dev
+package-lock.json               @frontend-dev
+vite.config.ts                  @frontend-dev
+tsconfig.json                   @frontend-dev
+tailwind.config.js              @frontend-dev
+
+# ====================
+# Backend (Rust, Tauri)
+# ====================
+/src-tauri/                     @mugoori @backend-dev
+Cargo.toml                      @mugoori @backend-dev
+Cargo.lock                      @mugoori @backend-dev
+
+# ====================
+# 공통 라이브러리 (Common Library)
+# ====================
+/common/                        @mugoori @backend-dev @ai-engineer-dev
+/common/base/                   @mugoori @backend-dev
+
+# ====================
+# 아키텍처 및 설계 문서
+# ====================
+/docs/architecture/             @mugoori @backend-dev @data-engineer-dev
+/docs/architecture/system_overview.md @mugoori
+/docs/architecture/database_design.md @data-engineer-dev @backend-dev
+/docs/architecture/api_specifications.md @backend-dev @frontend-dev
+
+# ====================
+# 보안 관련 (3명 승인 필요)
+# ====================
+/docs/architecture/security_architecture.md @mugoori @backend-dev @devops-dev
+SECURITY.md                     @mugoori @backend-dev @devops-dev
+
+# ====================
+# DevOps 및 배포
+# ====================
+/.github/workflows/             @devops-dev @mugoori
+/docker/                        @devops-dev @backend-dev
+/k8s/                           @devops-dev @backend-dev
+/scripts/                       @devops-dev @backend-dev
+/docs/operations/deployment_strategy.md @devops-dev
+
+# ====================
+# 데이터베이스 및 마이그레이션
+# ====================
+/migrations/                    @data-engineer-dev @backend-dev
+/docs/architecture/database_design.md @data-engineer-dev
+
+# ====================
+# 성능 벤치마크 및 테스트
+# ====================
+/src-tauri/benches/             @mugoori @backend-dev
+.github/workflows/performance-benchmarks.yml @mugoori @devops-dev
+lighthouserc.json               @frontend-dev @devops-dev
+
+# ====================
+# AI 및 LLM 관련
+# ====================
+prompt-guide.md                 @ai-engineer-dev @mugoori
+/docs/guides/hybrid-ai-strategy.md @ai-engineer-dev
+
+# ====================
+# 중요 파일 (3명 승인 필요)
+# ====================
+version.py                      @mugoori @backend-dev @devops-dev
+.env.example                    @mugoori @backend-dev @devops-dev
+CLAUDE.md                       @mugoori @ai-engineer-dev @frontend-dev
+README.md                       @mugoori @frontend-dev @backend-dev
+initial.md                      @mugoori @ai-engineer-dev
+system-structure.md             @mugoori @backend-dev
+
+# ====================
+# Git 및 협업 설정 (Maintainers만)
+# ====================
+.gitignore                      @mugoori @devops-dev
+.github/CODEOWNERS              @mugoori
+.github/PULL_REQUEST_TEMPLATE.md @mugoori @frontend-dev
+/docs/guides/branch-protection-strategy.md @mugoori @devops-dev
+
+# ====================
+# MCP 및 외부 통합
+# ====================
+/docs/guides/mcp-integration.md @backend-dev @ai-engineer-dev
+/.mcp.json                      @mugoori @backend-dev
