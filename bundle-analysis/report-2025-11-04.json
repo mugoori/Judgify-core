@@ -1,0 +1,19 @@
+{
+  "timestamp": "2025-11-04T02:11:21.651Z",
+  "files": [
+    {
+      "name": "index-B13u6zUi.js",
+      "size": 797565,
+      "gzipSize": 236281,
+      "type": "JavaScript"
+    },
+    {
+      "name": "index-DELqKCid.css",
+      "size": 22947,
+      "gzipSize": 5230,
+      "type": "CSS"
+    }
+  ],
+  "totalSize": 820512,
+  "totalGzipSize": 241511
+}

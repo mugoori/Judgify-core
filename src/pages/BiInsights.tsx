@@ -4,7 +4,6 @@ import { generateBiInsight, type BiInsightResponse } from '@/lib/tauri-api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sparkles, TrendingUp, AlertCircle } from 'lucide-react';
 
