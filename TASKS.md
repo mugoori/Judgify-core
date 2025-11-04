@@ -11,7 +11,7 @@
 | 구분 | 진행률 | 상태 | 최근 업데이트 |
 |------|-------|------|--------------|
 | **Desktop App (Phase 0)** | 71.7% | 🟢 완료 | 2025-11-04 |
-| **Performance Engineer (Phase 1)** | 87.5% (7/8) | 🟢 진행 중 | 2025-11-04 |
+| **Performance Engineer (Phase 1)** | 100% (8/8) | ✅ 완료 | 2025-11-04 |
 | **Test Automation (Phase 2)** | 0% (0/8) | ⏳ 대기 | - |
 
 ---
@@ -503,41 +503,67 @@ docs/performance/baseline-report-2025-11-04.md (약 300줄)
 
 ---
 
-#### Task 2.1: Criterion.rs 벤치마크 자동화 ⏳ **대기 중**
+#### Task 2.1: Criterion.rs CI/CD 자동화 ✅ **완료** (2025-11-04)
 
 **목표**:
-- `cargo bench` 명령어로 자동 실행
-- 벤치마크 결과 히스토리 추적 (JSON 저장)
+- GitHub Actions에서 Criterion 벤치마크 자동 실행
 - 성능 회귀 자동 감지 (기준치 대비 10% 이상 저하시 경고)
+- PR 코멘트로 벤치마크 결과 자동 게시
 
-**생성할 파일**:
+**구현 내용**:
+
+**생성된 파일**:
+- `.github/workflows/performance-benchmarks.yml` - Criterion.rs CI/CD 워크플로우
+- `.github/scripts/benchmark-report.js` - 벤치마크 결과 분석 및 회귀 감지 스크립트
+
+**주요 기능**:
+
+1. **자동 벤치마크 실행**:
+   - PR 생성/업데이트시 `cargo bench` 자동 실행
+   - 백엔드 코드 변경시만 트리거 (`src-tauri/**/*.rs`)
+
+2. **Baseline 비교**:
+   - main 브랜치 결과를 baseline으로 저장
+   - PR 브랜치 결과와 자동 비교
+   - 변화율 계산 (개선/회귀)
+
+3. **회귀 감지**:
+   - 10% 이상 성능 저하시 경고
+   - `regression-detected.flag` 파일 생성
+   - CI 실패 처리 (PR merge 방지)
+
+4. **PR 코멘트**:
+   - 벤치마크 결과 테이블 자동 생성
+   - 회귀/개선 항목 하이라이트
+   - Artifact 링크 제공
+
+**벤치마크 분석 알고리즘** (`benchmark-report.js`):
+```javascript
+// Criterion estimates.json 파싱
+parseCriterionResults() → benchmarks[]
+
+// 변화율 계산
+changePct = (current - baseline) / baseline * 100
+
+// 분류
+if (changePct > 10%) → regression ⚠️
+if (changePct < -5%) → improvement 🚀
+else → no significant change ✅
 ```
-.github/workflows/performance.yml
-benches/criterion_config.rs
-scripts/benchmark-report.js
-```
 
-**GitHub Actions 워크플로우**:
-```yaml
-name: Performance Regression
+**예상 CI 환경 성과**:
+- **실행 시간**: ~10-15분 (Ubuntu latest, 2-core)
+- **캐시 효과**: Rust dependencies 캐싱으로 5분 단축
+- **Artifact 보관**: 90일 (baseline), 30일 (PR 결과)
 
-on: [pull_request]
+**Git 기록**:
+- **커밋**: (곧 생성)
+- **브랜치**: main
+- **PR 검증**: 향후 PR에서 자동 테스트
 
-jobs:
-  benchmark:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run benchmarks
-        run: cargo bench
-      - name: Compare with baseline
-        run: node scripts/benchmark-report.js
-      - name: Comment PR
-        if: github.event_name == 'pull_request'
-        # 성능 회귀 발견시 PR 코멘트
-```
+**다음 작업 연결**: Phase 1 완료 → Phase 2 (Test Automation)
 
-**예상 소요 시간**: 1일
+**소요 시간**: 1시간 (예상 1일에서 단축 - 기존 벤치마크 활용)
 
 ---
 
