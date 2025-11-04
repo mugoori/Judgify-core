@@ -110,7 +110,9 @@
       "Bash(then tail -100 src-tauri/app.log)",
       "Bash(else echo \"Log file not found\")",
       "Bash(fi)",
-      "Bash(cargo tauri dev:*)"
+      "Bash(cargo tauri dev:*)",
+      "Bash(cargo bench:*)",
+      "Bash(tee:*)"
     ],
     "deny": [],
     "additionalDirectories": [

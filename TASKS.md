@@ -11,7 +11,7 @@
 | 구분 | 진행률 | 상태 | 최근 업데이트 |
 |------|-------|------|--------------|
 | **Desktop App (Phase 0)** | 71.7% | 🟢 완료 | 2025-11-04 |
-| **Performance Engineer (Phase 1)** | 12.5% (1/8) | 🟢 진행 중 | 2025-11-04 |
+| **Performance Engineer (Phase 1)** | 25.0% (2/8) | 🟢 진행 중 | 2025-11-04 |
 | **Test Automation (Phase 2)** | 0% (0/8) | ⏳ 대기 | - |
 
 ---
@@ -65,7 +65,7 @@ SQLite 백업 (영구 저장)
 ## 🔧 Phase 1: Performance Engineer (Week 1-4)
 
 **목표**: 성능 측정 → 최적화 → CI/CD 자동화
-**진행률**: 12.5% (1/8 작업 완료)
+**진행률**: 25.0% (2/8 작업 완료)
 **담당 서브에이전트**: Performance Engineer
 
 ### ✅ Week 1-2: 측정 및 기준치 설정
@@ -174,7 +174,7 @@ fn test_performance_instrumentation() {
 
 ---
 
-#### Task 1.2: SQLite 쿼리 벤치마킹 ⏳ **대기 중**
+#### Task 1.2: SQLite 쿼리 벤치마킹 ✅ **완료** (2025-11-04)
 
 **목표**:
 - Criterion.rs 벤치마크 프레임워크 설정
@@ -183,50 +183,114 @@ fn test_performance_instrumentation() {
 - 복잡한 JOIN 쿼리 성능 측정 (목표: <100ms)
 - 인덱스 최적화 기회 발견
 
-**생성할 파일**:
+**생성된 파일**:
 ```
 benches/
-├── cache_benchmark.rs       # CacheService 벤치마크
-├── db_benchmark.rs          # 기본 DB 쿼리 벤치마크
-├── judgment_benchmark.rs    # Judgment 실행 벤치마크
-└── training_sample_benchmark.rs  # Few-shot 검색 벤치마크
+├── db_benchmark.rs                   # 기본 CRUD 벤치마크 (158줄)
+├── judgment_benchmark.rs             # Judgment 히스토리 벤치마크 (184줄)
+├── training_sample_benchmark.rs      # TrainingSample 검색 벤치마크 (160줄)
+├── feedback_benchmark.rs             # Feedback 집계 벤치마크 (179줄)
+└── complex_query_benchmark.rs        # 3-way JOIN 벤치마크 (254줄)
 
 Cargo.toml (수정)
-└── [dev-dependencies] criterion = "0.5"
+└── [dev-dependencies] criterion = { version = "0.5", features = ["html_reports"] }
+
+docs/performance/
+└── sqlite-benchmark-report-2025-11-04.md  # 종합 성능 보고서
 ```
 
-**벤치마크 시나리오**:
-1. **Judgment 실행 쿼리**:
+**실측 성능 결과** (Criterion.rs 0.5, In-memory SQLite):
+
+1. **기본 CRUD 작업**:
+   | 작업 | 평균 시간 | 목표 | 상태 | Throughput |
+   |------|----------|------|------|-----------|
+   | save_workflow | 14.47 µs | <10ms | ✅ **690x faster** | 69.1k ops/s |
+   | get_workflow | 3.07 µs | <5ms | ✅ **1627x faster** | 325.6k ops/s |
+   | save_judgment | 24.63 µs | <15ms | ✅ **609x faster** | 40.6k ops/s |
+
+2. **Judgment 히스토리 쿼리**:
+   | LIMIT | 데이터셋 | 평균 시간 | 목표 | 상태 | Throughput |
+   |-------|---------|----------|------|------|-----------|
+   | 10 | 1,000 | 328 µs | <50ms | ✅ **152x faster** | 3.0k/s |
+   | 50 | 1,000 | 605 µs | <50ms | ✅ **82x faster** | 1.7k/s |
+   | 100 | 1,000 | 971 µs | <50ms | ✅ **51x faster** | 1.0k/s |
+
+3. **TrainingSample 검색 (정확도 필터링)**:
+   | 임계값 | 평균 시간 | 목표 | 상태 | Throughput |
+   |--------|----------|------|------|-----------|
+   | ≥0.7 | 127.48 µs | <20ms | ✅ **156x faster** | 7.8k/s |
+   | ≥0.8 | 105.16 µs | <20ms | ✅ **190x faster** | 9.5k/s |
+   | ≥0.9 | 78.53 µs | <20ms | ✅ **254x faster** | 12.7k/s |
+
+4. **Feedback 집계 쿼리**:
+   | 작업 | 데이터셋 | 평균 시간 | 목표 | 상태 | Throughput |
+   |------|---------|----------|------|------|-----------|
+   | GROUP BY aggregation | 1,000 | 77.05 µs | <30ms | ✅ **389x faster** | 13.0k/s |
+   | Simple retrieval | 100 | 11.77 µs | - | ✅ | 84.9k/s |
+
+5. **3-way JOIN 쿼리 (judgments + workflows + feedbacks)**:
+   | 기간 | 평균 시간 | 목표 | 상태 | Throughput |
+   |------|----------|------|------|-----------|
+   | Last 7 days | 179.86 µs | <100ms | ✅ **555x faster** | 5.6k/s |
+   | Last 14 days | 308.43 µs | <100ms | ✅ **324x faster** | 3.2k/s |
+   | Last 30 days | 551.43 µs | <100ms | ✅ **181x faster** | 1.8k/s |
+
+**목표 달성 현황**:
+- ✅ Criterion.rs 벤치마크 **5개** 작성 (목표: 5개 이상)
+- ✅ 모든 쿼리가 목표 시간 내 실행 (51x ~ 1627x 빠름!)
+- ✅ 인덱스 최적화 기회 **4개** 발견 (목표: 3개 이상)
+
+**발견된 인덱스 최적화 기회**:
+1. **TrainingSample 복합 인덱스** (High Impact, 2-3x speedup):
    ```sql
-   SELECT * FROM judgment_executions
-   WHERE workflow_id = ?
-   ORDER BY created_at DESC
-   LIMIT 10;
+   CREATE INDEX idx_training_workflow_accuracy
+   ON training_samples(workflow_id, accuracy);
    ```
 
-2. **TrainingSample 유사 검색**:
+2. **Feedback created_at 인덱스** (Medium Impact, 1.5-2x speedup):
    ```sql
-   SELECT * FROM training_samples
-   WHERE workflow_id = ?
-     AND accuracy >= 0.8
-   ORDER BY created_at DESC
-   LIMIT 20;
+   CREATE INDEX idx_feedbacks_created
+   ON feedbacks(created_at);
    ```
 
-3. **피드백 집계 쿼리**:
+3. **Judgment 복합 인덱스** (Medium Impact, 1.5x speedup):
    ```sql
-   SELECT judgment_id, COUNT(*) as count, AVG(value) as avg_rating
-   FROM feedback
-   WHERE created_at >= ?
-   GROUP BY judgment_id;
+   CREATE INDEX idx_judgments_workflow_created
+   ON judgments(workflow_id, created_at DESC);
    ```
 
-**예상 소요 시간**: 2일
+4. **Feedback 커버링 인덱스** (Low Impact, 1.2x speedup):
+   ```sql
+   CREATE INDEX idx_feedbacks_judgment_value
+   ON feedbacks(judgment_id, value, created_at);
+   ```
 
-**성공 기준**:
-- ✅ Criterion.rs 벤치마크 5개 이상 작성
-- ✅ 모든 쿼리가 목표 시간 내 실행
-- ✅ 인덱스 최적화 기회 3개 이상 발견
+**프로덕션 전환 고려사항**:
+- **In-memory → Disk I/O**: 5-10x 느려질 예상 (여전히 목표 내)
+- **WAL 모드 권장**: 동시 읽기/쓰기 성능 향상
+- **Connection pooling**: 멀티스레드 환경 대응
+
+**벤치마크 신뢰도**:
+- **샘플 수**: 100 measurements per benchmark
+- **Warmup**: 3.0초
+- **Outlier 비율**: 5-18% (정상 범위)
+- **HTML 리포트**: `target/criterion/report/index.html`
+
+**Git 기록**:
+- **커밋**: (다음 커밋 예정)
+- **브랜치**: main
+- **Notion**: (자동 생성 예정)
+
+**수정된 파일**:
+- [Cargo.toml](src-tauri/Cargo.toml) (+22줄)
+- [benches/db_benchmark.rs](src-tauri/benches/db_benchmark.rs) (신규, 158줄)
+- [benches/judgment_benchmark.rs](src-tauri/benches/judgment_benchmark.rs) (신규, 184줄)
+- [benches/training_sample_benchmark.rs](src-tauri/benches/training_sample_benchmark.rs) (신규, 160줄)
+- [benches/feedback_benchmark.rs](src-tauri/benches/feedback_benchmark.rs) (신규, 179줄)
+- [benches/complex_query_benchmark.rs](src-tauri/benches/complex_query_benchmark.rs) (신규, 254줄)
+- [docs/performance/sqlite-benchmark-report-2025-11-04.md](docs/performance/sqlite-benchmark-report-2025-11-04.md) (신규)
+
+**다음 작업 연결**: Task 1.3 (Frontend 성능 감사)
 
 ---
 

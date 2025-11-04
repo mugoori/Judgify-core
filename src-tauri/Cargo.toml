@@ -30,6 +30,29 @@ rand = "0.8"
 dotenvy = "0.15"
 lru = "0.12"
 
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "db_benchmark"
+harness = false
+
+[[bench]]
+name = "judgment_benchmark"
+harness = false
+
+[[bench]]
+name = "training_sample_benchmark"
+harness = false
+
+[[bench]]
+name = "feedback_benchmark"
+harness = false
+
+[[bench]]
+name = "complex_query_benchmark"
+harness = false
+
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
 # DO NOT REMOVE!!
