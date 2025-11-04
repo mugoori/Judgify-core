@@ -47,16 +47,27 @@ export default function Settings() {
 
   const handleExportDatabase = async () => {
     try {
+      console.log('[DEBUG] 백업 다이얼로그 열기 시작...');
       const exportPath = await save({
         defaultPath: 'judgify-backup.db',
         filters: [{ name: 'SQLite Database', extensions: ['db'] }],
       });
 
+      console.log('[DEBUG] save() 반환값:', exportPath);
+
       if (exportPath) {
-        await exportDatabase(exportPath);
+        // 확장자가 없으면 .db 추가
+        const finalPath = exportPath.endsWith('.db') ? exportPath : `${exportPath}.db`;
+        console.log('[DEBUG] 최종 백업 경로:', finalPath);
+        console.log('[DEBUG] IPC 호출 직전...');
+        await exportDatabase(finalPath);
+        console.log('[DEBUG] IPC 호출 성공!');
         alert('데이터베이스가 성공적으로 백업되었습니다.');
+      } else {
+        console.log('[DEBUG] 사용자가 다이얼로그를 취소했습니다.');
       }
     } catch (error) {
+      console.error('[DEBUG] 에러 발생:', error);
       alert('백업 실패: ' + error);
     }
   };

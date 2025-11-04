@@ -99,6 +99,9 @@ impl Database {
               ON feedbacks(judgment_id, feedback_type, value, created_at);"
         )?;
 
+        // Seed sample data for demo (only if database is empty)
+        crate::database::seed::seed_sample_data(conn)?;
+
         Ok(())
     }
 

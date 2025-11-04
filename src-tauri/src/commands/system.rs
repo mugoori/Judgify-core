@@ -19,6 +19,7 @@ pub struct SystemStats {
 
 #[tauri::command]
 pub async fn get_system_status() -> Result<SystemStatus, String> {
+    println!("ℹ️ [IPC] get_system_status called!");
     use crate::database::Database;
 
     let db_connected = Database::new().is_ok();
@@ -45,6 +46,7 @@ pub async fn get_system_status() -> Result<SystemStatus, String> {
 
 #[tauri::command]
 pub async fn get_system_stats() -> Result<SystemStats, String> {
+    println!("📊 [IPC] get_system_stats called!");
     use crate::database::Database;
 
     let db = Database::new().map_err(|e| e.to_string())?;
@@ -74,6 +76,7 @@ pub async fn get_system_stats() -> Result<SystemStats, String> {
 
 #[tauri::command]
 pub async fn get_data_directory() -> Result<String, String> {
+    println!("📁 [IPC] get_data_directory called!");
     if let Some(data_dir) = dirs::data_local_dir() {
         Ok(data_dir.join("Judgify").to_string_lossy().to_string())
     } else {
@@ -83,7 +86,9 @@ pub async fn get_data_directory() -> Result<String, String> {
 
 #[tauri::command]
 pub async fn export_database(export_path: String) -> Result<(), String> {
+    println!("💾 [IPC] export_database called! export_path: {:?}", export_path);
     use std::fs;
+    use std::path::Path;
 
     let db_path = if let Some(data_dir) = dirs::data_local_dir() {
         data_dir.join("Judgify").join("judgify.db")
@@ -91,7 +96,24 @@ pub async fn export_database(export_path: String) -> Result<(), String> {
         return Err("Could not determine database path".to_string());
     };
 
+    // 원본 데이터베이스 파일 존재 여부 확인
+    if !db_path.exists() {
+        return Err(format!(
+            "데이터베이스 파일이 아직 생성되지 않았습니다. 앱을 먼저 사용하여 데이터를 생성한 후 백업하세요.\n경로: {:?}",
+            db_path
+        ));
+    }
+
+    // 대상 디렉토리가 존재하지 않으면 생성
+    if let Some(parent_dir) = Path::new(&export_path).parent() {
+        if !parent_dir.exists() {
+            println!("📁 [IPC] Creating directory: {:?}", parent_dir);
+            fs::create_dir_all(parent_dir).map_err(|e| format!("Failed to create directory: {}", e))?;
+        }
+    }
+
     fs::copy(&db_path, &export_path).map_err(|e| e.to_string())?;
+    println!("✅ [IPC] Database exported successfully to: {:?}", export_path);
 
     Ok(())
 }
