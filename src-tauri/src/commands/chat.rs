@@ -30,6 +30,7 @@ pub struct ChatMessage {
 pub async fn send_chat_message(
     request: ChatMessageRequest,
 ) -> Result<ChatMessageResponse, String> {
+    println!("💬 [IPC] send_chat_message called! message: {:?}", request.message.chars().take(50).collect::<String>());
     let service = ChatService::new().map_err(|e| e.to_string())?;
 
     // 1. 세션 ID 확인 또는 생성
@@ -260,6 +261,7 @@ pub async fn send_chat_message(
 /// Week 1: ChatService를 사용한 실제 히스토리 조회
 #[tauri::command]
 pub async fn get_chat_history(session_id: String) -> Result<Vec<ChatMessage>, String> {
+    println!("📜 [IPC] get_chat_history called! session_id: {:?}", session_id);
     let service = ChatService::new().map_err(|e| e.to_string())?;
 
     let messages = service

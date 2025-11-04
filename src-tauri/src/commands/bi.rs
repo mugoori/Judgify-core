@@ -19,6 +19,7 @@ pub struct BiInsightResponse {
 pub async fn generate_bi_insight(
     request: GenerateInsightRequest,
 ) -> Result<BiInsightResponse, String> {
+    println!("🔍 [IPC] generate_bi_insight called! user_request: {:?}", request.user_request);
     let service = BiService::new().map_err(|e| e.to_string())?;
 
     let insight = service

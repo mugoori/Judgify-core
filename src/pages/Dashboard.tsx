@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getSystemStats, getJudgmentHistory } from '@/lib/tauri-api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Activity, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
 
 export default function Dashboard() {
@@ -44,6 +44,68 @@ export default function Dashboard() {
       confidence: Math.round(j.confidence * 100),
       result: j.result ? 1 : 0,
     })) || [];
+
+  // 7일 트렌드 데이터 생성
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - i));
+    return {
+      date: date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+      fullDate: date.toDateString(),
+    };
+  });
+
+  const dailyTrend = last7Days.map(({ date, fullDate }) => {
+    const dayJudgments = recentJudgments?.filter((j) => {
+      const jDate = new Date(j.created_at).toDateString();
+      return jDate === fullDate;
+    }) || [];
+
+    const passCount = dayJudgments.filter((j) => j.result).length;
+    const avgConfidence = dayJudgments.length > 0
+      ? dayJudgments.reduce((sum, j) => sum + j.confidence, 0) / dayJudgments.length
+      : 0;
+
+    return {
+      date,
+      count: dayJudgments.length,
+      passRate: dayJudgments.length > 0 ? (passCount / dayJudgments.length) * 100 : 0,
+      avgConfidence: Math.round(avgConfidence * 100),
+    };
+  });
+
+  // 합격률 파이 차트 데이터
+  const passCount = recentJudgments?.filter((j) => j.result).length || 0;
+  const failCount = (recentJudgments?.length || 0) - passCount;
+  const passRateData = [
+    { name: '합격', value: passCount, color: '#10b981' },
+    { name: '불합격', value: failCount, color: '#ef4444' },
+  ];
+
+  // 워크플로우별 통계
+  const workflowStats = recentJudgments?.reduce(
+    (acc, j) => {
+      const wfId = j.workflow_id;
+      if (!acc[wfId]) {
+        acc[wfId] = { id: wfId, count: 0, totalConf: 0 };
+      }
+      acc[wfId].count++;
+      acc[wfId].totalConf += j.confidence;
+      return acc;
+    },
+    {} as Record<string, { id: string; count: number; totalConf: number }>
+  );
+
+  const workflowChartData = workflowStats
+    ? Object.values(workflowStats)
+        .map((w) => ({
+          name: w.id.split('-').slice(-2).join(' '),
+          count: w.count,
+          avgConfidence: Math.round((w.totalConf / w.count) * 100),
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -102,8 +164,44 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* 7일 트렌드 (전체 너비) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>7일 트렌드</CardTitle>
+          <CardDescription>최근 7일간 판단 횟수 및 합격률 추이</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={dailyTrend}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis yAxisId="left" />
+              <YAxis yAxisId="right" orientation="right" />
+              <Tooltip />
+              <Legend />
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="count"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                name="판단 횟수"
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="passRate"
+                stroke="#10b981"
+                strokeWidth={2}
+                name="합격률 (%)"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 판단 방법별 분포 */}
         <Card>
           <CardHeader>
@@ -141,7 +239,58 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+
+        {/* 합격률 파이 차트 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>합격률</CardTitle>
+            <CardDescription>전체 판단 결과 비율</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={passRateData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {passRateData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* 워크플로우별 통계 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>워크플로우별 실행 통계</CardTitle>
+          <CardDescription>가장 많이 사용된 워크플로우 TOP 5</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={workflowChartData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis dataKey="name" type="category" width={100} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="count" fill="hsl(var(--primary))" name="실행 횟수" />
+              <Bar dataKey="avgConfidence" fill="#10b981" name="평균 신뢰도 (%)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       {/* Recent Judgments Table */}
       <Card>

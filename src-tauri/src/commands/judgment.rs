@@ -11,6 +11,7 @@ pub struct ExecuteJudgmentRequest {
 pub async fn execute_judgment(
     request: ExecuteJudgmentRequest,
 ) -> Result<JudgmentResult, String> {
+    println!("⚖️ [IPC] execute_judgment called! workflow_id: {:?}", request.workflow_id);
     let engine = JudgmentEngine::new().map_err(|e| e.to_string())?;
 
     let input = JudgmentInput {
@@ -26,6 +27,7 @@ pub async fn get_judgment_history(
     workflow_id: Option<String>,
     limit: Option<u32>,
 ) -> Result<Vec<JudgmentResult>, String> {
+    println!("📊 [IPC] get_judgment_history called! workflow_id: {:?}, limit: {:?}", workflow_id, limit);
     let engine = JudgmentEngine::new().map_err(|e| e.to_string())?;
     engine.get_history(workflow_id, limit.unwrap_or(50))
         .await

@@ -45,6 +45,7 @@ impl From<Workflow> for WorkflowResponse {
 
 #[tauri::command]
 pub async fn create_workflow(request: CreateWorkflowRequest) -> Result<WorkflowResponse, String> {
+    println!("📝 [IPC] create_workflow called! name: {:?}", request.name);
     let service = WorkflowService::new().map_err(|e| e.to_string())?;
 
     // Validate workflow definition
@@ -61,6 +62,7 @@ pub async fn create_workflow(request: CreateWorkflowRequest) -> Result<WorkflowR
 
 #[tauri::command]
 pub async fn get_workflow(id: String) -> Result<WorkflowResponse, String> {
+    println!("🔍 [IPC] get_workflow called! id: {:?}", id);
     let service = WorkflowService::new().map_err(|e| e.to_string())?;
 
     let workflow = service
@@ -73,6 +75,7 @@ pub async fn get_workflow(id: String) -> Result<WorkflowResponse, String> {
 
 #[tauri::command]
 pub async fn get_all_workflows() -> Result<Vec<WorkflowResponse>, String> {
+    println!("📋 [IPC] get_all_workflows called!");
     let service = WorkflowService::new().map_err(|e| e.to_string())?;
 
     let workflows = service.get_all_workflows().map_err(|e| e.to_string())?;
@@ -82,6 +85,7 @@ pub async fn get_all_workflows() -> Result<Vec<WorkflowResponse>, String> {
 
 #[tauri::command]
 pub async fn update_workflow(request: UpdateWorkflowRequest) -> Result<WorkflowResponse, String> {
+    println!("✏️ [IPC] update_workflow called! id: {:?}, name: {:?}", request.id, request.name);
     let service = WorkflowService::new().map_err(|e| e.to_string())?;
 
     // Validate if definition is provided
@@ -104,6 +108,7 @@ pub async fn update_workflow(request: UpdateWorkflowRequest) -> Result<WorkflowR
 
 #[tauri::command]
 pub async fn delete_workflow(id: String) -> Result<(), String> {
+    println!("🗑️ [IPC] delete_workflow called! id: {:?}", id);
     let service = WorkflowService::new().map_err(|e| e.to_string())?;
 
     service.delete_workflow(&id).map_err(|e| e.to_string())?;
@@ -113,6 +118,7 @@ pub async fn delete_workflow(id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn validate_workflow(definition: serde_json::Value) -> Result<bool, String> {
+    println!("✅ [IPC] validate_workflow called!");
     let service = WorkflowService::new().map_err(|e| e.to_string())?;
 
     service
