@@ -71,6 +71,80 @@ docs/*        # 문서 수정
 fix/*         # 버그 수정
 ```
 
+### 워크플로우: GitHub CLI 자동화 (권장) 🚀
+
+**설치 및 설정** (최초 1회, 15분):
+```bash
+# 1. GitHub CLI 설치
+# Windows: https://cli.github.com/ 에서 다운로드
+# macOS: brew install gh
+# Linux: sudo apt install gh
+
+# 2. GitHub 로그인
+gh auth login
+# → GitHub.com 선택
+# → HTTPS 선택
+# → 브라우저 인증
+
+# 3. 설치 확인
+gh --version
+```
+
+**일일 워크플로우** (3단계, 30초):
+```bash
+# 1. 브랜치 생성 및 작업
+git checkout -b feature/my-feature
+# ... 작업 ...
+git commit -m "feat: My feature"
+
+# 2. 푸시
+git push origin feature/my-feature
+
+# 3. 자동 PR + 머지 (CI 통과 후)
+./scripts/pr-auto-merge.sh "feat: My feature"
+# → PR 생성 + 자동 머지 설정 + 브랜치 삭제 예약 (한 번에!)
+```
+
+**스크립트 위치**:
+- Git Bash/Linux/Mac: `scripts/pr-auto-merge.sh`
+- Windows PowerShell: `scripts/pr-auto-merge.ps1`
+
+**효과**:
+- ⏱️ PR 생성 + 머지 시간: 5분 → 30초 (90% 단축)
+- 🤖 CI 통과 후 자동 머지
+- 📊 PR 단위 이력 관리 유지
+
+**상세 가이드**: [github-cli-workflow.md](./github-cli-workflow.md)
+
+### Private 레포지토리 제약사항 ⚠️
+
+**중요**: Personal 계정의 Private 레포지토리에서는 Branch Protection이 **권장사항**으로만 작동합니다.
+
+**현실**:
+- ✅ 브랜치 보호 설정 가능
+- ❌ 하지만 강제되지 않음 (본인이 무시 가능)
+- ⚠️ Public 레포 또는 GitHub Team 계정에서만 강제
+
+**자기 규율 전략**:
+```yaml
+원칙:
+  1. 모든 새 기능은 feature/* 브랜치에서 개발
+  2. PR 생성 → 자체 코드 리뷰 → CI 통과 확인 → Self-Merge
+  3. 급한 hotfix만 main 직접 푸시 허용 (문서화 필수)
+
+매 작업마다 체크리스트:
+  - [ ] feature/* 브랜치 생성
+  - [ ] 작업 완료 후 PR 생성 (스크립트 사용)
+  - [ ] CI (Lighthouse + Criterion) 통과 확인
+  - [ ] 자동 머지 또는 수동 머지
+  - [ ] 브랜치 자동 삭제 확인
+```
+
+**Phase 2 전환 시** (3개월 후):
+- GitHub Team 업그레이드 필수 ($8/월, 2명)
+- Branch Protection 자동 강제 활성화
+- CODEOWNERS 실제 작동 시작
+
 ---
 
 ## Phase 2: 2인 팀 (3개월 후)

@@ -199,8 +199,25 @@ main 브랜치:
   - (Phase 3) GPG 서명 필수
 ```
 
+**GitHub CLI 자동화 워크플로우** (Phase 1 권장):
+```bash
+# 일일 워크플로우 (3단계, 30초)
+git checkout -b feature/my-feature
+git commit -m "feat: My feature"
+git push origin feature/my-feature
+./scripts/pr-auto-merge.sh "feat: My feature"  # 자동 PR + 머지!
+```
+
+**효과**: PR 생성 + 머지 시간 90% 단축 (5분 → 30초)
+
+**Phase 1 제약사항** (중요!):
+- Personal 계정 Private 레포에서는 Branch Protection이 **강제되지 않음**
+- 자기 규율로 PR 워크플로우 습관화
+- Phase 2 (팀원 추가 시) GitHub Team 업그레이드 필수 ($8/월)
+
 **관련 문서**:
 - **브랜치 보호 전략**: [docs/guides/branch-protection-strategy.md](docs/guides/branch-protection-strategy.md)
+- **GitHub CLI 자동화**: [docs/guides/github-cli-workflow.md](docs/guides/github-cli-workflow.md) 🚀
 - **GPG 설정 가이드**: [docs/guides/gpg-setup.md](docs/guides/gpg-setup.md)
 - **Git 브랜치 전략**: [docs/development/git-branch-strategy.md](docs/development/git-branch-strategy.md)
 
