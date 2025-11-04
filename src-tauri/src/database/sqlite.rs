@@ -79,7 +79,24 @@ impl Database {
 
             CREATE INDEX IF NOT EXISTS idx_judgments_workflow ON judgments(workflow_id);
             CREATE INDEX IF NOT EXISTS idx_judgments_created ON judgments(created_at);
-            CREATE INDEX IF NOT EXISTS idx_training_workflow ON training_samples(workflow_id);"
+            CREATE INDEX IF NOT EXISTS idx_training_workflow ON training_samples(workflow_id);
+
+            -- Composite indexes for performance optimization (Task 2.2)
+            -- 1. Judgment workflow + time index (Dashboard getJudgmentHistory optimization)
+            CREATE INDEX IF NOT EXISTS idx_judgments_workflow_created
+              ON judgments(workflow_id, created_at DESC);
+
+            -- 2. TrainingSample search index (Learning Service optimization)
+            CREATE INDEX IF NOT EXISTS idx_training_workflow_accuracy
+              ON training_samples(workflow_id, accuracy DESC, created_at DESC);
+
+            -- 3. Feedback + Judgment JOIN index (complex query optimization)
+            CREATE INDEX IF NOT EXISTS idx_feedbacks_judgment_type
+              ON feedbacks(judgment_id, feedback_type, value);
+
+            -- 4. Feedback covering index (optimized retrieval with all columns)
+            CREATE INDEX IF NOT EXISTS idx_feedbacks_covering
+              ON feedbacks(judgment_id, feedback_type, value, created_at);"
         )?;
 
         Ok(())

@@ -1,16 +1,16 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './components/theme-provider'
 
-// Pages
-import ChatInterface from './pages/ChatInterface'
-import Dashboard from './pages/Dashboard'
-import WorkflowBuilder from './pages/WorkflowBuilder'
-import BiInsights from './pages/BiInsights'
-import Settings from './pages/Settings'
+// Pages (lazy loaded for code splitting)
+const ChatInterface = lazy(() => import('./pages/ChatInterface'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const WorkflowBuilder = lazy(() => import('./pages/WorkflowBuilder'))
+const BiInsights = lazy(() => import('./pages/BiInsights'))
+const Settings = lazy(() => import('./pages/Settings'))
 
-// Layout
+// Layout (eager loaded - needed immediately)
 import Sidebar from './components/layout/Sidebar'
 import Header from './components/layout/Header'
 
@@ -39,13 +39,15 @@ function App() {
               <Header />
 
               <main className="flex-1 overflow-auto p-6">
-                <Routes>
-                  <Route path="/" element={<ChatInterface />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/workflow" element={<WorkflowBuilder />} />
-                  <Route path="/bi" element={<BiInsights />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Routes>
+                <Suspense fallback={<div className="flex items-center justify-center h-full">Loading...</div>}>
+                  <Routes>
+                    <Route path="/" element={<ChatInterface />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/workflow" element={<WorkflowBuilder />} />
+                    <Route path="/bi" element={<BiInsights />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Routes>
+                </Suspense>
               </main>
             </div>
           </div>

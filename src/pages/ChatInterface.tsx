@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { sendChatMessage, getChatHistory, type ChatMessageRequest, type ChatMessageResponse } from '@/lib/tauri-api';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,45 @@ interface Message {
   content: string;
   intent?: string;
 }
+
+// Memoized MessageBubble component to prevent unnecessary re-renders
+const MessageBubble = memo(({ message, index }: { message: Message; index: number }) => {
+  return (
+    <div
+      key={index}
+      className={`flex gap-3 ${
+        message.role === 'user' ? 'justify-end' : 'justify-start'
+      }`}
+    >
+      {message.role === 'assistant' && (
+        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+          <Bot className="w-5 h-5 text-primary-foreground" />
+        </div>
+      )}
+
+      <div
+        className={`max-w-[70%] rounded-lg p-4 ${
+          message.role === 'user'
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted'
+        }`}
+      >
+        <p className="whitespace-pre-wrap">{message.content}</p>
+        {message.intent && (
+          <p className="text-xs mt-2 opacity-70">의도: {message.intent}</p>
+        )}
+      </div>
+
+      {message.role === 'user' && (
+        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+          <User className="w-5 h-5" />
+        </div>
+      )}
+    </div>
+  );
+});
+
+MessageBubble.displayName = 'MessageBubble';
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -347,37 +386,7 @@ export default function ChatInterface() {
       {/* Messages */}
       <Card className="flex-1 overflow-y-auto p-6 mb-4 space-y-4">
         {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`flex gap-3 ${
-              message.role === 'user' ? 'justify-end' : 'justify-start'
-            }`}
-          >
-            {message.role === 'assistant' && (
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                <Bot className="w-5 h-5 text-primary-foreground" />
-              </div>
-            )}
-
-            <div
-              className={`max-w-[70%] rounded-lg p-4 ${
-                message.role === 'user'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted'
-              }`}
-            >
-              <p className="whitespace-pre-wrap">{message.content}</p>
-              {message.intent && (
-                <p className="text-xs mt-2 opacity-70">의도: {message.intent}</p>
-              )}
-            </div>
-
-            {message.role === 'user' && (
-              <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                <User className="w-5 h-5" />
-              </div>
-            )}
-          </div>
+          <MessageBubble key={index} message={message} index={index} />
         ))}
 
         {sendMessageMutation.isPending && (

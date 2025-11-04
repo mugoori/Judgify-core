@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactFlow, {
   Node,
@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Plus, Save, Play } from 'lucide-react';
+import CustomNode from '@/components/workflow/CustomNode';
 
 const initialNodes: Node[] = [
   {
@@ -65,7 +66,12 @@ export default function WorkflowBuilder() {
     [setEdges]
   );
 
-  const addNode = (type: string) => {
+  // Memoize node types to prevent re-renders
+  const nodeTypes = useMemo(() => ({
+    custom: CustomNode,
+  }), []);
+
+  const addNode = useCallback((type: string) => {
     const newNode: Node = {
       id: `${nodes.length + 1}`,
       type,
@@ -73,7 +79,7 @@ export default function WorkflowBuilder() {
       position: { x: Math.random() * 400, y: Math.random() * 400 },
     };
     setNodes((nds) => [...nds, newNode]);
-  };
+  }, [nodes.length, setNodes]);
 
   const handleSave = () => {
     const definition = {
@@ -222,6 +228,7 @@ export default function WorkflowBuilder() {
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              nodeTypes={nodeTypes}
               fitView
             >
               <Background />

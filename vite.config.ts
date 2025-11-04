@@ -29,5 +29,21 @@ export default defineConfig({
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
+    // Manual chunk splitting for better caching
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // React core (changes rarely)
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // UI primitives (changes rarely)
+          'vendor-ui': ['@radix-ui/react-label', '@radix-ui/react-slot', 'lucide-react'],
+          // Large visualization libraries (split for parallel loading)
+          'vendor-reactflow': ['reactflow'],
+          'vendor-recharts': ['recharts'],
+          // Data fetching (changes occasionally)
+          'vendor-query': ['@tanstack/react-query'],
+        },
+      },
+    },
   },
 })
