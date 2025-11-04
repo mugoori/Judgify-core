@@ -1,0 +1,65 @@
+name: Frontend Performance CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v9
+        with:
+          configPath: './lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('.lighthouseci/manifest.json', 'utf8'));
+
+            let comment = '## 🚦 Lighthouse Performance Report\n\n';
+
+            results.forEach((result, index) => {
+              const { summary } = result;
+              comment += `### Run ${index + 1}\n`;
+              comment += `- **Performance**: ${Math.round(summary.performance * 100)}%\n`;
+              comment += `- **FCP**: ${Math.round(summary['first-contentful-paint'])}ms\n`;
+              comment += `- **TTI**: ${Math.round(summary.interactive)}ms\n`;
+              comment += `- **TBT**: ${Math.round(summary['total-blocking-time'])}ms\n`;
+              comment += `- **CLS**: ${summary['cumulative-layout-shift'].toFixed(3)}\n\n`;
+            });
+
+            comment += `[View full report](${results[0].url})`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
