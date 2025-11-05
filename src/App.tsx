@@ -13,6 +13,8 @@ const Settings = lazy(() => import('./pages/Settings'))
 // Layout (eager loaded - needed immediately)
 import Sidebar from './components/layout/Sidebar'
 import Header from './components/layout/Header'
+import ErrorBoundary from './components/ErrorBoundary'
+import { Toaster } from './components/ui/toaster'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,33 +29,36 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   return (
-    <ThemeProvider defaultTheme="system" storageKey="judgify-ui-theme">
-      <QueryClientProvider client={queryClient}>
-        <Router>
-          <div className="flex h-screen bg-background">
-            {/* Sidebar */}
-            <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+    <ErrorBoundary>
+      <ThemeProvider defaultTheme="system" storageKey="judgify-ui-theme">
+        <QueryClientProvider client={queryClient}>
+          <Router>
+            <div className="flex h-screen bg-background">
+              {/* Sidebar */}
+              <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col">
-              <Header />
+              {/* Main Content */}
+              <div className="flex-1 flex flex-col">
+                <Header />
 
-              <main className="flex-1 overflow-auto p-6">
-                <Suspense fallback={<div className="flex items-center justify-center h-full">Loading...</div>}>
-                  <Routes>
-                    <Route path="/" element={<ChatInterface />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/workflow" element={<WorkflowBuilder />} />
-                    <Route path="/bi" element={<BiInsights />} />
-                    <Route path="/settings" element={<Settings />} />
-                  </Routes>
-                </Suspense>
-              </main>
+                <main className="flex-1 overflow-auto p-6">
+                  <Suspense fallback={<div className="flex items-center justify-center h-full">Loading...</div>}>
+                    <Routes>
+                      <Route path="/" element={<ChatInterface />} />
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/workflow" element={<WorkflowBuilder />} />
+                      <Route path="/bi" element={<BiInsights />} />
+                      <Route path="/settings" element={<Settings />} />
+                    </Routes>
+                  </Suspense>
+                </main>
+              </div>
             </div>
-          </div>
-        </Router>
-      </QueryClientProvider>
-    </ThemeProvider>
+          </Router>
+          <Toaster />
+        </QueryClientProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   )
 }
 
