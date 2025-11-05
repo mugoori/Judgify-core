@@ -24,8 +24,15 @@ import {
   Info,
   Zap,
   DollarSign,
+  HelpCircle,
 } from 'lucide-react';
 import { save } from '@tauri-apps/api/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface MCPSettings {
   context7_enabled: boolean;
@@ -111,14 +118,15 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">설정</h1>
-        <p className="text-muted-foreground">
-          시스템 상태 확인 및 설정을 관리하세요.
-        </p>
-      </div>
+    <TooltipProvider delayDuration={300}>
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold mb-2">설정</h1>
+          <p className="text-muted-foreground">
+            시스템 상태 확인 및 설정을 관리하세요.
+          </p>
+        </div>
 
       {/* System Status */}
       <Card>
@@ -196,7 +204,19 @@ export default function Settings() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="api-key">API 키</Label>
+            <div className="flex items-center gap-2 mb-2">
+              <Label htmlFor="api-key">API 키</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">
+                    Claude API 키를 입력하세요. <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="underline">console.anthropic.com</a>에서 발급받을 수 있습니다.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <Input
               id="api-key"
               type="password"
@@ -256,7 +276,19 @@ export default function Settings() {
           {/* Context7 Enable Toggle */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="context7-enabled">Context7 MCP 활성화</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="context7-enabled">Context7 MCP 활성화</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">
+                      Context7 MCP는 라이브러리 문서를 자동으로 검색하여 판단 정확도를 높입니다. 복잡한 판단에만 활성화하여 비용을 절감할 수 있습니다.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <p className="text-xs text-muted-foreground">
                 복잡한 판단에만 Context7 문서 검색 활성화
               </p>
@@ -272,7 +304,21 @@ export default function Settings() {
 
           {/* Complexity Threshold Select */}
           <div className="space-y-2">
-            <Label>활성화 임계값</Label>
+            <div className="flex items-center gap-2">
+              <Label>활성화 임계값</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">
+                    <strong>Simple:</strong> Rule만 사용 (MCP 없음, 가장 빠름)<br />
+                    <strong>Medium:</strong> LLM 사용 (30% 케이스에 MCP)<br />
+                    <strong>Complex:</strong> 모든 케이스에 MCP (가장 정확)
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <Select
               value={mcpSettings.complexity_threshold}
               onValueChange={(value: 'simple' | 'medium' | 'complex') =>
@@ -364,6 +410,7 @@ export default function Settings() {
           <p>© 2024 Judgify. All rights reserved.</p>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

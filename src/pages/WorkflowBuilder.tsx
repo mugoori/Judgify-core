@@ -19,8 +19,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Save, Play, CheckCircle, XCircle, Sparkles, FileText, AlertCircle, Zap, RefreshCw } from 'lucide-react';
+import { Save, Play, CheckCircle, XCircle, Sparkles, FileText, AlertCircle, Zap, RefreshCw, Workflow } from 'lucide-react';
 import CustomNode from '@/components/workflow/CustomNode';
+import EmptyState from '@/components/EmptyState';
 
 const initialNodes: Node[] = [
   {
@@ -277,18 +278,26 @@ export default function WorkflowBuilder() {
             <CardDescription>기존 워크플로우를 불러오세요.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {workflows?.map((workflow) => (
-                <Button
-                  key={workflow.id}
-                  variant={selectedWorkflowId === workflow.id ? 'default' : 'outline'}
-                  className="w-full justify-start"
-                  onClick={() => loadWorkflow(workflow)}
-                >
-                  {workflow.name}
-                </Button>
-              ))}
-            </div>
+            {workflows && workflows.length > 0 ? (
+              <div className="space-y-2">
+                {workflows.map((workflow) => (
+                  <Button
+                    key={workflow.id}
+                    variant={selectedWorkflowId === workflow.id ? 'default' : 'outline'}
+                    className="w-full justify-start"
+                    onClick={() => loadWorkflow(workflow)}
+                  >
+                    {workflow.name}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Workflow}
+                title="저장된 워크플로우 없음"
+                description="저장 버튼을 눌러 현재 워크플로우를 저장하세요."
+              />
+            )}
           </CardContent>
         </Card>
 
