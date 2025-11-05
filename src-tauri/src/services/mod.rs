@@ -6,3 +6,4 @@ pub mod bi_service;
 pub mod workflow_service;
 pub mod chat_service;
 pub mod cache_service;
+pub mod prompt_engine;

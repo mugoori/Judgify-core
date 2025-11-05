@@ -77,6 +77,19 @@ impl Database {
                 FOREIGN KEY (judgment_id) REFERENCES judgments(id)
             );
 
+            CREATE TABLE IF NOT EXISTS prompt_templates (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                template_type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                variables TEXT NOT NULL,
+                version INTEGER DEFAULT 1,
+                is_active INTEGER DEFAULT 1,
+                token_limit INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_judgments_workflow ON judgments(workflow_id);
             CREATE INDEX IF NOT EXISTS idx_judgments_created ON judgments(created_at);
             CREATE INDEX IF NOT EXISTS idx_training_workflow ON training_samples(workflow_id);
@@ -96,7 +109,11 @@ impl Database {
 
             -- 4. Feedback covering index (optimized retrieval with all columns)
             CREATE INDEX IF NOT EXISTS idx_feedbacks_covering
-              ON feedbacks(judgment_id, feedback_type, value, created_at);"
+              ON feedbacks(judgment_id, feedback_type, value, created_at);
+
+            -- 5. PromptTemplate type + active index (template selection optimization)
+            CREATE INDEX IF NOT EXISTS idx_templates_type_active
+              ON prompt_templates(template_type, is_active, version DESC);"
         )?;
 
         // Seed sample data for demo (only if database is empty)
@@ -327,6 +344,128 @@ impl Database {
                 feedback.created_at.to_rfc3339(),
             ],
         )?;
+        Ok(())
+    }
+
+    // PromptTemplate operations
+    pub fn save_prompt_template(&self, template: &PromptTemplate) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO prompt_templates (id, name, template_type, content, variables, version, is_active, token_limit, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+             ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                template_type = excluded.template_type,
+                content = excluded.content,
+                variables = excluded.variables,
+                version = excluded.version,
+                is_active = excluded.is_active,
+                token_limit = excluded.token_limit,
+                updated_at = excluded.updated_at",
+            params![
+                &template.id,
+                &template.name,
+                &template.template_type,
+                &template.content,
+                &template.variables,
+                template.version,
+                template.is_active as i32,
+                template.token_limit,
+                template.created_at.to_rfc3339(),
+                template.updated_at.to_rfc3339(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_prompt_template(&self, id: &str) -> Result<Option<PromptTemplate>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, template_type, content, variables, version, is_active, token_limit, created_at, updated_at
+             FROM prompt_templates WHERE id = ?1"
+        )?;
+
+        let mut rows = stmt.query(params![id])?;
+
+        if let Some(row) = rows.next()? {
+            Ok(Some(PromptTemplate {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                template_type: row.get(2)?,
+                content: row.get(3)?,
+                variables: row.get(4)?,
+                version: row.get(5)?,
+                is_active: row.get::<_, i32>(6)? != 0,
+                token_limit: row.get(7)?,
+                created_at: row.get::<_, String>(8)?.parse().unwrap_or(Utc::now()),
+                updated_at: row.get::<_, String>(9)?.parse().unwrap_or(Utc::now()),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_active_template_by_type(&self, template_type: &str) -> Result<Option<PromptTemplate>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, template_type, content, variables, version, is_active, token_limit, created_at, updated_at
+             FROM prompt_templates
+             WHERE template_type = ?1 AND is_active = 1
+             ORDER BY version DESC LIMIT 1"
+        )?;
+
+        let mut rows = stmt.query(params![template_type])?;
+
+        if let Some(row) = rows.next()? {
+            Ok(Some(PromptTemplate {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                template_type: row.get(2)?,
+                content: row.get(3)?,
+                variables: row.get(4)?,
+                version: row.get(5)?,
+                is_active: row.get::<_, i32>(6)? != 0,
+                token_limit: row.get(7)?,
+                created_at: row.get::<_, String>(8)?.parse().unwrap_or(Utc::now()),
+                updated_at: row.get::<_, String>(9)?.parse().unwrap_or(Utc::now()),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_all_prompt_templates(&self) -> Result<Vec<PromptTemplate>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, template_type, content, variables, version, is_active, token_limit, created_at, updated_at
+             FROM prompt_templates ORDER BY template_type, version DESC"
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(PromptTemplate {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                template_type: row.get(2)?,
+                content: row.get(3)?,
+                variables: row.get(4)?,
+                version: row.get(5)?,
+                is_active: row.get::<_, i32>(6)? != 0,
+                token_limit: row.get(7)?,
+                created_at: row.get::<_, String>(8)?.parse().unwrap_or(Utc::now()),
+                updated_at: row.get::<_, String>(9)?.parse().unwrap_or(Utc::now()),
+            })
+        })?;
+
+        let mut templates = Vec::new();
+        for template in rows {
+            templates.push(template?);
+        }
+        Ok(templates)
+    }
+
+    pub fn delete_prompt_template(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM prompt_templates WHERE id = ?1", params![id])?;
         Ok(())
     }
 }
