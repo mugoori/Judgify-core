@@ -181,6 +181,7 @@ impl RuleEngine {
                 if result { "합격 (통과)" } else { "불합격 (거부)" },
                 confidence * 100.0
             ),
+            created_at: chrono::Utc::now().to_rfc3339(),
         })
     }
 
