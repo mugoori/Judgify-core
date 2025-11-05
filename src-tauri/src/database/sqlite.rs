@@ -662,6 +662,63 @@ impl Database {
 
         Ok(summary)
     }
+
+    /// Get simplified token metrics for Cost Dashboard
+    ///
+    /// Returns overall token usage metrics including cache savings
+    pub fn get_token_metrics(&self) -> Result<TokenMetrics> {
+        let conn = self.conn.lock().unwrap();
+
+        // Get total tokens and cost
+        let mut stmt = conn.prepare(
+            "SELECT
+                COALESCE(SUM(tokens_used), 0) as total_tokens,
+                COALESCE(SUM(cost_usd), 0.0) as total_cost,
+                COUNT(*) as total_requests
+             FROM token_usage"
+        )?;
+
+        let (total_tokens, total_cost, total_requests) = stmt.query_row([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, f64>(1)?,
+                row.get::<_, i64>(2)?
+            ))
+        })?;
+
+        // Calculate average tokens per request
+        let avg_tokens = if total_requests > 0 {
+            total_tokens as f64 / total_requests as f64
+        } else {
+            0.0
+        };
+
+        // Estimate cache savings (assume 70% token reduction when cache hit)
+        // For now, use a simplified heuristic: if Context7 is in service, estimate savings
+        let mut cache_stmt = conn.prepare(
+            "SELECT COUNT(*) FROM token_usage WHERE service = 'context7' AND complexity = 'simple'"
+        )?;
+        let cache_hits: i64 = cache_stmt.query_row([], |row| row.get(0))?;
+
+        let tokens_saved = (cache_hits as f64 * avg_tokens * 0.7) as i64;
+        let cost_saved = tokens_saved as f64 * 0.000002; // Approximate $0.002 per 1K tokens
+
+        // Calculate cache hit rate (rough estimate)
+        let cache_hit_rate = if total_requests > 0 {
+            (cache_hits as f64 / total_requests as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        Ok(TokenMetrics {
+            total_tokens_used: total_tokens,
+            total_cost_usd: total_cost,
+            tokens_saved_by_cache: tokens_saved,
+            cost_saved_usd: cost_saved,
+            cache_hit_rate,
+            avg_tokens_per_request: avg_tokens,
+        })
+    }
 }
 
 // Token Usage summary structs
@@ -678,6 +735,17 @@ pub struct ServiceUsageStats {
     pub total_tokens: i32,
     pub total_cost_usd: f64,
     pub total_requests: i32,
+    pub avg_tokens_per_request: f64,
+}
+
+/// Simplified token metrics for Cost Dashboard
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenMetrics {
+    pub total_tokens_used: i64,
+    pub total_cost_usd: f64,
+    pub tokens_saved_by_cache: i64,
+    pub cost_saved_usd: f64,
+    pub cache_hit_rate: f64,
     pub avg_tokens_per_request: f64,
 }
 

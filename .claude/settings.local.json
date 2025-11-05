@@ -124,7 +124,8 @@
       "Bash(gh --version:*)",
       "Bash(./scripts/pr-auto-merge.sh:*)",
       "Bash(gh pr list:*)",
-      "Bash(del testsrule_engine_advanced_test.rs testsrule_engine_integration_test.rs)"
+      "Bash(del testsrule_engine_advanced_test.rs testsrule_engine_integration_test.rs)",
+      "Bash(gh pr checks:*)"
     ],
     "deny": [],
     "additionalDirectories": [
