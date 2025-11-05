@@ -6,6 +6,7 @@ use std::collections::HashMap;
 pub mod frequency_analyzer;
 pub mod llm_pattern_discoverer;
 pub mod rule_integrator;
+pub mod decision_tree_converter;
 
 // 공통 데이터 구조
 
