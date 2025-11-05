@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { getSystemStats, getJudgmentHistory } from '@/lib/tauri-api';
+import { getSystemStats, getJudgmentHistory, getTokenMetrics } from '@/lib/tauri-api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
-import { Activity, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
+import { Activity, CheckCircle, XCircle, TrendingUp, DollarSign, Zap, TrendingDown } from 'lucide-react';
 
 export default function Dashboard() {
   const { data: stats } = useQuery({
@@ -15,6 +15,12 @@ export default function Dashboard() {
     queryKey: ['recent-judgments'],
     queryFn: () => getJudgmentHistory(undefined, 50),
     refetchInterval: 30000,
+  });
+
+  const { data: tokenMetrics } = useQuery({
+    queryKey: ['token-metrics'],
+    queryFn: getTokenMetrics,
+    refetchInterval: 60000, // 1분마다 자동 갱신
   });
 
   // 판단 방법별 통계
@@ -163,6 +169,117 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Token Metrics & Cost Savings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5" />
+            토큰 사용량 & 비용 절감
+          </CardTitle>
+          <CardDescription>
+            MCP 캐싱으로 실시간 토큰 비용 최적화 현황
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {/* Total Tokens Used */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">총 토큰 사용</p>
+              <p className="text-2xl font-bold">
+                {tokenMetrics?.total_tokens_used.toLocaleString() || '0'}
+              </p>
+              <p className="text-xs text-muted-foreground">누적 토큰</p>
+            </div>
+
+            {/* Total Cost */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <DollarSign className="w-4 h-4" />
+                총 비용
+              </p>
+              <p className="text-2xl font-bold">
+                ${tokenMetrics?.total_cost_usd.toFixed(2) || '0.00'}
+              </p>
+              <p className="text-xs text-muted-foreground">USD</p>
+            </div>
+
+            {/* Tokens Saved */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-green-600 dark:text-green-400">토큰 절감</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {tokenMetrics?.tokens_saved_by_cache.toLocaleString() || '0'}
+              </p>
+              <p className="text-xs text-muted-foreground">캐시 절감</p>
+            </div>
+
+            {/* Cost Saved */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-green-600 dark:text-green-400 flex items-center gap-1">
+                <TrendingDown className="w-4 h-4" />
+                비용 절감
+              </p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                ${tokenMetrics?.cost_saved_usd.toFixed(2) || '0.00'}
+              </p>
+              <p className="text-xs text-muted-foreground">절감액</p>
+            </div>
+
+            {/* Cache Hit Rate */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">캐시 적중률</p>
+              <p className="text-2xl font-bold">
+                {tokenMetrics?.cache_hit_rate.toFixed(1) || '0.0'}%
+              </p>
+              <p className="text-xs text-muted-foreground">히트율</p>
+            </div>
+
+            {/* Avg Tokens Per Request */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">평균 토큰/요청</p>
+              <p className="text-2xl font-bold">
+                {Math.round(tokenMetrics?.avg_tokens_per_request || 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground">토큰</p>
+            </div>
+          </div>
+
+          {/* Cost Comparison Chart */}
+          {tokenMetrics && tokenMetrics.total_cost_usd > 0 && (
+            <div className="mt-6">
+              <p className="text-sm font-medium mb-4">비용 비교 (캐싱 전 vs 후)</p>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart
+                  data={[
+                    {
+                      name: '캐싱 없이',
+                      cost: tokenMetrics.total_cost_usd + tokenMetrics.cost_saved_usd,
+                    },
+                    {
+                      name: '캐싱 적용',
+                      cost: tokenMetrics.total_cost_usd,
+                    },
+                  ]}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" width={100} />
+                  <Tooltip
+                    formatter={(value: number) => [`$${value.toFixed(2)}`, '비용']}
+                  />
+                  <Bar dataKey="cost" fill="hsl(var(--primary))" />
+                </BarChart>
+              </ResponsiveContainer>
+              <p className="text-center text-sm text-green-600 dark:text-green-400 mt-2">
+                💰 절감률: {tokenMetrics.cost_saved_usd > 0
+                  ? ((tokenMetrics.cost_saved_usd / (tokenMetrics.total_cost_usd + tokenMetrics.cost_saved_usd)) * 100).toFixed(1)
+                  : '0.0'}%
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 7일 트렌드 (전체 너비) */}
       <Card>

@@ -117,3 +117,12 @@ pub async fn export_database(export_path: String) -> Result<(), String> {
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn get_token_metrics() -> Result<crate::database::sqlite::TokenMetrics, String> {
+    println!("📊 [IPC] get_token_metrics called!");
+    use crate::database::Database;
+
+    let db = Database::new().map_err(|e| e.to_string())?;
+    db.get_token_metrics().map_err(|e| e.to_string())
+}

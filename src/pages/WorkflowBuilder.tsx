@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Save, Play, CheckCircle, XCircle, Sparkles, FileText, AlertCircle, Zap, RefreshCw } from 'lucide-react';
+import { Save, Play, CheckCircle, XCircle, Sparkles, FileText, AlertCircle, Zap, RefreshCw } from 'lucide-react';
 import CustomNode from '@/components/workflow/CustomNode';
 
 const initialNodes: Node[] = [
