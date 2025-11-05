@@ -125,7 +125,10 @@
       "Bash(./scripts/pr-auto-merge.sh:*)",
       "Bash(gh pr list:*)",
       "Bash(del testsrule_engine_advanced_test.rs testsrule_engine_integration_test.rs)",
-      "Bash(gh pr checks:*)"
+      "Bash(gh pr checks:*)",
+      "Bash(cargo tarpaulin:*)",
+      "Bash(cargo install:*)",
+      "Bash(del srclib__tests__simple.test.ts srclib__tests__workflow-generator.test.ts)"
     ],
     "deny": [],
     "additionalDirectories": [

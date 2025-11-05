@@ -59,6 +59,7 @@ fn main() {
             workflow::update_workflow,
             workflow::delete_workflow,
             workflow::validate_workflow,
+            workflow::validate_rule_expression,
 
             // System Commands
             system::get_system_status,

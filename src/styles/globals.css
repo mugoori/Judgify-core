@@ -57,3 +57,23 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* React Flow 노드 선택 스타일 커스터마이징 */
+.react-flow__node.selected {
+  box-shadow: none !important;
+}
+
+/* 포커스 상태 스타일 (키보드 접근성) */
+.react-flow__node:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 124, 245, 0.4), 0 0 20px rgba(59, 124, 245, 0.15);
+}
+
+/* 다크 모드 대응 */
+.dark .react-flow__node.selected {
+  box-shadow: none !important;
+}
+
+.dark .react-flow__node:focus-visible {
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.5), 0 0 20px rgba(96, 165, 250, 0.2);
+}

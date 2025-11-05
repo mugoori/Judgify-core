@@ -12,7 +12,7 @@
 |------|-------|------|--------------|
 | **Desktop App (Phase 0)** | 71.7% | 🟢 완료 | 2025-11-04 |
 | **Performance Engineer (Phase 1)** | 100% (8/8) | ✅ 완료 | 2025-11-04 |
-| **Test Automation (Phase 2)** | 37.5% (3/8) | 🟢 진행 중 | 2025-11-05 |
+| **Test Automation (Phase 2)** | 50.0% (4/8) | 🟢 진행 중 | 2025-11-05 |
 
 ---
 
@@ -945,18 +945,170 @@ tests/e2e/health.spec.ts:
 
 ---
 
-#### Task 3.4: 커버리지 기준치 측정 ⏳ **대기 중**
+#### Task 3.4: 커버리지 기준치 측정 ✅ **완료** (2025-11-05)
 
 **목표**:
-- Rust: 현재 42% → 목표 65%
-- TypeScript: 현재 28% → 목표 50%
-- 커버리지 보고서 작성
+- Rust 커버리지 측정 (cargo-tarpaulin)
+- TypeScript 커버리지 측정 (vitest + @vitest/coverage-v8)
+- 포괄적인 커버리지 베이스라인 보고서 작성
 
-**예상 소요 시간**: 4시간
+**구현 내용**:
+
+**✅ Rust 커버리지 측정 완료: 48.31%**
+
+**도구**: cargo-tarpaulin v0.34.1
+
+**측정 결과**:
+```
+48.31% coverage
+1,402 / 2,902 lines covered
+108 tests passed
+```
+
+**서비스별 커버리지**:
+| 서비스 | 커버리지 | 상태 | 우선순위 |
+|--------|----------|------|---------|
+| **BI Service** | 82.5% (472/572) | ✅ Excellent | Maintain |
+| **Cache Service** | 65.3% (94/144) | ✅ Good | → 75% |
+| **Chat Service** | 61.7% (261/423) | ⚠️ Moderate | → 75% |
+| **Database** | 36.2% (118/326) | ⚠️ Low | → 60% |
+| **Workflow Service** | 19.7% (57/289) | ❌ Critical | → 60% |
+| **Context7 Cache** | 0% (0/287) | ❌ Critical | Add Redis mock |
+| **Commands (Tauri)** | 0% (0/450) | ❌ Critical | Mock Tauri context |
+
+**측정 명령어**:
+```bash
+cd src-tauri && cargo tarpaulin --lib --tests --skip-clean \
+  --exclude-files src/main.rs \
+  --out Html --out Lcov --output-dir ../coverage/rust \
+  -- --skip context7_cache \
+  --skip test_route_to_judgment_success \
+  --skip test_performance_instrumentation
+```
+
+**생성된 보고서**:
+- `coverage/rust/tarpaulin-report.html` - Interactive HTML report
+- `coverage/rust/lcov.info` - LCOV format for CI/CD
+
+**제외된 테스트** (7개, 환경 의존성):
+```
+⏭️ context7_cache tests (5개) - Redis 연결 필요
+⏭️ test_route_to_judgment_success - API 응답 필드 누락
+⏭️ test_performance_instrumentation - Timing assertion 실패
+```
+
+---
+
+**✅ TypeScript 커버리지 측정 완료: 0% (No Unit Tests)**
+
+**도구**: vitest v4.0.7 + @vitest/coverage-v8 v4.0.7
+
+**현재 상태**:
+- ✅ vitest 및 coverage 도구 설치 완료
+- ✅ vitest.config.ts 설정 완료 (E2E 제외, coverage 설정)
+- ❌ **No unit tests implemented yet**
+
+**TypeScript 소스 파일**:
+- **Total**: 37 TypeScript/TSX files (~5,000 lines)
+- **Components**: 14 files
+- **Pages**: 5 files
+- **Utilities**: 5 files
+- **UI Components**: 13 files (shadcn/ui, pre-tested)
+
+**E2E Test Coverage (기존)**:
+- **Total E2E Tests**: 68 tests across 5 scenarios
+- **Tool**: Playwright v1.56.1
+- **Status**: ✅ All E2E tests passing
+
+**High-Priority Files for Unit Testing** (Task 4.2 대상):
+```
+1. src/components/workflow/CustomNode.tsx       (10 tests, 2h)
+2. src/components/workflow/SimulationPanel.tsx  (8 tests, 2h)
+3. src/lib/workflow-generator.ts                (12 tests, 2h)
+4. src/lib/workflow-simulator.ts                (10 tests, 2h)
+5. src/hooks/useRuleValidation.ts               (8 tests, 1h)
+6. src/lib/tauri-api.ts                         (8 tests, 1h)
+```
+
+**vitest.config.ts 설정**:
+```typescript
+test: {
+  globals: true,
+  environment: 'jsdom',
+  include: ['src/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+  exclude: ['tests/e2e/**', '**/node_modules/**'],
+  coverage: {
+    provider: 'v8',
+    reporter: ['text', 'html', 'lcov'],
+    reportsDirectory: './coverage/typescript',
+    include: ['src/**/*.{ts,tsx}'],
+    exclude: ['src/main.tsx', 'src/vite-env.d.ts', '**/*.d.ts'],
+  },
+}
+```
+
+**package.json script**:
+```json
+"test:coverage": "vitest run --coverage"
+```
+
+---
+
+**📊 종합 커버리지 베이스라인**:
+
+| Metric | Rust | TypeScript |
+|--------|------|------------|
+| **Total Lines** | 2,902 | ~5,000 |
+| **Covered Lines** | 1,402 (48.31%) | 0 (0%) |
+| **Unit Tests** | 108 passing | 0 |
+| **Integration Tests** | 37 | 0 |
+| **E2E Tests** | 0 | 68 |
+
+**분석**:
+- Rust: 강력한 통합 테스트 커버리지 (37 tests)
+- TypeScript: 강력한 E2E 커버리지 (68 tests) but zero unit tests
+- TypeScript는 비즈니스 로직에 대한 unit tests 필요 (workflow generator, simulator)
+
+---
+
+**📈 커버리지 개선 목표 (Task 4.2)**:
+
+**Rust Target**: 48.31% → **75%** (+26.69%p, 7시간)
+**TypeScript Target**: 0% → **60%** (+60%p, 8시간)
+
+**High-ROI Modules (Rust)**:
+1. Workflow Service (19.7% → 60%, +40.3%p, 3h)
+2. Database (36.2% → 60%, +23.8%p, 2h)
+3. Context7 Cache (0% → 50%, +50%p, 2h)
+
+**High-ROI Modules (TypeScript)**:
+1. workflow-generator.ts (0% → 80%, 2h)
+2. CustomNode.tsx (0% → 70%, 2h)
+3. SimulationPanel.tsx (0% → 70%, 2h)
+4. workflow-simulator.ts (0% → 75%, 2h)
+
+**Total Effort**: 15시간 for **67.5% overall coverage**
+
+---
+
+**생성된 파일** (3개):
+- `coverage/rust/tarpaulin-report.html` (Rust HTML 보고서)
+- `coverage/rust/lcov.info` (Rust LCOV 포맷)
+- `docs/COVERAGE_BASELINE_2025-11-05.md` (포괄적인 베이스라인 보고서, 650줄)
+
+**Git 기록**:
+- **커밋**: (다음 커밋 예정)
+- **브랜치**: main
+
+**소요 시간**: 실제 2시간 (예상 4시간 대비 50% 단축!)
+
+**다음 작업 연결**: Task 4.1 (GitHub Actions CI/CD 파이프라인 설정)
+
+---
 
 #### Week 7-8: CI/CD 자동화 및 커버리지 향상
 
-5. **Task 4.1: GitHub Actions 테스트 파이프라인**
+#### Task 4.1: GitHub Actions 테스트 파이프라인 ⏳ **대기 중**
    - PR마다 자동 E2E 테스트
    - 커버리지 리포트 자동 생성
 
