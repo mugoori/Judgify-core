@@ -227,3 +227,126 @@ impl RuleEngine {
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rhai::Engine;
+
+    #[test]
+    fn test_and_operator_basic() {
+        let engine = Engine::new();
+
+        // Test: true && true = true
+        let result: bool = engine.eval("true && true").unwrap();
+        assert_eq!(result, true);
+
+        // Test: true && false = false
+        let result: bool = engine.eval("true && false").unwrap();
+        assert_eq!(result, false);
+
+        // Test: Numeric comparison
+        let result: bool = engine.eval("90 > 85 && 45 < 50").unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_or_operator_basic() {
+        let engine = Engine::new();
+
+        // Test: true || false = true
+        let result: bool = engine.eval("true || false").unwrap();
+        assert_eq!(result, true);
+
+        // Test: false || false = false
+        let result: bool = engine.eval("false || false").unwrap();
+        assert_eq!(result, false);
+
+        // Test: String comparison
+        let result: bool = engine.eval("\"warning\" == \"warning\" || \"critical\" == \"warning\"").unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_not_operator_basic() {
+        let engine = Engine::new();
+
+        // Test: !true = false
+        let result: bool = engine.eval("!true").unwrap();
+        assert_eq!(result, false);
+
+        // Test: !false = true
+        let result: bool = engine.eval("!false").unwrap();
+        assert_eq!(result, true);
+
+        // Test: Negation with comparison
+        let result: bool = engine.eval("!(95 < 80)").unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_nested_parentheses() {
+        let engine = Engine::new();
+
+        // Test: ((A && B) || C)
+        let result: bool = engine.eval("((90 > 85 && 45 < 50) || 100 > 95)").unwrap();
+        assert_eq!(result, true);
+
+        // Test: !(A || B)
+        let result: bool = engine.eval("!(false || false)").unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_complex_logic() {
+        let engine = Engine::new();
+
+        // Test: (A && B) || (C && D)
+        let result: bool = engine.eval("(true && false) || (true && true)").unwrap();
+        assert_eq!(result, true);
+
+        // Test: !(A && B) && (C || D)
+        let result: bool = engine.eval("!(true && false) && (true || false)").unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_array_operations() {
+        let engine = RuleEngine::create_engine();
+
+        // Test: Array indexing
+        let mut scope = Scope::new();
+        // Rhai uses i64 for integers
+        let sensors: Array = vec![Dynamic::from(95i64), Dynamic::from(88i64), Dynamic::from(92i64)];
+        scope.push("sensors", sensors);
+        let result: bool = engine.eval_with_scope(&mut scope, "sensors[0] > 90").unwrap();
+        assert_eq!(result, true);
+
+        // Test: Array length
+        let result: i64 = engine.eval_with_scope(&mut scope, "len(sensors)").unwrap();
+        assert_eq!(result, 3);
+
+        // Test: Array contains
+        let result: bool = engine.eval_with_scope(&mut scope, "contains(sensors, 95)").unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_object_nested_access() {
+        let engine = RuleEngine::create_engine();
+
+        // Test: Nested object access
+        let mut scope = Scope::new();
+        let mut device = Map::new();
+        let mut sensor = Map::new();
+        sensor.insert("temperature".into(), Dynamic::from(95i64));  // i64 for Rhai
+        device.insert("sensor".into(), Dynamic::from(sensor));
+        scope.push("device", device);
+
+        let result: i64 = engine.eval_with_scope(&mut scope, "device.sensor.temperature").unwrap();
+        assert_eq!(result, 95);
+
+        let result: bool = engine.eval_with_scope(&mut scope, "device.sensor.temperature > 90").unwrap();
+        assert_eq!(result, true);
+    }
+}
