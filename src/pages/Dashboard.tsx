@@ -1,10 +1,19 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSystemStats, getJudgmentHistory, getTokenMetrics } from '@/lib/tauri-api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
-import { Activity, CheckCircle, XCircle, TrendingUp, DollarSign, Zap, TrendingDown } from 'lucide-react';
+import { Activity, CheckCircle, XCircle, TrendingUp, DollarSign, Zap, TrendingDown, Database, Sparkles } from 'lucide-react';
+import EmptyState from '@/components/EmptyState';
+import { Button } from '@/components/ui/button';
+import { generateSampleData } from '@/lib/sample-data';
+import { useToast } from '@/components/ui/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isGenerating, setIsGenerating] = useState(false);
   const { data: stats } = useQuery({
     queryKey: ['system-stats'],
     queryFn: getSystemStats,
@@ -113,6 +122,32 @@ export default function Dashboard() {
         .slice(0, 5)
     : [];
 
+  // 샘플 데이터 생성 핸들러
+  const handleGenerateSampleData = async () => {
+    setIsGenerating(true);
+    try {
+      const result = await generateSampleData();
+      toast({
+        title: '샘플 데이터 생성 완료!',
+        description: `${result.workflows}개의 워크플로우와 ${result.judgments}개의 판단이 생성되었습니다.`,
+      });
+      // 데이터 새로고침
+      queryClient.invalidateQueries({ queryKey: ['system-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-judgments'] });
+    } catch (error) {
+      toast({
+        title: '샘플 데이터 생성 실패',
+        description: String(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // 데이터가 없을 때 Empty State 표시
+  const isEmpty = (stats?.total_judgments || 0) === 0 && (stats?.total_workflows || 0) === 0;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -120,6 +155,51 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold mb-2">데이터 대시보드</h1>
         <p className="text-muted-foreground">실시간 시스템 상태 및 판단 통계를 확인하세요.</p>
       </div>
+
+      {/* Empty State */}
+      {isEmpty && !isGenerating && (
+        <EmptyState
+          icon={Database}
+          title="데이터가 없습니다"
+          description="아직 워크플로우나 판단 데이터가 없습니다. 샘플 데이터를 생성하거나 워크플로우를 만들어 시작하세요."
+        >
+          <div className="flex gap-3 mt-4">
+            <Button onClick={handleGenerateSampleData} size="lg">
+              <Sparkles className="w-4 h-4 mr-2" />
+              샘플 데이터 생성
+            </Button>
+            <Button variant="outline" size="lg" onClick={() => window.location.href = '/workflow'}>
+              워크플로우 만들기
+            </Button>
+          </div>
+        </EmptyState>
+      )}
+
+      {/* Loading State */}
+      {isGenerating && (
+        <Card>
+          <CardContent className="py-16">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <Sparkles className="w-12 h-12 text-primary animate-pulse" />
+              <div className="text-center">
+                <h3 className="text-lg font-semibold mb-2">샘플 데이터 생성 중...</h3>
+                <p className="text-sm text-muted-foreground">
+                  3개의 워크플로우와 37개의 판단을 생성하고 있습니다.
+                </p>
+              </div>
+              <div className="space-y-2 w-full max-w-md">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dashboard Content (show only if not empty and not generating) */}
+      {!isEmpty && !isGenerating && (
+        <>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -448,6 +528,8 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   );
 }
