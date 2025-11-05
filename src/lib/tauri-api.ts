@@ -138,3 +138,16 @@ export const getDataDirectory = (): Promise<string> =>
 
 export const exportDatabase = (exportPath: string): Promise<void> =>
   invoke('export_database', { exportPath });
+
+// Token Metrics API
+export interface TokenMetrics {
+  total_tokens_used: number;
+  total_cost_usd: number;
+  tokens_saved_by_cache: number;
+  cost_saved_usd: number;
+  cache_hit_rate: number;
+  avg_tokens_per_request: number;
+}
+
+export const getTokenMetrics = (): Promise<TokenMetrics> =>
+  invoke('get_token_metrics');

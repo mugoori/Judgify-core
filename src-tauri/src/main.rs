@@ -65,6 +65,7 @@ fn main() {
             system::get_system_stats,
             system::get_data_directory,
             system::export_database,
+            system::get_token_metrics,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
