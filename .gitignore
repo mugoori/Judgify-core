@@ -2,6 +2,9 @@
 *.log
 debug_output.log
 hwp_mcp_stdio_server.log
+app.log
+benchmark*.log
+build-output.log
 
 # OS generated files
 .DS_Store
@@ -40,6 +43,11 @@ node_modules/
 dist/
 build/
 out/
+
+# Lighthouse reports
+.lighthouseci/
+lighthouse/
+lighthouse/*.html
 
 # Rust build artifacts (Tauri)
 src-tauri/target/
