@@ -1,0 +1,48 @@
+# Codecov Configuration
+# https://docs.codecov.io/docs/codecov-yaml
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%  # Allow 1% decrease
+        base: auto
+    patch:
+      default:
+        target: 60%  # New code should have 60%+ coverage
+        threshold: 5%
+
+  # Coverage baselines
+  range: 50..100  # Red at <50%, green at 100%
+
+comment:
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+  require_changes: false  # Comment on all PRs
+  after_n_builds: 2  # Wait for both Rust and TypeScript
+
+flags:
+  rust:
+    paths:
+      - src-tauri/
+    carryforward: true
+  typescript:
+    paths:
+      - src/
+    carryforward: true
+
+# Ignore generated and test files
+ignore:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+  - "**/tests/**"
+  - "**/__tests__/**"
+  - "src/main.tsx"
+  - "src/vite-env.d.ts"
+  - "**/*.d.ts"
+  - "**/*.config.ts"
+  - "src-tauri/src/main.rs"
+  - "src-tauri/target/**"

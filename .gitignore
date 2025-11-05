@@ -97,3 +97,13 @@ scripts/nul
 # Git hooks 테스트 완료 (post-commit 자동화)
 # Python 경로 수정: python3 → python (Windows 환경)
 
+# Coverage reports (local only, CI generates fresh)
+coverage/
+.coverage
+*.lcov
+*.info
+htmlcov/
+
+# Codecov
+codecov.yml.local
+
