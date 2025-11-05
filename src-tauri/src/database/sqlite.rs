@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use crate::database::models::*;
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 
 pub struct Database {
     conn: Arc<Mutex<Connection>>,
@@ -90,6 +91,17 @@ impl Database {
                 updated_at TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS token_usage (
+                id TEXT PRIMARY KEY,
+                judgment_id TEXT NOT NULL,
+                service TEXT NOT NULL,
+                tokens_used INTEGER NOT NULL,
+                cost_usd REAL NOT NULL,
+                complexity TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (judgment_id) REFERENCES judgments(id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_judgments_workflow ON judgments(workflow_id);
             CREATE INDEX IF NOT EXISTS idx_judgments_created ON judgments(created_at);
             CREATE INDEX IF NOT EXISTS idx_training_workflow ON training_samples(workflow_id);
@@ -113,7 +125,17 @@ impl Database {
 
             -- 5. PromptTemplate type + active index (template selection optimization)
             CREATE INDEX IF NOT EXISTS idx_templates_type_active
-              ON prompt_templates(template_type, is_active, version DESC);"
+              ON prompt_templates(template_type, is_active, version DESC);
+
+            -- 6. Token Usage indexes (MCP cost tracking optimization)
+            CREATE INDEX IF NOT EXISTS idx_token_usage_created
+              ON token_usage(created_at DESC);
+
+            CREATE INDEX IF NOT EXISTS idx_token_usage_service_created
+              ON token_usage(service, created_at DESC);
+
+            CREATE INDEX IF NOT EXISTS idx_token_usage_judgment
+              ON token_usage(judgment_id);"
         )?;
 
         // Seed sample data for demo (only if database is empty)
@@ -468,6 +490,195 @@ impl Database {
         conn.execute("DELETE FROM prompt_templates WHERE id = ?1", params![id])?;
         Ok(())
     }
+
+    // Token Usage operations (MCP cost tracking)
+    pub fn save_token_usage(&self, token_usage: &TokenUsage) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO token_usage (id, judgment_id, service, tokens_used, cost_usd, complexity, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                &token_usage.id,
+                &token_usage.judgment_id,
+                &token_usage.service,
+                token_usage.tokens_used,
+                token_usage.cost_usd,
+                &token_usage.complexity,
+                token_usage.created_at.to_rfc3339(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_token_usage_by_judgment(&self, judgment_id: &str) -> Result<Vec<TokenUsage>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, judgment_id, service, tokens_used, cost_usd, complexity, created_at
+             FROM token_usage
+             WHERE judgment_id = ?1
+             ORDER BY created_at DESC"
+        )?;
+
+        let rows = stmt.query_map(params![judgment_id], |row| {
+            Ok(TokenUsage {
+                id: row.get(0)?,
+                judgment_id: row.get(1)?,
+                service: row.get(2)?,
+                tokens_used: row.get(3)?,
+                cost_usd: row.get(4)?,
+                complexity: row.get(5)?,
+                created_at: row.get::<_, String>(6)?.parse().unwrap(),
+            })
+        })?;
+
+        let mut usages = Vec::new();
+        for usage in rows {
+            usages.push(usage?);
+        }
+        Ok(usages)
+    }
+
+    pub fn get_token_usage_by_date_range(
+        &self,
+        start_date: &str,
+        end_date: &str,
+    ) -> Result<Vec<TokenUsage>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, judgment_id, service, tokens_used, cost_usd, complexity, created_at
+             FROM token_usage
+             WHERE created_at >= ?1 AND created_at <= ?2
+             ORDER BY created_at DESC"
+        )?;
+
+        let rows = stmt.query_map(params![start_date, end_date], |row| {
+            Ok(TokenUsage {
+                id: row.get(0)?,
+                judgment_id: row.get(1)?,
+                service: row.get(2)?,
+                tokens_used: row.get(3)?,
+                cost_usd: row.get(4)?,
+                complexity: row.get(5)?,
+                created_at: row.get::<_, String>(6)?.parse().unwrap(),
+            })
+        })?;
+
+        let mut usages = Vec::new();
+        for usage in rows {
+            usages.push(usage?);
+        }
+        Ok(usages)
+    }
+
+    pub fn get_token_usage_by_service(
+        &self,
+        service: &str,
+        limit: Option<u32>,
+    ) -> Result<Vec<TokenUsage>> {
+        let conn = self.conn.lock().unwrap();
+        let query = if let Some(lim) = limit {
+            format!(
+                "SELECT id, judgment_id, service, tokens_used, cost_usd, complexity, created_at
+                 FROM token_usage
+                 WHERE service = ?1
+                 ORDER BY created_at DESC
+                 LIMIT {}",
+                lim
+            )
+        } else {
+            "SELECT id, judgment_id, service, tokens_used, cost_usd, complexity, created_at
+             FROM token_usage
+             WHERE service = ?1
+             ORDER BY created_at DESC"
+                .to_string()
+        };
+
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(params![service], |row| {
+            Ok(TokenUsage {
+                id: row.get(0)?,
+                judgment_id: row.get(1)?,
+                service: row.get(2)?,
+                tokens_used: row.get(3)?,
+                cost_usd: row.get(4)?,
+                complexity: row.get(5)?,
+                created_at: row.get::<_, String>(6)?.parse().unwrap(),
+            })
+        })?;
+
+        let mut usages = Vec::new();
+        for usage in rows {
+            usages.push(usage?);
+        }
+        Ok(usages)
+    }
+
+    /// Get aggregated token usage statistics for a given time range
+    pub fn get_token_usage_summary(
+        &self,
+        start_date: &str,
+        end_date: &str,
+    ) -> Result<TokenUsageSummary> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT
+                SUM(tokens_used) as total_tokens,
+                SUM(cost_usd) as total_cost,
+                COUNT(*) as total_requests,
+                AVG(tokens_used) as avg_tokens_per_request,
+                service
+             FROM token_usage
+             WHERE created_at >= ?1 AND created_at <= ?2
+             GROUP BY service"
+        )?;
+
+        let mut rows = stmt.query(params![start_date, end_date])?;
+
+        let mut summary = TokenUsageSummary {
+            total_tokens: 0,
+            total_cost_usd: 0.0,
+            total_requests: 0,
+            by_service: std::collections::HashMap::new(),
+        };
+
+        while let Some(row) = rows.next()? {
+            let total_tokens: i32 = row.get(0)?;
+            let total_cost: f64 = row.get(1)?;
+            let total_requests: i32 = row.get(2)?;
+            let avg_tokens: f64 = row.get(3)?;
+            let service: String = row.get(4)?;
+
+            summary.total_tokens += total_tokens;
+            summary.total_cost_usd += total_cost;
+            summary.total_requests += total_requests;
+
+            summary.by_service.insert(service.clone(), ServiceUsageStats {
+                total_tokens,
+                total_cost_usd: total_cost,
+                total_requests,
+                avg_tokens_per_request: avg_tokens,
+            });
+        }
+
+        Ok(summary)
+    }
+}
+
+// Token Usage summary structs
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenUsageSummary {
+    pub total_tokens: i32,
+    pub total_cost_usd: f64,
+    pub total_requests: i32,
+    pub by_service: std::collections::HashMap<String, ServiceUsageStats>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ServiceUsageStats {
+    pub total_tokens: i32,
+    pub total_cost_usd: f64,
+    pub total_requests: i32,
+    pub avg_tokens_per_request: f64,
 }
 
 impl Clone for Database {

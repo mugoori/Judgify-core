@@ -58,3 +58,14 @@ pub struct PromptTemplate {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TokenUsage {
+    pub id: String,
+    pub judgment_id: String,
+    pub service: String, // "context7" | "openai" | "judgment"
+    pub tokens_used: i32,
+    pub cost_usd: f64, // Calculated based on service pricing
+    pub complexity: String, // "simple" | "medium" | "complex"
+    pub created_at: DateTime<Utc>,
+}
