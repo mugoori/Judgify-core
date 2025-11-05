@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactFlow, {
   Node,
@@ -48,6 +48,14 @@ export default function WorkflowBuilder() {
   const [executeWorkflowId, setExecuteWorkflowId] = useState<string>('');
   const [inputData, setInputData] = useState('{\n  "temperature": 95,\n  "vibration": 45\n}');
   const [executionResult, setExecutionResult] = useState<JudgmentResult | null>(null);
+  const executeSelectRef = useRef<HTMLSelectElement>(null);
+
+  // Focus on execute panel when opened
+  useEffect(() => {
+    if (showExecutePanel && executeSelectRef.current) {
+      executeSelectRef.current.focus();
+    }
+  }, [showExecutePanel]);
 
   const { data: workflows } = useQuery({
     queryKey: ['workflows'],
@@ -316,6 +324,7 @@ export default function WorkflowBuilder() {
               <div>
                 <Label htmlFor="execute-workflow">워크플로우 선택</Label>
                 <select
+                  ref={executeSelectRef}
                   id="execute-workflow"
                   value={executeWorkflowId}
                   onChange={(e) => setExecuteWorkflowId(e.target.value)}

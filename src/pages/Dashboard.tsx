@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSystemStats, getJudgmentHistory, getTokenMetrics } from '@/lib/tauri-api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,27 +10,124 @@ import { generateSampleData } from '@/lib/sample-data';
 import { useToast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
+// Memoized KPI Card to prevent unnecessary re-renders
+const KPICard = memo(({ title, value, description, icon: Icon }: {
+  title: string;
+  value: string | number;
+  description: string;
+  icon: any;
+}) => (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      <Icon className="h-4 w-4 text-muted-foreground" />
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-bold">{value}</div>
+      <p className="text-xs text-muted-foreground mt-1">{description}</p>
+    </CardContent>
+  </Card>
+));
+KPICard.displayName = 'KPICard';
+
+// Memoized Chart Components
+const MethodDistributionChart = memo(({ data }: { data: any[] }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>판단 방법별 분포</CardTitle>
+      <CardDescription>최근 50개 판단의 방법별 통계</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="count" fill="hsl(var(--primary))" />
+        </BarChart>
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
+));
+MethodDistributionChart.displayName = 'MethodDistributionChart';
+
+const ConfidenceTrendChart = memo(({ data }: { data: any[] }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>신뢰도 트렌드</CardTitle>
+      <CardDescription>최근 20개 판단의 신뢰도 변화</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="index" />
+          <YAxis domain={[0, 100]} />
+          <Tooltip />
+          <Line type="monotone" dataKey="confidence" stroke="hsl(var(--primary))" strokeWidth={2} />
+        </LineChart>
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
+));
+ConfidenceTrendChart.displayName = 'ConfidenceTrendChart';
+
+const PassRatePieChart = memo(({ data }: { data: any[] }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>합격률</CardTitle>
+      <CardDescription>전체 판단 결과 비율</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+            outerRadius={80}
+            fill="#8884d8"
+            dataKey="value"
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
+));
+PassRatePieChart.displayName = 'PassRatePieChart';
+
 export default function Dashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isGenerating, setIsGenerating] = useState(false);
-  const { data: stats } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['system-stats'],
     queryFn: getSystemStats,
     refetchInterval: 30000, // 30초마다 갱신
   });
 
-  const { data: recentJudgments } = useQuery({
+  const { data: recentJudgments, isLoading: judgmentsLoading } = useQuery({
     queryKey: ['recent-judgments'],
     queryFn: () => getJudgmentHistory(undefined, 50),
     refetchInterval: 30000,
   });
 
-  const { data: tokenMetrics } = useQuery({
+  const { data: tokenMetrics, isLoading: metricsLoading } = useQuery({
     queryKey: ['token-metrics'],
     queryFn: getTokenMetrics,
     refetchInterval: 60000, // 1분마다 자동 갱신
   });
+
+  const isLoading = statsLoading || judgmentsLoading || metricsLoading;
 
   // 판단 방법별 통계
   const methodStats = recentJudgments?.reduce(
@@ -156,8 +253,43 @@ export default function Dashboard() {
         <p className="text-muted-foreground">실시간 시스템 상태 및 판단 통계를 확인하세요.</p>
       </div>
 
+      {/* Initial Loading State */}
+      {isLoading && !isGenerating && (
+        <div className="space-y-6">
+          {/* KPI Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-16 mb-2" />
+                  <Skeleton className="h-3 w-20" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Charts Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-4 w-48 mt-2" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-[300px] w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Empty State */}
-      {isEmpty && !isGenerating && (
+      {isEmpty && !isGenerating && !isLoading && (
         <EmptyState
           icon={Database}
           title="데이터가 없습니다"
@@ -175,7 +307,7 @@ export default function Dashboard() {
         </EmptyState>
       )}
 
-      {/* Loading State */}
+      {/* Sample Data Generation State */}
       {isGenerating && (
         <Card>
           <CardContent className="py-16">
@@ -197,57 +329,36 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Dashboard Content (show only if not empty and not generating) */}
-      {!isEmpty && !isGenerating && (
+      {/* Dashboard Content (show only if not empty, not generating, and not loading) */}
+      {!isEmpty && !isGenerating && !isLoading && (
         <>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">총 판단 횟수</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.total_judgments || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">누적 판단 실행</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">워크플로우</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.total_workflows || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">활성 워크플로우</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">평균 신뢰도</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.average_confidence ? `${(stats.average_confidence * 100).toFixed(1)}%` : '0%'}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">판단 신뢰도</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">학습 샘플</CardTitle>
-            <XCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.total_training_samples || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">학습용 데이터</p>
-          </CardContent>
-        </Card>
+        <KPICard
+          title="총 판단 횟수"
+          value={stats?.total_judgments || 0}
+          description="누적 판단 실행"
+          icon={Activity}
+        />
+        <KPICard
+          title="워크플로우"
+          value={stats?.total_workflows || 0}
+          description="활성 워크플로우"
+          icon={CheckCircle}
+        />
+        <KPICard
+          title="평균 신뢰도"
+          value={stats?.average_confidence ? `${(stats.average_confidence * 100).toFixed(1)}%` : '0%'}
+          description="판단 신뢰도"
+          icon={TrendingUp}
+        />
+        <KPICard
+          title="학습 샘플"
+          value={stats?.total_training_samples || 0}
+          description="학습용 데이터"
+          icon={XCircle}
+        />
       </div>
 
       {/* Token Metrics & Cost Savings */}
@@ -399,73 +510,9 @@ export default function Dashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 판단 방법별 분포 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>판단 방법별 분포</CardTitle>
-            <CardDescription>최근 50개 판단의 방법별 통계</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={methodChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* 신뢰도 트렌드 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>신뢰도 트렌드</CardTitle>
-            <CardDescription>최근 20개 판단의 신뢰도 변화</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={resultTrend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="index" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip />
-                <Line type="monotone" dataKey="confidence" stroke="hsl(var(--primary))" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* 합격률 파이 차트 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>합격률</CardTitle>
-            <CardDescription>전체 판단 결과 비율</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={passRateData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {passRateData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <MethodDistributionChart data={methodChartData} />
+        <ConfidenceTrendChart data={resultTrend} />
+        <PassRatePieChart data={passRateData} />
       </div>
 
       {/* 워크플로우별 통계 */}

@@ -56,6 +56,7 @@ export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>();
   const messagesRef = useRef<Message[]>([]); // 🔧 최신 messages 추적용 ref
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load chat history from localStorage on mount + recover pending responses
   useEffect(() => {
@@ -199,6 +200,20 @@ export default function ChatInterface() {
     const timeoutId = setTimeout(syncWithBackend, 300);
     return () => clearTimeout(timeoutId);
   }, [sessionId, messages.length]); // sessionId 변경시 실행
+
+  // ⌨️ Keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyPress = (e: KeyboardEvent) => {
+      // Ctrl+/ to focus input
+      if (e.key === '/' && e.ctrlKey) {
+        e.preventDefault();
+        textareaRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyPress);
+    return () => document.removeEventListener('keydown', handleGlobalKeyPress);
+  }, []);
 
   // 🔄 Page Visibility API: 탭 복귀시 백엔드 히스토리와 무조건 동기화
   useEffect(() => {
@@ -463,10 +478,11 @@ export default function ChatInterface() {
       {/* Input */}
       <div className="flex gap-2">
         <Textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="메시지를 입력하세요... (Shift+Enter로 줄바꿈)"
+          placeholder="메시지를 입력하세요... (Shift+Enter로 줄바꿈, Ctrl+/로 포커스)"
           className="min-h-[60px] resize-none"
         />
         <Button
