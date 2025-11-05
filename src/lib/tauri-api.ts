@@ -14,6 +14,7 @@ export interface JudgmentResult {
   confidence: number;
   method_used: string;
   explanation: string;
+  created_at: string;
 }
 
 export const executeJudgment = (request: ExecuteJudgmentRequest): Promise<JudgmentResult> =>
