@@ -35,7 +35,7 @@ interface MCPSettings {
 }
 
 export default function Settings() {
-  const [openaiKey, setOpenaiKey] = useState('');
+  const [claudeKey, setClaudeKey] = useState('');
   const [mcpSettings, setMcpSettings] = useState<MCPSettings>({
     context7_enabled: true,
     complexity_threshold: 'medium',
@@ -55,10 +55,10 @@ export default function Settings() {
   });
 
   useEffect(() => {
-    // 환경 변수에서 OpenAI API 키 로드
+    // 환경 변수에서 Claude API 키 로드
     if (typeof window !== 'undefined') {
-      const savedKey = localStorage.getItem('openai_api_key');
-      if (savedKey) setOpenaiKey(savedKey);
+      const savedKey = localStorage.getItem('claude_api_key');
+      if (savedKey) setClaudeKey(savedKey);
 
       // MCP 설정 로드
       const savedMcpSettings = localStorage.getItem('mcp_settings');
@@ -73,7 +73,7 @@ export default function Settings() {
   }, []);
 
   const handleSaveApiKey = () => {
-    localStorage.setItem('openai_api_key', openaiKey);
+    localStorage.setItem('claude_api_key', claudeKey);
     // 실제 구현에서는 Tauri를 통해 환경 변수나 secure storage에 저장
     alert('API 키가 저장되었습니다. 앱을 재시작해주세요.');
   };
@@ -152,9 +152,9 @@ export default function Settings() {
             <div className="flex items-center justify-between p-3 rounded-lg border">
               <div className="flex items-center gap-2">
                 <Key className="w-4 h-4" />
-                <span className="text-sm font-medium">OpenAI API</span>
+                <span className="text-sm font-medium">Claude API</span>
               </div>
-              {status?.openai_configured ? (
+              {status?.claude_configured ? (
                 <Badge variant="default" className="gap-1">
                   <CheckCircle className="w-3 h-3" />
                   설정됨
@@ -183,15 +183,15 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* OpenAI API Key */}
+      {/* Claude API Key */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="w-5 h-5" />
-            OpenAI API 설정
+            Claude API 설정
           </CardTitle>
           <CardDescription>
-            LLM 기능을 사용하려면 OpenAI API 키를 설정하세요.
+            LLM 기능을 사용하려면 Claude API 키를 설정하세요.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -200,9 +200,9 @@ export default function Settings() {
             <Input
               id="api-key"
               type="password"
-              value={openaiKey}
-              onChange={(e) => setOpenaiKey(e.target.value)}
-              placeholder="sk-..."
+              value={claudeKey}
+              onChange={(e) => setClaudeKey(e.target.value)}
+              placeholder="sk-ant-..."
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground mt-2">
@@ -210,7 +210,7 @@ export default function Settings() {
             </p>
           </div>
 
-          <Button onClick={handleSaveApiKey} disabled={!openaiKey.trim()}>
+          <Button onClick={handleSaveApiKey} disabled={!claudeKey.trim()}>
             API 키 저장
           </Button>
         </CardContent>

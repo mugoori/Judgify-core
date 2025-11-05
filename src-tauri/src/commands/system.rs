@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct SystemStatus {
     pub database_connected: bool,
     pub database_path: String,
-    pub openai_configured: bool,
+    pub claude_configured: bool,
     pub version: String,
     pub uptime_seconds: u64,
 }
@@ -23,7 +23,7 @@ pub async fn get_system_status() -> Result<SystemStatus, String> {
     use crate::database::Database;
 
     let db_connected = Database::new().is_ok();
-    let openai_configured = std::env::var("ANTHROPIC_API_KEY").is_ok();
+    let claude_configured = std::env::var("ANTHROPIC_API_KEY").is_ok();
 
     let db_path = if let Some(data_dir) = dirs::data_local_dir() {
         data_dir
@@ -38,7 +38,7 @@ pub async fn get_system_status() -> Result<SystemStatus, String> {
     Ok(SystemStatus {
         database_connected: db_connected,
         database_path: db_path,
-        openai_configured,
+        claude_configured,
         version: env!("CARGO_PKG_VERSION").to_string(),
         uptime_seconds: 0, // Simplified - would need global state to track
     })

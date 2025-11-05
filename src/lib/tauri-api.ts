@@ -115,7 +115,7 @@ export const validateWorkflow = (definition: any): Promise<boolean> =>
 export interface SystemStatus {
   database_connected: boolean;
   database_path: string;
-  openai_configured: boolean;
+  claude_configured: boolean;
   version: string;
   uptime_seconds: number;
 }
