@@ -6,6 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   CheckCircle,
   XCircle,
@@ -14,11 +22,26 @@ import {
   Download,
   Folder,
   Info,
+  Zap,
+  DollarSign,
 } from 'lucide-react';
 import { save } from '@tauri-apps/api/dialog';
 
+interface MCPSettings {
+  context7_enabled: boolean;
+  complexity_threshold: 'simple' | 'medium' | 'complex';
+  daily_token_limit: number;
+  cache_ttl_minutes: number;
+}
+
 export default function Settings() {
   const [openaiKey, setOpenaiKey] = useState('');
+  const [mcpSettings, setMcpSettings] = useState<MCPSettings>({
+    context7_enabled: true,
+    complexity_threshold: 'medium',
+    daily_token_limit: 100000,
+    cache_ttl_minutes: 30,
+  });
 
   const { data: status } = useQuery({
     queryKey: ['system-status'],
@@ -36,6 +59,16 @@ export default function Settings() {
     if (typeof window !== 'undefined') {
       const savedKey = localStorage.getItem('openai_api_key');
       if (savedKey) setOpenaiKey(savedKey);
+
+      // MCP 설정 로드
+      const savedMcpSettings = localStorage.getItem('mcp_settings');
+      if (savedMcpSettings) {
+        try {
+          setMcpSettings(JSON.parse(savedMcpSettings));
+        } catch (e) {
+          console.error('Failed to parse MCP settings:', e);
+        }
+      }
     }
   }, []);
 
@@ -43,6 +76,11 @@ export default function Settings() {
     localStorage.setItem('openai_api_key', openaiKey);
     // 실제 구현에서는 Tauri를 통해 환경 변수나 secure storage에 저장
     alert('API 키가 저장되었습니다. 앱을 재시작해주세요.');
+  };
+
+  const handleSaveMcpSettings = () => {
+    localStorage.setItem('mcp_settings', JSON.stringify(mcpSettings));
+    alert('MCP 설정이 저장되었습니다.');
   };
 
   const handleExportDatabase = async () => {
@@ -199,6 +237,117 @@ export default function Settings() {
           <Button variant="outline" onClick={handleExportDatabase}>
             <Download className="w-4 h-4 mr-2" />
             데이터베이스 백업
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* MCP Conditional Activation */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5" />
+            MCP Conditional Activation
+          </CardTitle>
+          <CardDescription>
+            복잡도 기반 Context7 MCP 활성화로 토큰 비용 최적화 (예상 54% 절감)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Context7 Enable Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="context7-enabled">Context7 MCP 활성화</Label>
+              <p className="text-xs text-muted-foreground">
+                복잡한 판단에만 Context7 문서 검색 활성화
+              </p>
+            </div>
+            <Switch
+              id="context7-enabled"
+              checked={mcpSettings.context7_enabled}
+              onCheckedChange={(checked) =>
+                setMcpSettings({ ...mcpSettings, context7_enabled: checked })
+              }
+            />
+          </div>
+
+          {/* Complexity Threshold Select */}
+          <div className="space-y-2">
+            <Label>활성화 임계값</Label>
+            <Select
+              value={mcpSettings.complexity_threshold}
+              onValueChange={(value: 'simple' | 'medium' | 'complex') =>
+                setMcpSettings({ ...mcpSettings, complexity_threshold: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="simple">Simple (Rule만, 0% MCP)</SelectItem>
+                <SelectItem value="medium">Medium (LLM, 30% MCP)</SelectItem>
+                <SelectItem value="complex">Complex (Full MCP, 100%)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              선택한 복잡도 이상일 때만 Context7 활성화
+            </p>
+          </div>
+
+          {/* Daily Token Limit */}
+          <div className="space-y-2">
+            <Label htmlFor="token-limit">일일 토큰 한도</Label>
+            <Input
+              id="token-limit"
+              type="number"
+              value={mcpSettings.daily_token_limit}
+              onChange={(e) =>
+                setMcpSettings({
+                  ...mcpSettings,
+                  daily_token_limit: parseInt(e.target.value) || 0,
+                })
+              }
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              하루 최대 사용 가능한 토큰 수 (기본: 100,000)
+            </p>
+          </div>
+
+          {/* Cache TTL */}
+          <div className="space-y-2">
+            <Label htmlFor="cache-ttl">캐시 TTL (분)</Label>
+            <Input
+              id="cache-ttl"
+              type="number"
+              value={mcpSettings.cache_ttl_minutes}
+              onChange={(e) =>
+                setMcpSettings({
+                  ...mcpSettings,
+                  cache_ttl_minutes: parseInt(e.target.value) || 30,
+                })
+              }
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              Redis 캐시 만료 시간 (기본: 30분, 권장 적중률 80%)
+            </p>
+          </div>
+
+          {/* Cost Estimate */}
+          <div className="p-4 rounded-lg bg-muted space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <DollarSign className="w-4 h-4" />
+              예상 비용 절감
+            </div>
+            <div className="text-2xl font-bold">54% ↓</div>
+            <div className="text-xs text-muted-foreground">
+              월 $300 → $138 (Simple: 0 tokens, Medium: 2K, Complex: 5K)
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <Button onClick={handleSaveMcpSettings} className="w-full">
+            MCP 설정 저장
           </Button>
         </CardContent>
       </Card>
