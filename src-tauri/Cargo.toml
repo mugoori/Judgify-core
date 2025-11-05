@@ -9,6 +9,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "judgify_desktop"
+path = "src/lib.rs"
+
 [build-dependencies]
 tauri-build = { version = "1.5", features = [] }
 
@@ -46,6 +50,10 @@ harness = false
 
 [[bench]]
 name = "training_sample_benchmark"
+harness = false
+
+[[bench]]
+name = "cache_benchmark"
 harness = false
 
 [[bench]]
