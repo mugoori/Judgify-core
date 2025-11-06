@@ -2,7 +2,7 @@
 
 이 문서는 **Claude Code가 Judgify-core Ver2.0 Final 마이크로서비스 기반 AI 판단 플랫폼**을 개발할 때 참조하는 **포괄적 컨텍스트 엔지니어링 가이드**입니다.
 
-Ver2.0 Final에서는 Supabase 중심 구조에서 **PostgreSQL + 마이크로서비스 아키텍처**로 전면 전환하여, **하이브리드 판단**, **자동학습 시스템**, **Visual Workflow Builder**, **MCP 기반 BI** 등이 핵심 기능입니다.
+Ver2.0 Final에서는 Ver1.0 Supabase 기반 아키텍처에서 **PostgreSQL + 마이크로서비스 아키텍처**로 전면 전환하여, **하이브리드 판단**, **자동학습 시스템**, **Visual Workflow Builder**, **MCP 기반 BI** 등이 핵심 기능입니다.
 
 ---
 
