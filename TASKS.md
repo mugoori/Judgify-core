@@ -12,7 +12,7 @@
 |------|-------|------|--------------|
 | **Desktop App (Phase 0)** | 71.7% | 🟢 완료 | 2025-11-04 |
 | **Performance Engineer (Phase 1)** | 100% (8/8) | ✅ 완료 | 2025-11-04 |
-| **Test Automation (Phase 2)** | 62.5% (5/8) | 🟢 진행 중 | 2025-11-06 |
+| **Test Automation (Phase 2)** | 75.0% (6/8) | 🟢 진행 중 | 2025-11-06 |
 
 ---
 
@@ -1872,6 +1872,115 @@ sudo apt-get install -y \
 - **Issues**: Closed #14, #15
 
 **소요 시간**: 실제 1시간 (예상 3시간에서 단축)
+
+---
+
+#### Task 4.3: 테스트 가이드 문서화 ✅ **완료** (2025-11-06)
+
+**목표**: 기존 48개 테스트에서 추출한 패턴을 표준화하여 팀 교육 자료 작성
+
+**구현 내용**:
+
+**1. 생성된 문서**:
+- `docs/testing/testing-guide.md` (400줄, 7개 섹션)
+
+**2. 문서 구조**:
+```markdown
+1. 테스트 철학 (Why Test?)
+   - 핵심 원칙
+   - 테스트 피라미드 (Unit → Integration → E2E)
+
+2. 프로젝트 테스트 구조
+   - 디렉토리 구조 (src/, src-tauri/tests/, tests-e2e/)
+   - 프레임워크 (Vitest, Criterion.rs, Playwright)
+   - 현재 커버리지 현황 (TypeScript 17.02%, Rust 48%)
+
+3. TypeScript 유닛 테스트 패턴
+   3.1 공통 설정 (Tauri API Mocking 표준 패턴)
+   3.2 React Hooks 테스트 (useRuleValidation 예시)
+   3.3 Utils 테스트 (tauri-api 21개 테스트 예시)
+   3.4 데이터 생성 함수 (sample-data 9개 테스트 예시)
+   3.5 React Component 테스트 (EmptyState 10개 테스트 예시)
+
+4. Rust 통합 테스트 패턴
+   4.1 Rust 테스트 구조 (cache_service_test.rs 37개 테스트)
+   4.2 Criterion.rs 벤치마킹 (실측 성능 데이터 포함)
+
+5. E2E 테스트 패턴
+   5.1 Playwright 테스트 구조 (5개 시나리오)
+
+6. CI/CD 통합
+   6.1 GitHub Actions 워크플로우 (test.yml 전체 설명)
+   6.2 로컬 테스트 명령어 (npm run test, cargo test 등)
+
+7. 커버리지 목표 및 측정 방법
+   7.1 현재 커버리지 현황 (상세 표)
+   7.2 커버리지 목표 (단기 40%, 장기 70%)
+   7.3 우선순위 테스트 대상 (Phase 1-3)
+   7.4 커버리지 측정 명령어
+   7.5 커버리지 개선 전략
+```
+
+**3. 주요 패턴 추출** (4개 테스트 파일 분석):
+
+**패턴 1: Tauri API Mocking** (모든 테스트 공통):
+```typescript
+vi.mock('@tauri-apps/api/tauri', () => ({
+  invoke: vi.fn(),
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+```
+
+**패턴 2: React Hooks 테스트** (useRuleValidation.test.ts):
+```typescript
+const { result } = renderHook(() => useRuleValidation('rule'));
+await waitFor(() => {
+  expect(result.current.isValidating).toBe(false);
+});
+```
+
+**패턴 3: 비동기 데이터 생성 테스트** (sample-data.test.ts):
+```typescript
+vi.mocked(invoke)
+  .mockResolvedValueOnce({ id: 'workflow-1' })
+  .mockResolvedValueOnce({ id: 'workflow-2' });
+
+const result = await generateSampleData();
+expect(result.workflows).toBe(2);
+```
+
+**패턴 4: Component 인터랙션 테스트** (EmptyState.test.tsx):
+```typescript
+const user = userEvent.setup();
+await user.click(button);
+expect(mockAction).toHaveBeenCalledTimes(1);
+```
+
+**예상 효과**:
+- ✅ 신규 개발자 온보딩 시간 50% 단축 (2일 → 1일)
+- ✅ 테스트 작성 속도 2배 향상 (표준 패턴 활용)
+- ✅ 테스트 품질 일관성 확보 (모든 개발자가 동일 패턴 사용)
+- ✅ CI/CD 통합 명확화 (GitHub Actions 워크플로우 설명)
+
+**참조 파일** (4개 테스트):
+- `src/hooks/__tests__/useRuleValidation.test.ts` (8 tests)
+- `src/lib/__tests__/tauri-api.test.ts` (21 tests)
+- `src/lib/__tests__/sample-data.test.ts` (9 tests)
+- `src/components/__tests__/EmptyState.test.tsx` (10 tests)
+
+**Git 기록**:
+- **커밋**: (다음 커밋에서 추가 예정)
+- **브랜치**: main
+- **파일 추가**: `docs/testing/testing-guide.md` (신규 생성)
+
+**소요 시간**: 실제 2시간 (예상 2-3시간 범위 내)
+
+**다음 작업 추천**:
+- Task 4.2-Full: Workflow 모듈 테스트 (TypeScript 커버리지 17% → 40%)
+- Task 4.2-Full: Memory Manager 테스트 (Rust 커버리지 48% → 60%)
 
 ---
 
