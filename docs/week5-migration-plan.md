@@ -23,7 +23,7 @@ Week 5 (Visual Workflow Builder) 작업을 안전하게 진행하기 위한 마�
 
 ### Week 5 목표 (v2)
 - **노드 타입**: 7가지로 확장 (data_input, rule_judgment, llm_judgment, action_execution, notification, data_aggregation, output)
-- **AI 생성**: LLM 기반 고급 워크플로우 생성 (OpenAI API 연동)
+- **AI 생성**: LLM 기반 고급 워크플로우 생성 (Claude API 연동)
 - **Validation**: AST 기반 Rule Expression 검증 (Rhai 엔진 심화)
 - **시뮬레이션**: 실시간 디버깅 + 변수 추적
 - **React Flow**: 성능 최적화 유지 (1,000+ 노드 지원)
@@ -148,7 +148,7 @@ const nodeTypes = useMemo(
 
 #### 🔹 문제점
 - **현재**: 패턴 기반 생성 (`workflow-generator.ts:testScenarios`)
-- **목표**: OpenAI API 연동 LLM 기반 생성
+- **목표**: **Claude API (Anthropic) 연동** LLM 기반 생성
 - **영향**: 기존 샘플 시나리오 호환성 문제
 
 #### 🔹 해결 전략
@@ -166,14 +166,51 @@ export const generateWorkflowFromDescription = async (
     if (patternResult) return patternResult;
   }
 
-  // LLM 기반 폴백 (고급, 새로운 시나리오)
+  // Claude API 기반 폴백 (고급, 새로운 시나리오)
   if (mode === 'llm' || mode === 'hybrid') {
-    return await generateWithLLM(description);
+    return await generateWithClaude(description);
   }
 
   throw new Error('No generation strategy succeeded');
 };
+
+// Claude API 연동 함수 (신규)
+async function generateWithClaude(description: string): Promise<WorkflowDefinition> {
+  const apiKey = localStorage.getItem('claude_api_key');
+  if (!apiKey) {
+    throw new Error('Claude API key not found. Please set it in Settings.');
+  }
+
+  // Anthropic Messages API 호출
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-3-5-sonnet-20241022', // 최신 Sonnet 4.5 모델
+      max_tokens: 4096,
+      messages: [
+        {
+          role: 'user',
+          content: `Generate a workflow definition in JSON format based on this description: "${description}"`,
+        },
+      ],
+    }),
+  });
+
+  const data = await response.json();
+  return parseClaudeResponse(data.content[0].text);
+}
 ```
+
+**Claude API 사용 이유**:
+- ✅ Settings 페이지에서 이미 API 키 관리 (`localStorage.getItem('claude_api_key')`)
+- ✅ 워크플로우 생성에 최적화된 추론 능력 (Sonnet 4.5)
+- ✅ 한국어 프롬프트 지원 우수
+- ✅ JSON 구조 생성 정확도 높음
 
 **테스트 전략**:
 - 기존 `testScenarios` 5개 → Pattern 모드 테스트 (통과 필수)
@@ -300,8 +337,8 @@ git push origin week5-failed-attempt-2025-11-06
 - [ ] `WorkflowBuilder.test.tsx` 작성 (20개 테스트)
 
 ### **Day 3-4**: AI 생성 + Validation
-- [ ] OpenAI API 연동 (`generateWithLLM`)
-- [ ] 하이브리드 생성 로직 구현
+- [ ] Claude API (Anthropic) 연동 (`generateWithClaude`)
+- [ ] 하이브리드 생성 로직 구현 (Pattern + Claude)
 - [ ] AST 기반 Validation 추가 (옵션)
 - [ ] 통합 테스트 (Pattern + LLM 모드)
 
