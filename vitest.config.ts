@@ -10,8 +10,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    setupFiles: ['./src/setupTests.ts'],
     include: ['src/**/*.{test,spec}.{js,ts,jsx,tsx}'],
     exclude: ['tests/e2e/**', '**/node_modules/**'],
+    typecheck: {
+      tsconfig: './tsconfig.vitest.json',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
