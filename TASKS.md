@@ -13,6 +13,7 @@
 | **Desktop App (Phase 0)** | 71.7% | 🟢 완료 | 2025-11-04 |
 | **Performance Engineer (Phase 1)** | 100% (8/8) | ✅ 완료 | 2025-11-04 |
 | **Test Automation (Phase 2)** | 100% (8/8) | ✅ 완료 | 2025-11-06 |
+| **Week 5: Visual Workflow Builder** | 50% (4/8) | 🟡 진행 중 | 2025-11-06 |
 
 ---
 
@@ -2426,3 +2427,133 @@ npm run test:coverage
 ---
 
 **마지막 업데이트**: 2025-11-05 by Test Automation Engineer 서브에이전트 (Task 3.1, 3.2, 3.3 완료)
+
+---
+
+## 🎨 Week 5: Visual Workflow Builder (진행률: 50%, 4/8 완료)
+
+**목표**: LLM 기반 하이브리드 워크플로우 생성
+**진행률**: 50.0% (4/8 작업 완료)
+**브랜치**: `feature/week5-visual-workflow-builder`
+**담당**: AI Engineer
+
+### ✅ Day 1-2: NodeType 확장 및 CustomNode 리팩토링 (완료, 2025-11-05)
+
+**구현 내용**:
+- NodeType 4개 → 10개 확장 (INPUT, DECISION, ACTION, OUTPUT + 6개 신규)
+- CustomNode 컴포넌트 완전 리팩토링 (getNodeIcon, getNodeColor 함수화)
+- 26개 하위 호환성 테스트 통과 (v1 워크플로우 렌더링 보장)
+
+**관련 커밋**:
+- [98d46d9] - feat: Complete Week 5 Day 1-2 - NodeType Expansion
+
+**관련 파일**:
+- src/types/workflow.ts - NodeType enum (10 types)
+- src/components/workflow/CustomNode.tsx - 리팩토링 완료
+- src/components/workflow/__tests__/CustomNode.test.tsx - 26 tests
+
+---
+
+### ✅ Day 3-4 Phase 1: LLM Provider 추상화 (완료, 2025-11-06)
+
+**구현 내용**:
+- LLM Provider 인터페이스 정의 (src/lib/llm-provider.ts - 79줄)
+  - LLMProvider interface
+  - WorkflowGenerationRequest/Response 타입
+  - LLMProviderError 커스텀 예외
+- Claude API 구현 (src/lib/claude-provider.ts - 193줄)
+  - Claude 3.5 Sonnet 모델 연동
+  - API 키 검증 (정규식)
+  - JSON 파싱 (마크다운 코드블록 추출)
+  - 에러 처리 (401/429/500 HTTP 상태)
+- 10개 단위 테스트 (src/lib/__tests__/claude-provider.test.ts - 195줄)
+  - Vitest + Mock Anthropic SDK
+  - API 키 검증, 워크플로우 생성, 에러 처리 테스트
+
+**기술 스택**:
+- @anthropic-ai/sdk (신규 의존성)
+- Claude 3.5 Sonnet (claude-3-5-sonnet-20241022)
+
+**아키텍처 특징**:
+- 인터페이스 기반 설계 (Provider 교체 가능)
+- 의존성 주입 패턴
+- 낮은 결합도 (Claude 코드 격리)
+
+**관련 커밋**:
+- [4a1c5e8] - feat: Implement Week 5 Day 3-4 Phase 1 & 2
+
+---
+
+### ✅ Day 3-4 Phase 2: 하이브리드 생성 로직 (완료, 2025-11-06)
+
+**구현 내용**:
+- WorkflowGenerator 클래스 전면 리팩토링 (src/lib/workflow-generator.ts - 446줄)
+  - 3가지 생성 모드: 'pattern', 'llm', 'hybrid'
+  - 의존성 주입 (LLM Provider optional)
+  - generateHybrid(): Pattern 우선 → LLM 보완 실행
+  - 하위 호환성 유지 (generateWorkflowFromDescription 레거시 함수)
+  - 메타데이터 추적 (generationTime, usedLLM, patternMatched)
+
+**하이브리드 로직**:
+```
+1. Pattern 모드 시도 (빠름, 결정적)
+2. 충분성 판단 (patternMatched && nodes.length >= 3)
+3. 부족시 LLM 모드로 보완 (지능적, 유연)
+4. 최종 결과 반환 (method_used 메타데이터 포함)
+```
+
+**아키텍처 특징**:
+- Graceful Degradation (Pattern 모드 독립 실행 가능)
+- Low Coupling (LLM provider 선택적)
+- 하위 호환성 (v1 워크플로우 지원)
+
+**관련 커밋**:
+- [4a1c5e8] - feat: Implement Week 5 Day 3-4 Phase 1 & 2
+
+**Notion 업무일지**:
+- https://www.notion.so/2025-11-06-2a325d02284a818f8d8cca052c01dc77
+
+---
+
+### ⏳ Day 3-4 Phase 3: 통합 테스트 (대기 중)
+
+**계획**:
+- 15개 통합 테스트 작성
+  - Pattern 모드 테스트 (5개)
+  - LLM 모드 테스트 (5개)
+  - Hybrid 모드 테스트 (5개)
+- 테스트 커버리지 90% 이상
+
+**예상 파일**:
+- src/lib/__tests__/workflow-generator.test.ts (신규 생성 예정)
+
+---
+
+### ⏳ Day 3-4 Phase 4: UI 통합 (대기 중)
+
+**계획**:
+1. WorkflowBuilder UI 모드 선택 추가
+   - 라디오 버튼: Pattern / LLM / Hybrid
+   - 모드별 설명 툴팁
+2. Settings API key 설정 UI 추가
+   - Claude API Key 입력 필드
+   - API 키 검증 로직
+   - 로컬 스토리지 저장
+
+**예상 파일**:
+- src/pages/WorkflowBuilder.tsx (수정 예정)
+- src/pages/Settings.tsx (수정 예정)
+
+---
+
+### ⏳ Day 3-4 Phase 5: 통합 테스트 시나리오 (대기 중)
+
+**계획**:
+- 6가지 E2E 시나리오 검증
+  1. Pattern 모드로 간단한 워크플로우 생성
+  2. LLM 모드로 복잡한 워크플로우 생성
+  3. Hybrid 모드에서 Pattern 성공
+  4. Hybrid 모드에서 LLM 보완
+  5. API 키 없이 Pattern 모드 정상 작동
+  6. 잘못된 API 키 에러 처리
+
