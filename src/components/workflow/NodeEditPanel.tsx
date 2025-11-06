@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Node } from 'reactflow';
 import { X, Save, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,21 +58,7 @@ export function NodeEditPanel({ node, onUpdate, onClose }: NodeEditPanelProps) {
     }
   };
 
-  // 노드 타입별 아이콘 색상
-  const getNodeTypeColor = (type?: string) => {
-    switch (type) {
-      case 'input':
-        return 'text-blue-600';
-      case 'decision':
-        return 'text-purple-600';
-      case 'action':
-        return 'text-yellow-600';
-      case 'output':
-        return 'text-green-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
+  // 노드 타입별 아이콘 색상 (미사용 - 직접 className에서 처리)
 
   return (
     <Card className="w-[400px] h-full border-l shadow-lg">

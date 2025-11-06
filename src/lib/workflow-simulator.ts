@@ -193,7 +193,7 @@ export class WorkflowSimulator {
   /**
    * Input 노드 실행
    */
-  private async executeInputNode(node: Node, step: SimulationStep): Promise<void> {
+  private async executeInputNode(_node: Node, step: SimulationStep): Promise<void> {
     // Input 노드는 초기 데이터를 설정
     step.output = { ...this.state.globalData };
     // globalData는 이미 초기화되어 있음
@@ -244,7 +244,7 @@ export class WorkflowSimulator {
   /**
    * Output 노드 실행
    */
-  private async executeOutputNode(node: Node, step: SimulationStep): Promise<void> {
+  private async executeOutputNode(_node: Node, step: SimulationStep): Promise<void> {
     // Output 노드는 최종 결과를 반환
     step.output = {
       finalResult: { ...this.state.globalData },

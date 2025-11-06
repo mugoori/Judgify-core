@@ -10,6 +10,7 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   MiniMap,
+  ConnectionLineType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { getAllWorkflows, createWorkflow, updateWorkflow, deleteWorkflow, executeJudgment, type JudgmentResult } from '@/lib/tauri-api';
@@ -87,13 +88,13 @@ export default function WorkflowBuilder() {
 
   // Simulation state
   const [showSimulationPanel, setShowSimulationPanel] = useState(false);
-  const [simulationInitialData, setSimulationInitialData] = useState<Record<string, any>>({
+  const simulationInitialData: Record<string, any> = {
     temperature: 95,
     vibration: 45,
     status: 'normal',
     count: 10,
     pressure: 100.0,
-  });
+  };
 
   // Focus on execute panel when opened
   useEffect(() => {
@@ -384,7 +385,7 @@ export default function WorkflowBuilder() {
   }, [nodesToDelete, setNodes, setEdges, toast]);
 
   // Handle node editing
-  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+  const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
   }, []);
 
@@ -404,7 +405,7 @@ export default function WorkflowBuilder() {
   }, [setNodes, toast]);
 
   // Handle simulation step change
-  const handleSimulationStepChange = useCallback((stepIndex: number, nodeId: string) => {
+  const handleSimulationStepChange = useCallback((_stepIndex: number, nodeId: string) => {
     // Highlight the current node in the canvas
     setNodes((nds) =>
       nds.map((node) => ({
@@ -876,7 +877,7 @@ export default function WorkflowBuilder() {
                 style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
               }}
               connectionLineStyle={{ stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
-              connectionLineType="smoothstep"
+              connectionLineType={ConnectionLineType.SmoothStep}
               snapToGrid
               snapGrid={[15, 15]}
               // 성능 최적화 설정
