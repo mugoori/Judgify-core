@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Settings from '../Settings';
 import * as tauriApi from '@/lib/tauri-api';
 import { save } from '@tauri-apps/api/dialog';
+import { setupMockLocalStorage } from '@/__tests__/utils/mockLocalStorage';
+import { renderWithQueryClient } from '@/__tests__/utils/renderWithQueryClient';
 
 // Mock Tauri API
 vi.mock('@/lib/tauri-api', () => ({
@@ -18,36 +19,11 @@ vi.mock('@tauri-apps/api/dialog', () => ({
 }));
 
 // Mock localStorage
-const mockLocalStorage = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
-  };
-})();
-
-Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage,
-});
+const mockLocalStorage = setupMockLocalStorage();
 
 // Mock window.alert
 const mockAlert = vi.fn();
 window.alert = mockAlert;
-
-// Test wrapper
-function renderWithQueryClient(ui: React.ReactElement) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-  );
-}
 
 describe('Settings', () => {
   const user = userEvent.setup();

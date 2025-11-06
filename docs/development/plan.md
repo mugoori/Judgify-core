@@ -400,6 +400,8 @@ Day 5:
 ```
 
 ### Week 5: Visual Workflow Builder
+**상태**: ⏳ 대기 중 (우선순위 변경)
+**실제 진행**: [Phase 2: Test Automation (완료)](../../TASKS.md#phase-2-test-automation-engineer)
 **목표**: n8n 스타일 워크플로우 에디터
 
 ```yaml
