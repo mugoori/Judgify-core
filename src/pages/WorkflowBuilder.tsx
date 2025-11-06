@@ -20,8 +20,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Save, Play, CheckCircle, XCircle, Sparkles, FileText, AlertCircle, Zap, RefreshCw, Workflow, Wand2, Trash2, AlertTriangle, ChevronDown, ChevronUp, Bug } from 'lucide-react';
+import { Save, Play, CheckCircle, XCircle, Sparkles, FileText, AlertCircle, Zap, RefreshCw, Workflow, Wand2, Trash2, AlertTriangle, ChevronDown, ChevronUp, Bug, Database, FileCode, Brain, Bell, BarChart } from 'lucide-react';
 import CustomNode from '@/components/workflow/CustomNode';
+import { NodeType } from '@/types/workflow';
 import { NodeEditPanel } from '@/components/workflow/NodeEditPanel';
 import { SimulationPanel } from '@/components/workflow/SimulationPanel';
 import EmptyState from '@/components/EmptyState';
@@ -207,7 +208,12 @@ export default function WorkflowBuilder() {
     custom: CustomNode,
   }), []);
 
-  const addNode = useCallback((nodeType: 'input' | 'decision' | 'action' | 'output', label: string, description?: string, rule?: string) => {
+  const addNode = useCallback((
+    nodeType: NodeType,
+    label: string,
+    description?: string,
+    additionalData?: Record<string, any>
+  ) => {
     const newNode: Node = {
       id: `${Date.now()}`,
       type: 'custom',
@@ -215,7 +221,7 @@ export default function WorkflowBuilder() {
         label,
         type: nodeType,
         description,
-        rule,
+        ...additionalData, // rule, ruleExpression, prompt, service, channel 등
       },
       position: { x: 250 + Math.random() * 100, y: 100 + nodes.length * 80 },
     };
@@ -489,10 +495,11 @@ export default function WorkflowBuilder() {
             <CardDescription>워크플로우에 노드를 추가하세요.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
+            {/* 기존 v1 노드 타입 (하위 호환성) */}
             <Button
               variant="outline"
               className="w-full justify-start"
-              onClick={() => addNode('input', '데이터 입력', '사용자 입력 또는 외부 데이터 수집')}
+              onClick={() => addNode(NodeType.INPUT, '데이터 입력', '사용자 입력 또는 외부 데이터 수집')}
             >
               <FileText className="w-4 h-4 mr-2 text-blue-500" />
               데이터 입력
@@ -500,7 +507,7 @@ export default function WorkflowBuilder() {
             <Button
               variant="outline"
               className="w-full justify-start"
-              onClick={() => addNode('decision', '판단 로직', 'Rule 기반 조건 평가', 'temperature > 90')}
+              onClick={() => addNode(NodeType.DECISION, '판단 로직', 'Rule 기반 조건 평가', { rule: 'temperature > 90' })}
             >
               <AlertCircle className="w-4 h-4 mr-2 text-purple-500" />
               판단 로직
@@ -508,7 +515,7 @@ export default function WorkflowBuilder() {
             <Button
               variant="outline"
               className="w-full justify-start"
-              onClick={() => addNode('action', '외부 연동', 'API 호출, 알림 전송 등')}
+              onClick={() => addNode(NodeType.ACTION, '외부 연동', 'API 호출, 알림 전송 등')}
             >
               <Zap className="w-4 h-4 mr-2 text-yellow-500" />
               외부 연동
@@ -516,11 +523,64 @@ export default function WorkflowBuilder() {
             <Button
               variant="outline"
               className="w-full justify-start"
-              onClick={() => addNode('output', '결과 출력', '최종 판단 결과 저장')}
+              onClick={() => addNode(NodeType.OUTPUT, '결과 출력', '최종 판단 결과 저장')}
             >
               <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
               결과 출력
             </Button>
+
+            {/* 신규 v2 노드 타입 (Week 5) */}
+            <div className="border-t pt-2 mt-2">
+              <p className="text-xs text-muted-foreground mb-2 font-semibold">고급 노드 (v2)</p>
+              <Button
+                variant="outline"
+                className="w-full justify-start mb-1"
+                onClick={() => addNode(NodeType.DATA_INPUT, '데이터 소스', 'DB/API 연동', { source: 'database' })}
+              >
+                <Database className="w-4 h-4 mr-2 text-violet-500" />
+                데이터 소스
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start mb-1"
+                onClick={() => addNode(NodeType.RULE_JUDGMENT, 'Rule 판단', 'AST 기반 규칙 평가', { ruleExpression: 'x > 0 && y < 100' })}
+              >
+                <FileCode className="w-4 h-4 mr-2 text-emerald-500" />
+                Rule 판단
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start mb-1"
+                onClick={() => addNode(NodeType.LLM_JUDGMENT, 'AI 판단', 'LLM 기반 판단', { prompt: 'Analyze the data and provide judgment' })}
+              >
+                <Brain className="w-4 h-4 mr-2 text-cyan-500" />
+                AI 판단
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start mb-1"
+                onClick={() => addNode(NodeType.ACTION_EXECUTION, '작업 실행', '외부 시스템 작업', { service: 'slack' })}
+              >
+                <Zap className="w-4 h-4 mr-2 text-orange-500" />
+                작업 실행
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start mb-1"
+                onClick={() => addNode(NodeType.NOTIFICATION, '알림', 'Slack/Email 알림', { channel: 'slack' })}
+              >
+                <Bell className="w-4 h-4 mr-2 text-pink-500" />
+                알림
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => addNode(NodeType.DATA_AGGREGATION, '데이터 집계', '통계 계산 및 변환', { aggregationType: 'sum' })}
+              >
+                <BarChart className="w-4 h-4 mr-2 text-teal-500" />
+                데이터 집계
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
