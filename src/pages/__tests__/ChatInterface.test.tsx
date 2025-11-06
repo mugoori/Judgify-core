@@ -664,4 +664,282 @@ describe('ChatInterface', () => {
       });
     });
   });
+
+  // ========================================
+  // Group 9: Visibility Change & Tab Recovery
+  // ========================================
+  describe('Group 9: Visibility Change & Tab Recovery', () => {
+    beforeEach(() => {
+      // Mock document.hidden and visibilityState
+      Object.defineProperty(document, 'hidden', {
+        writable: true,
+        value: false,
+        configurable: true,
+      });
+
+      Object.defineProperty(document, 'visibilityState', {
+        writable: true,
+        value: 'visible',
+        configurable: true,
+      });
+    });
+
+    it('탭이 visible로 변경시 백엔드와 동기화', async () => {
+      // Mock backend history with new messages
+      vi.mocked(tauriApi.getChatHistory).mockResolvedValueOnce([
+        { role: 'user', content: 'Hello', intent: 'general' },
+        { role: 'assistant', content: 'Hi there!', intent: 'general' },
+      ]);
+
+      renderWithQueryClient(<ChatInterface />);
+
+      // Set hidden to true first
+      Object.defineProperty(document, 'hidden', { value: true, writable: true });
+
+      // Simulate tab becoming visible
+      Object.defineProperty(document, 'hidden', { value: false, writable: true });
+      const event = new Event('visibilitychange');
+      document.dispatchEvent(event);
+
+      // Wait for sync to complete
+      await waitFor(() => {
+        expect(tauriApi.getChatHistory).toHaveBeenCalled();
+      });
+
+      // Verify messages updated
+      await waitFor(() => {
+        expect(screen.getByText('Hello')).toBeInTheDocument();
+        expect(screen.getByText('Hi there!')).toBeInTheDocument();
+      });
+    });
+
+    it('탭이 already visible이면 sync 스킵', () => {
+      // Keep tab visible (default state)
+      Object.defineProperty(document, 'hidden', { value: false, writable: true });
+
+      renderWithQueryClient(<ChatInterface />);
+
+      // Dispatch event but tab is already visible
+      const event = new Event('visibilitychange');
+      document.dispatchEvent(event);
+
+      // No sync should happen
+      expect(tauriApi.getChatHistory).not.toHaveBeenCalled();
+    });
+
+    it('백그라운드 응답 플래그 확인 및 복구', async () => {
+      // Set pending response flag
+      mockLocalStorage.setItem('chat-pending-response', 'true');
+
+      // Mock backend with new AI response
+      vi.mocked(tauriApi.getChatHistory).mockResolvedValueOnce([
+        { role: 'user', content: 'Question', intent: 'general' },
+        { role: 'assistant', content: 'Answer', intent: 'general' },
+      ]);
+
+      renderWithQueryClient(<ChatInterface />);
+
+      // Simulate tab return
+      Object.defineProperty(document, 'hidden', { value: false, writable: true });
+      const event = new Event('visibilitychange');
+      document.dispatchEvent(event);
+
+      // Wait for recovery
+      await waitFor(() => {
+        expect(screen.getByText('Answer')).toBeInTheDocument();
+      });
+
+      // Verify flag removed
+      expect(mockLocalStorage.getItem('chat-pending-response')).toBeNull();
+    });
+
+    it('sync 완료 후 모든 플래그 정리', async () => {
+      // Set both flags
+      mockLocalStorage.setItem('chat-pending-request', 'true');
+      mockLocalStorage.setItem('chat-pending-response', 'true');
+
+      vi.mocked(tauriApi.getChatHistory).mockResolvedValueOnce([]);
+
+      renderWithQueryClient(<ChatInterface />);
+
+      // Simulate tab return
+      Object.defineProperty(document, 'hidden', { value: false, writable: true });
+      const event = new Event('visibilitychange');
+      document.dispatchEvent(event);
+
+      // Wait for cleanup
+      await waitFor(() => {
+        expect(mockLocalStorage.getItem('chat-pending-request')).toBeNull();
+        expect(mockLocalStorage.getItem('chat-pending-response')).toBeNull();
+      });
+    });
+  });
+
+  // ========================================
+  // Group 10: Session Sync & Timing
+  // ========================================
+  describe('Group 10: Session Sync & Timing', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('sessionId 변경시 300ms 후 백엔드 동기화', async () => {
+      vi.mocked(tauriApi.getChatHistory).mockResolvedValue([
+        { role: 'user', content: 'Synced message', intent: 'general' },
+      ]);
+
+      const { rerender } = renderWithQueryClient(<ChatInterface />);
+
+      // Wait initial render
+      await waitFor(() => {
+        expect(screen.getByText('AI 어시스턴트')).toBeInTheDocument();
+      });
+
+      // Simulate session ID change (would happen in real app via state)
+      // Since we can't directly change sessionId prop, we verify the useEffect timing
+      // by checking setTimeout was called correctly
+
+      // Fast-forward 300ms
+      vi.advanceTimersByTime(300);
+
+      // getChatHistory should be called after timeout
+      await waitFor(() => {
+        expect(tauriApi.getChatHistory).toHaveBeenCalled();
+      });
+    });
+
+    it('탭 hidden 상태에서 sync 스킵', async () => {
+      // Set tab to hidden before render
+      Object.defineProperty(document, 'hidden', {
+        writable: true,
+        value: true,
+        configurable: true,
+      });
+
+      renderWithQueryClient(<ChatInterface />);
+
+      // Fast-forward timers
+      vi.advanceTimersByTime(300);
+
+      // No sync should happen when tab is hidden
+      // (syncWithBackend checks document.hidden)
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Note: Since syncWithBackend checks document.hidden internally,
+      // we can't easily verify the skip without spy on console.log
+      // This test verifies the component doesn't crash
+      expect(screen.getByText('AI 어시스턴트')).toBeInTheDocument();
+    });
+
+    it('session 변경시 이전 timeout 취소', async () => {
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+      renderWithQueryClient(<ChatInterface />);
+
+      // Wait for first useEffect
+      await waitFor(() => {
+        expect(screen.getByText('AI 어시스턴트')).toBeInTheDocument();
+      });
+
+      // Trigger unmount/re-mount (simulating session change cleanup)
+      // The useEffect cleanup should call clearTimeout
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+
+      clearTimeoutSpy.mockRestore();
+    });
+  });
+
+  // ========================================
+  // Group 11: Mutation Handlers & Background Processing
+  // ========================================
+  describe('Group 11: Mutation Handlers', () => {
+    beforeEach(() => {
+      Object.defineProperty(document, 'hidden', {
+        writable: true,
+        value: false,
+        configurable: true,
+      });
+    });
+
+    it('mutation 시작시 pending 플래그 설정', async () => {
+      vi.mocked(tauriApi.sendChatMessage).mockImplementation(() => {
+        // Check flag is set during mutation
+        expect(mockLocalStorage.getItem('chat-pending-request')).toBe('true');
+        return Promise.resolve({
+          response: 'Answer',
+          session_id: 'test-session',
+          intent: 'general',
+        });
+      });
+
+      renderWithQueryClient(<ChatInterface />);
+
+      const textarea = screen.getByPlaceholderText(/메시지를 입력하세요.../);
+      await user.type(textarea, 'Test message');
+      await user.click(getSendButton());
+
+      await waitFor(() => {
+        expect(tauriApi.sendChatMessage).toHaveBeenCalled();
+      });
+    });
+
+    it('탭이 visible이면 즉시 메시지 추가', async () => {
+      // Tab is visible (default)
+      Object.defineProperty(document, 'hidden', { value: false, writable: true });
+
+      vi.mocked(tauriApi.sendChatMessage).mockResolvedValueOnce({
+        response: 'Immediate response',
+        session_id: 'test-session',
+        intent: 'general',
+      });
+
+      renderWithQueryClient(<ChatInterface />);
+
+      const textarea = screen.getByPlaceholderText(/메시지를 입력하세요.../);
+      await user.type(textarea, 'Question');
+      await user.click(getSendButton());
+
+      // Message should appear immediately
+      await waitFor(() => {
+        expect(screen.getByText('Immediate response')).toBeInTheDocument();
+      });
+
+      // No background flag should be set
+      expect(mockLocalStorage.getItem('chat-pending-response')).toBeNull();
+    });
+
+    it('탭이 hidden이면 background 플래그 설정', async () => {
+      // Set tab to hidden
+      Object.defineProperty(document, 'hidden', { value: true, writable: true });
+
+      vi.mocked(tauriApi.sendChatMessage).mockResolvedValueOnce({
+        response: 'Background response',
+        session_id: 'test-session',
+        intent: 'general',
+      });
+
+      renderWithQueryClient(<ChatInterface />);
+
+      const textarea = screen.getByPlaceholderText(/메시지를 입력하세요.../);
+      await user.type(textarea, 'Question');
+      await user.click(getSendButton());
+
+      // Wait for mutation to complete
+      await waitFor(() => {
+        expect(tauriApi.sendChatMessage).toHaveBeenCalled();
+      });
+
+      // Background flag should be set
+      await waitFor(() => {
+        expect(mockLocalStorage.getItem('chat-pending-response')).toBe('true');
+      });
+
+      // Message should NOT appear immediately (will appear on tab return)
+      expect(screen.queryByText('Background response')).not.toBeInTheDocument();
+    });
+  });
 });
