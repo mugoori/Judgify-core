@@ -1,50 +1,224 @@
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { FileText, GitBranch, Zap, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  FileText,
+  GitBranch,
+  Zap,
+  CheckCircle,
+  AlertCircle,
+  Database,
+  FileCode,
+  Brain,
+  Bell,
+  BarChart,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { NodeType } from '@/types/workflow';
 
-// 노드 타입별 스타일 및 아이콘
-const nodeStyles = {
-  input: {
+/**
+ * 노드 타입별 스타일 및 아이콘 (v2 - 7가지 타입)
+ */
+const nodeStyles: Record<
+  NodeType,
+  {
+    bg: string;
+    icon: typeof FileText;
+    iconColor: string;
+  }
+> = {
+  // 기존 타입 (v1 호환)
+  [NodeType.INPUT]: {
     bg: 'bg-blue-50 border-blue-500',
     icon: FileText,
     iconColor: 'text-blue-600',
   },
-  decision: {
+  [NodeType.DECISION]: {
     bg: 'bg-purple-50 border-purple-500',
     icon: GitBranch,
     iconColor: 'text-purple-600',
   },
-  action: {
+  [NodeType.ACTION]: {
     bg: 'bg-yellow-50 border-yellow-500',
     icon: Zap,
     iconColor: 'text-yellow-600',
   },
-  output: {
+  [NodeType.OUTPUT]: {
     bg: 'bg-green-50 border-green-500',
     icon: CheckCircle,
     iconColor: 'text-green-600',
   },
-  default: {
-    bg: 'bg-gray-50 border-gray-400',
-    icon: AlertCircle,
-    iconColor: 'text-gray-600',
+
+  // 신규 타입 (Week 5)
+  [NodeType.DATA_INPUT]: {
+    bg: 'bg-violet-50 border-violet-500',
+    icon: Database,
+    iconColor: 'text-violet-600',
+  },
+  [NodeType.RULE_JUDGMENT]: {
+    bg: 'bg-emerald-50 border-emerald-500',
+    icon: FileCode,
+    iconColor: 'text-emerald-600',
+  },
+  [NodeType.LLM_JUDGMENT]: {
+    bg: 'bg-cyan-50 border-cyan-500',
+    icon: Brain,
+    iconColor: 'text-cyan-600',
+  },
+  [NodeType.ACTION_EXECUTION]: {
+    bg: 'bg-orange-50 border-orange-500',
+    icon: Zap,
+    iconColor: 'text-orange-600',
+  },
+  [NodeType.NOTIFICATION]: {
+    bg: 'bg-pink-50 border-pink-500',
+    icon: Bell,
+    iconColor: 'text-pink-600',
+  },
+  [NodeType.DATA_AGGREGATION]: {
+    bg: 'bg-teal-50 border-teal-500',
+    icon: BarChart,
+    iconColor: 'text-teal-600',
   },
 };
 
+/**
+ * 기본 스타일 (알 수 없는 타입)
+ */
+const defaultStyle = {
+  bg: 'bg-gray-50 border-gray-400',
+  icon: AlertCircle,
+  iconColor: 'text-gray-600',
+};
+
+/**
+ * CustomNode 데이터 (v1 호환 + v2 확장)
+ */
 interface CustomNodeData {
   label: string;
-  type?: 'input' | 'decision' | 'action' | 'output' | 'default';
+  type?: string; // v1: 'input' | v2: NodeType enum
   description?: string;
-  rule?: string;
+  rule?: string; // v1 DECISION 노드의 조건식
   error?: string;
   highlighted?: boolean;
+
+  // v2 확장 필드
+  ruleExpression?: string; // RULE_JUDGMENT 노드의 AST 기반 표현식
+  prompt?: string; // LLM_JUDGMENT 노드의 프롬프트
+  service?: string; // ACTION_EXECUTION 노드의 서비스명
+  channel?: string; // NOTIFICATION 노드의 채널명
+  aggregationType?: string; // DATA_AGGREGATION 노드의 집계 타입
+  source?: string; // DATA_INPUT 노드의 데이터 소스
 }
 
 const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) => {
-  const nodeType = data.type || 'default';
-  const style = nodeStyles[nodeType];
+  // 노드 타입 결정 (v1 문자열 → v2 Enum 지원)
+  const nodeType: NodeType =
+    data.type && Object.values(NodeType).includes(data.type as NodeType)
+      ? (data.type as NodeType)
+      : NodeType.INPUT; // 기본값
+
+  // 스타일 가져오기
+  const style = nodeStyles[nodeType] || defaultStyle;
   const IconComponent = style.icon;
+
+  // 입력 핸들 표시 여부 (INPUT, DATA_INPUT 제외)
+  const showInputHandle = ![NodeType.INPUT, NodeType.DATA_INPUT].includes(nodeType);
+
+  // 출력 핸들 표시 여부 (OUTPUT 제외)
+  const showOutputHandle = nodeType !== NodeType.OUTPUT;
+
+  // 분기 핸들 표시 여부 (DECISION, RULE_JUDGMENT, LLM_JUDGMENT)
+  const showBranchHandles = [
+    NodeType.DECISION,
+    NodeType.RULE_JUDGMENT,
+    NodeType.LLM_JUDGMENT,
+  ].includes(nodeType);
+
+  /**
+   * 노드 타입별 상세 정보 렌더링
+   */
+  const renderNodeDetails = () => {
+    switch (nodeType) {
+      case NodeType.DECISION:
+      case NodeType.RULE_JUDGMENT:
+        // 조건식 또는 Rule 표현식 표시
+        const expression = data.ruleExpression || data.rule;
+        if (expression) {
+          return (
+            <div className="mt-2 p-2 bg-white rounded border border-purple-200">
+              <div className="text-xs font-mono text-purple-700 break-all">
+                {expression}
+              </div>
+            </div>
+          );
+        }
+        break;
+
+      case NodeType.LLM_JUDGMENT:
+        // LLM 프롬프트 미리보기
+        if (data.prompt) {
+          return (
+            <div className="mt-2 p-2 bg-white rounded border border-cyan-200">
+              <div className="text-xs text-cyan-700 line-clamp-2">{data.prompt}</div>
+            </div>
+          );
+        }
+        break;
+
+      case NodeType.ACTION_EXECUTION:
+        // 서비스명 표시
+        if (data.service) {
+          return (
+            <div className="mt-2 flex items-center gap-1">
+              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                {data.service}
+              </span>
+            </div>
+          );
+        }
+        break;
+
+      case NodeType.NOTIFICATION:
+        // 채널명 표시
+        if (data.channel) {
+          return (
+            <div className="mt-2 flex items-center gap-1">
+              <Bell className="w-3 h-3 text-pink-600" />
+              <span className="text-xs text-pink-700">{data.channel}</span>
+            </div>
+          );
+        }
+        break;
+
+      case NodeType.DATA_AGGREGATION:
+        // 집계 타입 표시
+        if (data.aggregationType) {
+          return (
+            <div className="mt-2 flex items-center gap-1">
+              <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded font-mono">
+                {data.aggregationType.toUpperCase()}
+              </span>
+            </div>
+          );
+        }
+        break;
+
+      case NodeType.DATA_INPUT:
+        // 데이터 소스 표시
+        if (data.source) {
+          return (
+            <div className="mt-2 flex items-center gap-1">
+              <Database className="w-3 h-3 text-violet-600" />
+              <span className="text-xs text-violet-700">{data.source}</span>
+            </div>
+          );
+        }
+        break;
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <div
@@ -71,7 +245,7 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
       )}
 
       {/* Top Handle (입력) */}
-      {nodeType !== 'input' && (
+      {showInputHandle && (
         <Handle
           type="target"
           position={Position.Top}
@@ -87,15 +261,13 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
 
       {/* 노드 설명 */}
       {data.description && (
-        <div className="text-xs text-muted-foreground mb-2">{data.description}</div>
-      )}
-
-      {/* Rule 표현식 (Decision 노드) */}
-      {nodeType === 'decision' && data.rule && (
-        <div className="mt-2 p-2 bg-white rounded border border-purple-200">
-          <div className="text-xs font-mono text-purple-700">{data.rule}</div>
+        <div className="text-xs text-muted-foreground mb-2 line-clamp-2">
+          {data.description}
         </div>
       )}
+
+      {/* 노드 타입별 상세 정보 */}
+      {renderNodeDetails()}
 
       {/* 에러 메시지 */}
       {data.error && (
@@ -108,7 +280,7 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
       )}
 
       {/* Bottom Handle (출력) */}
-      {nodeType !== 'output' && (
+      {showOutputHandle && !showBranchHandles && (
         <Handle
           type="source"
           position={Position.Bottom}
@@ -116,8 +288,8 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
         />
       )}
 
-      {/* Decision 노드는 양쪽에도 핸들 */}
-      {nodeType === 'decision' && (
+      {/* 분기 핸들 (DECISION, RULE_JUDGMENT, LLM_JUDGMENT) */}
+      {showBranchHandles && (
         <>
           <Handle
             type="source"
