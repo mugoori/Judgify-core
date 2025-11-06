@@ -12,7 +12,7 @@
 |------|-------|------|--------------|
 | **Desktop App (Phase 0)** | 71.7% | 🟢 완료 | 2025-11-04 |
 | **Performance Engineer (Phase 1)** | 100% (8/8) | ✅ 완료 | 2025-11-04 |
-| **Test Automation (Phase 2)** | 75.0% (6/8) | 🟢 진행 중 | 2025-11-06 |
+| **Test Automation (Phase 2)** | 87.5% (7/8) | 🟢 진행 중 | 2025-11-06 |
 
 ---
 
@@ -619,7 +619,7 @@ else → no significant change ✅
 ## 🧪 Phase 2: Test Automation Engineer (Week 5-8)
 
 **목표**: E2E 테스트 → 통합 테스트 → 커버리지 향상 → CI/CD
-**진행률**: 25% (2/8 작업 완료)
+**진행률**: 87.5% (7/8 작업 완료)
 **담당 서브에이전트**: Test Automation Engineer
 
 ### ✅ Week 5-6: E2E 프레임워크 및 핵심 테스트
@@ -1228,7 +1228,9 @@ ignore:
 
 **TypeScript Tests**:
 ```
-⚠️ 0 unit tests (no tests implemented yet)
+✅ 28 unit tests passing (Dashboard.tsx: 28 tests)
+✅ Coverage: 17.02% (1,156 / 6,793 lines)
+✅ Baseline established: 17.02%
 ✅ vitest 설정 완료 (E2E 제외)
 ✅ Coverage tool 설치 완료 (@vitest/coverage-v8)
 ```
@@ -1273,6 +1275,77 @@ ignore:
 **소요 시간**: 실제 3시간 (예상 3시간, 목표 달성!)
 
 **다음 작업 연결**: Task 4.2 (커버리지 향상, Rust → 75%, TypeScript → 60%)
+
+---
+
+#### Task 4.1 업데이트: TypeScript 기준치 반영 ✅ **완료** (2025-11-06)
+
+**목표**:
+- `.github/workflows/test.yml`에 새 TypeScript 기준치 반영 (17.02%, 28 tests)
+- GitHub Actions CI 워크플로우 검증 조건 업데이트
+- 커버리지 요약 메시지 업데이트
+
+**변경 내용**:
+
+**1. TypeScript Tests Job 업데이트**:
+```yaml
+Before:
+  - continue-on-error: true  # 테스트 없음 허용
+  - Coverage threshold: 0% (기준치 없음)
+
+After:
+  - continue-on-error 제거 (28 tests 필수 통과)
+  - Coverage threshold: 17.02% (기준치 확립)
+  - 기준치 미달시 CI 차단
+```
+
+**2. Coverage Summary 업데이트**:
+```yaml
+Before:
+  - TypeScript: 0% (⚠️ no unit tests)
+  - 0 unit tests (68 E2E tests)
+
+After:
+  - TypeScript: 17.02% (✅ baseline established)
+  - 28 unit tests passing
+  - Next target: 40% (Task 4.2)
+```
+
+**3. PR Comment 템플릿 업데이트**:
+```yaml
+- 28 unit tests 통과 여부 표시
+- 커버리지 회귀 감지 (< 17.02%)
+- Next Steps: 40% 목표 명시
+```
+
+**실측 검증**:
+```bash
+npm test -- --coverage
+Test Files  1 passed (1)
+     Tests  28 passed (28)
+  Coverage  17.02% Lines (1,156/6,793)
+```
+
+**생성된 파일**: 없음 (기존 파일 수정)
+
+**수정된 파일**:
+- `.github/workflows/test.yml` (3개 섹션 업데이트)
+  - Lines 99-103: continue-on-error 제거
+  - Lines 116-128: Coverage threshold 업데이트 (0% → 17.02%)
+  - Lines 244-254, 261-278: Coverage summary 메시지 업데이트
+
+**Git 기록**:
+- **커밋**: (다음 커밋 예정)
+- **브랜치**: main
+
+**소요 시간**: 0.5시간 (설정 업데이트만)
+
+**효과**:
+- ✅ TypeScript 테스트 필수화 (28 tests 통과 강제)
+- ✅ 커버리지 회귀 방지 (< 17.02% 시 CI 차단)
+- ✅ PR 리뷰어에게 정확한 기준치 정보 제공
+
+**다음 작업 연결**: Task 4.2-Partial (커버리지 17% → 40%)
 
 ---
 

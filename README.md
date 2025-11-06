@@ -3,7 +3,7 @@
 [![Test & Coverage](https://github.com/mugoori/Judgify-core/actions/workflows/test.yml/badge.svg)](https://github.com/mugoori/Judgify-core/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/mugoori/Judgify-core/branch/main/graph/badge.svg)](https://codecov.io/gh/mugoori/Judgify-core)
 [![Rust Coverage](https://img.shields.io/badge/Rust_Coverage-48.31%25-yellow)](https://codecov.io/gh/mugoori/Judgify-core)
-[![TypeScript Coverage](https://img.shields.io/badge/TypeScript_Coverage-0%25-red)](https://codecov.io/gh/mugoori/Judgify-core)
+[![TypeScript Coverage](https://img.shields.io/badge/TypeScript_Coverage-17.02%25-orange)](https://codecov.io/gh/mugoori/Judgify-core)
 
 **AI 판단 플랫폼 - 제조업 SME를 위한 하이브리드 자동화 시스템**
 

@@ -98,11 +98,9 @@ jobs:
 
       - name: Run TypeScript tests
         run: npm run test:run
-        continue-on-error: true  # Allow failure since no unit tests yet
 
       - name: Generate TypeScript coverage
         run: npm run test:coverage
-        continue-on-error: true  # Allow failure since no unit tests yet
 
       - name: Upload TypeScript coverage to Codecov
         if: always()
@@ -114,15 +112,19 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Check TypeScript coverage threshold
-        if: always()
         run: |
           if [ -f "coverage/typescript/lcov.info" ]; then
             COVERAGE=$(grep -oP 'lines......: \K[0-9.]+' coverage/typescript/lcov.info || echo "0")
             echo "TypeScript coverage: ${COVERAGE}%"
-            # Baseline is 0%, so any coverage is acceptable for now
-            echo "✅ TypeScript coverage: ${COVERAGE}% (baseline: 0%)"
+            if (( $(echo "$COVERAGE < 17.02" | bc -l) )); then
+              echo "❌ TypeScript coverage decreased below baseline (17.02%)"
+              exit 1
+            else
+              echo "✅ TypeScript coverage OK: ${COVERAGE}% >= 17.02%"
+            fi
           else
-            echo "⚠️ No TypeScript coverage report (no unit tests yet)"
+            echo "❌ No TypeScript coverage report found"
+            exit 1
           fi
 
   # Job 3: E2E Tests (Playwright)
@@ -244,11 +246,11 @@ jobs:
           echo "| Language | Coverage | Baseline | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|----------|----------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Rust | TBD | 48.31% | ✅ |" >> $GITHUB_STEP_SUMMARY
-          echo "| TypeScript | TBD | 0% | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript | TBD | 17.02% | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Test Results" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Rust: 108 tests" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚠️ TypeScript: 0 unit tests (68 E2E tests)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ TypeScript: 28 unit tests" >> $GITHUB_STEP_SUMMARY
           echo "- 🎭 E2E: 68 Playwright tests" >> $GITHUB_STEP_SUMMARY
 
       - name: Comment coverage summary on PR
@@ -261,16 +263,16 @@ jobs:
             | Language | Coverage | Baseline | Status |
             |----------|----------|----------|--------|
             | Rust | TBD | 48.31% | ✅ |
-            | TypeScript | TBD | 0% | ⚠️ |
+            | TypeScript | TBD | 17.02% | ✅ |
 
             ### Test Results
             - ✅ **Rust**: 108 tests passing
-            - ⚠️ **TypeScript**: 0 unit tests (68 E2E tests)
+            - ✅ **TypeScript**: 28 unit tests passing
             - 🎭 **E2E**: 68 Playwright tests
 
             ### Next Steps
-            - Add TypeScript unit tests (Task 4.2)
-            - Improve Rust coverage to 75% (Task 4.2)
+            - Improve TypeScript coverage to 40% (Task 4.2)
+            - Improve Rust coverage to 60% (Task 4.2)
 
             📈 [View detailed coverage on Codecov](https://codecov.io/gh/${{ github.repository }})
             `;
