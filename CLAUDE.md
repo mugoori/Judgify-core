@@ -182,6 +182,146 @@ docs/development/plan.md:
 
 **상세 가이드**: [docs/development/git-branch-strategy.md](docs/development/git-branch-strategy.md)
 
+#### 🔒 GitHub 브랜치 보호 전략
+
+**팀 확장을 고려한 3단계 로드맵**:
+- **Phase 1 (1인)**: Self-review, 0 approvals, CI required
+- **Phase 2 (2인)**: 1 approval, CODEOWNERS, GPG 권장
+- **Phase 3 (3-5인)**: 2 approvals, GPG 필수, Linear History
+
+**핵심 보호 설정**:
+```yaml
+main 브랜치:
+  - Pull Request 필수
+  - Status Checks: Lighthouse CI + Criterion.rs
+  - Force Push/Deletion 방지
+  - (Phase 2+) CODEOWNERS 자동 리뷰어
+  - (Phase 3) GPG 서명 필수
+```
+
+**GitHub CLI 자동화 워크플로우** (Phase 1 권장):
+```bash
+# 일일 워크플로우 (3단계, 30초)
+git checkout -b feature/my-feature
+git commit -m "feat: My feature"
+git push origin feature/my-feature
+./scripts/pr-auto-merge.sh "feat: My feature"  # 자동 PR + 머지!
+```
+
+**효과**: PR 생성 + 머지 시간 90% 단축 (5분 → 30초)
+
+**Phase 1 제약사항** (중요!):
+- Personal 계정 Private 레포에서는 Branch Protection이 **강제되지 않음**
+- 자기 규율로 PR 워크플로우 습관화
+- Phase 2 (팀원 추가 시) GitHub Team 업그레이드 필수 ($8/월)
+
+**관련 문서**:
+- **브랜치 보호 전략**: [docs/guides/branch-protection-strategy.md](docs/guides/branch-protection-strategy.md)
+- **GitHub CLI 자동화**: [docs/guides/github-cli-workflow.md](docs/guides/github-cli-workflow.md) 🚀
+- **GPG 설정 가이드**: [docs/guides/gpg-setup.md](docs/guides/gpg-setup.md)
+- **Git 브랜치 전략**: [docs/development/git-branch-strategy.md](docs/development/git-branch-strategy.md)
+
+#### 🤖 Claude 자동 PR 워크플로우 (Phase 1)
+
+**핵심 원칙**: 모든 개발 작업은 **자동으로 PR 워크플로우**를 따릅니다.
+
+**Claude의 표준 작업 절차** (5단계 자동화):
+```bash
+1. 브랜치 생성: git checkout -b <type>/<description>
+2. 작업 수행: Edit/Write 도구로 파일 수정/생성
+3. 커밋: git commit -m "<conventional-commit-message>"
+4. 푸시: git push origin <branch>
+5. 자동 PR + 머지: ./scripts/pr-auto-merge.sh "<PR-title>"
+```
+
+**브랜치 명명 규칙**:
+```yaml
+feature/  : 새 기능 추가
+fix/      : 버그 수정
+docs/     : 문서 수정
+perf/     : 성능 개선
+refactor/ : 코드 리팩토링
+test/     : 테스트 추가
+chore/    : 기타 작업 (빌드, 설정)
+```
+
+**Conventional Commits 형식**:
+```
+feat: 새 기능 추가
+fix: 버그 수정
+docs: 문서 수정
+perf: 성능 개선
+refactor: 리팩토링
+test: 테스트 추가
+chore: 기타 작업
+```
+
+**사용자 요청 → Claude 자동 처리 예시**:
+
+| 사용자 요청 | 브랜치명 | 커밋 메시지 | PR 제목 |
+|------------|---------|-----------|---------|
+| "채팅 히스토리 기능 추가해줘" | `feature/chat-history` | `feat: Add chat history feature` | `feat: Add chat history feature` |
+| "README 업데이트해줘" | `docs/update-readme` | `docs: Update README` | `docs: Update README` |
+| "메모리 릭 버그 수정해줘" | `fix/memory-leak` | `fix: Fix memory leak in WebSocket` | `fix: Fix memory leak` |
+| "데이터베이스 쿼리 최적화해줘" | `perf/optimize-db-queries` | `perf: Optimize database queries` | `perf: Optimize database queries` |
+
+**Claude의 자동 작업 흐름**:
+```
+1. 사용자 요청 분석
+   └─ 작업 타입 판단 (feature/fix/docs/perf 등)
+
+2. 브랜치 생성
+   └─ "🔀 브랜치 생성: feature/chat-history" 메시지 출력
+
+3. 작업 수행
+   └─ Edit/Write 도구로 파일 수정/생성
+
+4. 커밋 메시지 자동 생성
+   └─ Conventional Commits 형식 준수
+
+5. PR 자동 생성 및 머지
+   └─ ./scripts/pr-auto-merge.sh 실행
+   └─ CI 통과 후 자동 머지
+   └─ 브랜치 자동 삭제
+
+6. 결과 보고
+   └─ "✅ PR #5 생성 완료! CI 통과 후 자동 머지됩니다." 메시지 출력
+```
+
+**예외 상황** (사용자 명시적 요청 시만):
+```yaml
+긴급 hotfix:
+  - 조건: 사용자가 "긴급" 또는 "hotfix" 명시
+  - 행동: main 브랜치에 직접 푸시
+  - 예: "긴급 보안 패치 적용해줘"
+
+PR 생략:
+  - 조건: 사용자가 "PR 생략" 명시
+  - 행동: develop 브랜치에 직접 푸시
+  - 예: "typo 수정해줘 (PR 생략)"
+
+기본값: 항상 PR 워크플로우 사용
+```
+
+**Claude의 자동 확인사항**:
+- [ ] 현재 브랜치가 main/develop인지 확인 (맞으면 새 브랜치 생성)
+- [ ] 브랜치명이 규칙에 맞는지 확인
+- [ ] 커밋 메시지가 Conventional Commits 형식인지 확인
+- [ ] PR 제목이 명확한지 확인
+- [ ] CI 통과 여부 확인 (자동 머지 조건)
+
+**효과**:
+- ✅ 사용자는 "기능 추가해줘"만 요청하면 됨
+- ✅ Claude가 브랜치 생성부터 머지까지 자동 처리
+- ✅ 일관된 PR 워크플로우 습관화 (자기 규율)
+- ✅ GitHub 이력 관리 자동화 (PR 단위 추적)
+- ✅ Phase 1 → Phase 2/3 전환시 워크플로우 변경 없음
+
+**관련 문서**:
+- **GitHub CLI 워크플로우 가이드**: [docs/guides/github-cli-workflow.md](docs/guides/github-cli-workflow.md)
+
+---
+
 #### 📅 날짜 사용 규칙 (필수!)
 
 Claude가 문서나 보고서를 작성할 때 **반드시** 따라야 하는 날짜 규칙:
@@ -256,6 +396,7 @@ Claude가 `/init` 작업을 시작할 때 **반드시** 따라야 하는 워크�
   1. TASKS.md 상태 업데이트 (⏳ → 🟢)
   2. 작업 진행 (코드 작성, 테스트 등)
   3. 성능 지표 측정 (해당되는 경우)
+  4. ⚠️ 에러 발생시 Debug_Report.md 자동 문서화 (신규!)
 
 완료 후:
   1. TASKS.md 상태 업데이트 (🟢 → ✅)
@@ -265,7 +406,37 @@ Claude가 `/init` 작업을 시작할 때 **반드시** 따라야 하는 워크�
   5. 완료율 재계산 및 업데이트
 ```
 
+**3-1. 에러 발생시 자동 문서화 (필수!)**
+```yaml
+에러 감지 시:
+  1. 발생 시간 기록 (HH:MM)
+  2. 에러 메시지 전체 캡처
+  3. Debug_Report.md에 새 섹션 추가:
+     - 🕐 발생 시간
+     - ❌ 에러 내용
+     - 🔍 에러 원인 (분석 중)
+  4. 디버깅 진행하며 실시간 업데이트
+
+디버깅 과정:
+  - 모든 시도(명령어/코드 변경) 단계별 기록
+  - 각 시도의 결과 (성공 ✅ / 실패 ❌) 명시
+  - 타임스탬프 포함
+
+해결 후:
+  1. ✅ 해결 방법 섹션 완성
+  2. 📊 영향 범위 확인
+  3. 🔑 교훈 작성 (향후 예방 방법)
+  4. Git 커밋 메시지에 Debug Report 참조
+     예: "fix: [문제] (Debug: Debug_Report.md#2025-11-06)"
+
+참고:
+  - Debug_Report.md 작성 가이드 참조
+  - 모든 에러는 반드시 문서화!
+```
+
 **4. 워크플로우 예시**
+
+**정상 케이스**:
 ```yaml
 /init 작업 시작:
   ↓
@@ -291,6 +462,36 @@ STEP 5: TASKS.md 업데이트
   → 완료율: 12.5% → 25%
 ```
 
+**에러 발생 케이스** (신규!):
+```yaml
+/init 작업 시작:
+  ↓
+STEP 1-4: (동일)
+  ↓
+STEP 4-A: ⚠️ 에러 발생 (09:22)
+  → vitest 실행 실패: "No test suite found"
+  ↓
+STEP 4-B: Debug_Report.md 즉시 문서화
+  → ## 2025-11-06: Vitest "No test suite found" 에러
+  → 🕐 발생 시간: 09:22
+  → ❌ 에러 내용: [전체 메시지 캡처]
+  ↓
+STEP 4-C: 디버깅 진행 (실시간 업데이트)
+  → 1단계: npm list vitest 확인 ✅
+  → 2단계: 설정 파일 검증 ❌
+  → 3단계: TypeScript 설정 확인 ❌
+  → 4단계: vitest 다운그레이드 ✅ (해결!)
+  ↓
+STEP 4-D: Debug_Report.md 완료 섹션 추가
+  → ✅ 해결 방법: vitest v4.0.7 → v2.1.9
+  → 📊 영향 범위: 모든 테스트 정상 작동
+  → 🔑 교훈: LTS 버전 사용 권장
+  ↓
+STEP 5: TASKS.md + Git 커밋
+  → 커밋 메시지: "fix: Resolve vitest test suite error
+     (Debug: Debug_Report.md#2025-11-06)"
+```
+
 **5. 금지 사항**
 ```yaml
 ❌ 하지 말 것:
@@ -298,12 +499,16 @@ STEP 5: TASKS.md 업데이트
   - 완료율 업데이트 누락
   - 실측 데이터 기록 누락
   - 작업 상태 변경 누락 (⏳ → 🟢 → ✅)
+  - 에러 발생시 Debug_Report.md 문서화 누락 (신규!) ⚠️
+  - 디버깅 과정 기록 없이 해결책만 작성
 
 ✅ 해야 할 것:
   - 모든 /init 작업 전 TASKS.md 확인
   - 작업 완료시 즉시 TASKS.md 업데이트
   - 성능 지표 정확히 측정 및 기록
   - Git 커밋 링크 추가
+  - 에러 발생시 즉시 Debug_Report.md 문서화 시작 (신규!) 📝
+  - 디버깅 시도 과정 단계별 기록 (성공/실패 명시)
 ```
 
 **상세 가이드**: [TASKS.md](TASKS.md) - `/init` 워크플로우 섹션 참조

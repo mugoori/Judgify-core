@@ -59,12 +59,14 @@ fn main() {
             workflow::update_workflow,
             workflow::delete_workflow,
             workflow::validate_workflow,
+            workflow::validate_rule_expression,
 
             // System Commands
             system::get_system_status,
             system::get_system_stats,
             system::get_data_directory,
             system::export_database,
+            system::get_token_metrics,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

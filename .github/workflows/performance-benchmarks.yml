@@ -1,0 +1,131 @@
+name: Backend Performance Benchmarks
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'src-tauri/**/*.rs'
+      - 'src-tauri/Cargo.toml'
+      - '.github/workflows/performance-benchmarks.yml'
+  push:
+    branches: [main]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for comparison
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Download baseline benchmark (if exists)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          mkdir -p src-tauri/target/criterion-baseline
+          # Try to fetch baseline from main branch's artifact
+          gh run download --name criterion-baseline --dir src-tauri/target/criterion-baseline || echo "No baseline found"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Criterion benchmarks
+        run: |
+          cd src-tauri
+          cargo bench --no-fail-fast 2>&1 | tee ../benchmark-results.txt
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: criterion-results
+          path: src-tauri/target/criterion/
+          retention-days: 30
+
+      - name: Upload baseline for future comparisons
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: criterion-baseline
+          path: src-tauri/target/criterion/
+          retention-days: 90
+
+      - name: Parse and analyze benchmark results
+        id: benchmark-analysis
+        run: |
+          node .github/scripts/benchmark-report.js
+
+      - name: Comment PR with benchmark results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read benchmark summary
+            let comment = '## ⚡ Benchmark Results\n\n';
+
+            try {
+              const summary = fs.readFileSync('benchmark-summary.json', 'utf8');
+              const data = JSON.parse(summary);
+
+              comment += '### Performance Summary\n\n';
+              comment += '| Benchmark | Current | Baseline | Change | Status |\n';
+              comment += '|-----------|---------|----------|--------|--------|\n';
+
+              data.benchmarks.forEach(bench => {
+                const change = bench.change_pct;
+                const emoji = Math.abs(change) > 10 ? '⚠️' :
+                             change < -5 ? '🚀' :
+                             change > 5 ? '🐢' : '✅';
+
+                comment += `| ${bench.name} | ${bench.current_mean} | ${bench.baseline_mean || 'N/A'} | ${change > 0 ? '+' : ''}${change.toFixed(2)}% | ${emoji} |\n`;
+              });
+
+              if (data.regressions && data.regressions.length > 0) {
+                comment += '\n### ⚠️ Performance Regressions Detected\n\n';
+                data.regressions.forEach(reg => {
+                  comment += `- **${reg.name}**: ${reg.change_pct > 0 ? '+' : ''}${reg.change_pct.toFixed(2)}% slower\n`;
+                });
+              }
+
+              if (data.improvements && data.improvements.length > 0) {
+                comment += '\n### 🚀 Performance Improvements\n\n';
+                data.improvements.forEach(imp => {
+                  comment += `- **${imp.name}**: ${Math.abs(imp.change_pct).toFixed(2)}% faster\n`;
+                });
+              }
+
+            } catch (err) {
+              comment += '⚠️ Failed to parse benchmark results. See logs for details.\n';
+            }
+
+            comment += '\n---\n📊 Full results available in workflow artifacts.';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail on significant regressions
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ -f regression-detected.flag ]; then
+            echo "::error::Performance regression detected! Some benchmarks are >10% slower."
+            exit 1
+          fi

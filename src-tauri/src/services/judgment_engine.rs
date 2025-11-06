@@ -18,6 +18,7 @@ pub struct JudgmentResult {
     pub confidence: f64,
     pub method_used: String,
     pub explanation: String,
+    pub created_at: String,
 }
 
 pub struct JudgmentEngine {
@@ -137,6 +138,7 @@ impl JudgmentEngine {
                 confidence: j.confidence,
                 method_used: j.method_used,
                 explanation: j.explanation,
+                created_at: j.created_at.to_rfc3339(),
             })
             .collect())
     }
@@ -236,6 +238,7 @@ mod tests {
             confidence: 0.6,
             method_used: "rule".to_string(),
             explanation: "Rule 판단".to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
         };
 
         let llm_result = JudgmentResult {
@@ -245,6 +248,7 @@ mod tests {
             confidence: 0.9,
             method_used: "llm".to_string(),
             explanation: "LLM 판단".to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
         };
 
         let combined = engine.combine_results(rule_result, llm_result.clone());
@@ -273,6 +277,7 @@ mod tests {
             confidence: 0.85,
             method_used: "rule".to_string(),
             explanation: "Test".to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
         };
 
         engine.save_result(&result, &input).unwrap();
@@ -501,6 +506,7 @@ mod tests {
             confidence: 0.85,
             method_used: "llm_few_shot".to_string(),
             explanation: "📚 Few-shot 학습: 10 개 유사 사례 참조".to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
         };
 
         let result_without_few_shot = JudgmentResult {
@@ -510,6 +516,7 @@ mod tests {
             confidence: 0.75,
             method_used: "llm".to_string(),
             explanation: "LLM 판단".to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
         };
 
         // 검증

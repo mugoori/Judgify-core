@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use crate::database::models::*;
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 
 pub struct Database {
     conn: Arc<Mutex<Connection>>,
@@ -77,6 +78,30 @@ impl Database {
                 FOREIGN KEY (judgment_id) REFERENCES judgments(id)
             );
 
+            CREATE TABLE IF NOT EXISTS prompt_templates (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                template_type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                variables TEXT NOT NULL,
+                version INTEGER DEFAULT 1,
+                is_active INTEGER DEFAULT 1,
+                token_limit INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS token_usage (
+                id TEXT PRIMARY KEY,
+                judgment_id TEXT NOT NULL,
+                service TEXT NOT NULL,
+                tokens_used INTEGER NOT NULL,
+                cost_usd REAL NOT NULL,
+                complexity TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (judgment_id) REFERENCES judgments(id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_judgments_workflow ON judgments(workflow_id);
             CREATE INDEX IF NOT EXISTS idx_judgments_created ON judgments(created_at);
             CREATE INDEX IF NOT EXISTS idx_training_workflow ON training_samples(workflow_id);
@@ -96,8 +121,25 @@ impl Database {
 
             -- 4. Feedback covering index (optimized retrieval with all columns)
             CREATE INDEX IF NOT EXISTS idx_feedbacks_covering
-              ON feedbacks(judgment_id, feedback_type, value, created_at);"
+              ON feedbacks(judgment_id, feedback_type, value, created_at);
+
+            -- 5. PromptTemplate type + active index (template selection optimization)
+            CREATE INDEX IF NOT EXISTS idx_templates_type_active
+              ON prompt_templates(template_type, is_active, version DESC);
+
+            -- 6. Token Usage indexes (MCP cost tracking optimization)
+            CREATE INDEX IF NOT EXISTS idx_token_usage_created
+              ON token_usage(created_at DESC);
+
+            CREATE INDEX IF NOT EXISTS idx_token_usage_service_created
+              ON token_usage(service, created_at DESC);
+
+            CREATE INDEX IF NOT EXISTS idx_token_usage_judgment
+              ON token_usage(judgment_id);"
         )?;
+
+        // Seed sample data for demo (only if database is empty)
+        crate::database::seed::seed_sample_data(conn)?;
 
         Ok(())
     }
@@ -326,6 +368,385 @@ impl Database {
         )?;
         Ok(())
     }
+
+    // PromptTemplate operations
+    pub fn save_prompt_template(&self, template: &PromptTemplate) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO prompt_templates (id, name, template_type, content, variables, version, is_active, token_limit, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+             ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                template_type = excluded.template_type,
+                content = excluded.content,
+                variables = excluded.variables,
+                version = excluded.version,
+                is_active = excluded.is_active,
+                token_limit = excluded.token_limit,
+                updated_at = excluded.updated_at",
+            params![
+                &template.id,
+                &template.name,
+                &template.template_type,
+                &template.content,
+                &template.variables,
+                template.version,
+                template.is_active as i32,
+                template.token_limit,
+                template.created_at.to_rfc3339(),
+                template.updated_at.to_rfc3339(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_prompt_template(&self, id: &str) -> Result<Option<PromptTemplate>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, template_type, content, variables, version, is_active, token_limit, created_at, updated_at
+             FROM prompt_templates WHERE id = ?1"
+        )?;
+
+        let mut rows = stmt.query(params![id])?;
+
+        if let Some(row) = rows.next()? {
+            Ok(Some(PromptTemplate {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                template_type: row.get(2)?,
+                content: row.get(3)?,
+                variables: row.get(4)?,
+                version: row.get(5)?,
+                is_active: row.get::<_, i32>(6)? != 0,
+                token_limit: row.get(7)?,
+                created_at: row.get::<_, String>(8)?.parse().unwrap_or(Utc::now()),
+                updated_at: row.get::<_, String>(9)?.parse().unwrap_or(Utc::now()),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_active_template_by_type(&self, template_type: &str) -> Result<Option<PromptTemplate>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, template_type, content, variables, version, is_active, token_limit, created_at, updated_at
+             FROM prompt_templates
+             WHERE template_type = ?1 AND is_active = 1
+             ORDER BY version DESC LIMIT 1"
+        )?;
+
+        let mut rows = stmt.query(params![template_type])?;
+
+        if let Some(row) = rows.next()? {
+            Ok(Some(PromptTemplate {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                template_type: row.get(2)?,
+                content: row.get(3)?,
+                variables: row.get(4)?,
+                version: row.get(5)?,
+                is_active: row.get::<_, i32>(6)? != 0,
+                token_limit: row.get(7)?,
+                created_at: row.get::<_, String>(8)?.parse().unwrap_or(Utc::now()),
+                updated_at: row.get::<_, String>(9)?.parse().unwrap_or(Utc::now()),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_all_prompt_templates(&self) -> Result<Vec<PromptTemplate>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, template_type, content, variables, version, is_active, token_limit, created_at, updated_at
+             FROM prompt_templates ORDER BY template_type, version DESC"
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(PromptTemplate {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                template_type: row.get(2)?,
+                content: row.get(3)?,
+                variables: row.get(4)?,
+                version: row.get(5)?,
+                is_active: row.get::<_, i32>(6)? != 0,
+                token_limit: row.get(7)?,
+                created_at: row.get::<_, String>(8)?.parse().unwrap_or(Utc::now()),
+                updated_at: row.get::<_, String>(9)?.parse().unwrap_or(Utc::now()),
+            })
+        })?;
+
+        let mut templates = Vec::new();
+        for template in rows {
+            templates.push(template?);
+        }
+        Ok(templates)
+    }
+
+    pub fn delete_prompt_template(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM prompt_templates WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    // Token Usage operations (MCP cost tracking)
+    pub fn save_token_usage(&self, token_usage: &TokenUsage) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO token_usage (id, judgment_id, service, tokens_used, cost_usd, complexity, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                &token_usage.id,
+                &token_usage.judgment_id,
+                &token_usage.service,
+                token_usage.tokens_used,
+                token_usage.cost_usd,
+                &token_usage.complexity,
+                token_usage.created_at.to_rfc3339(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_token_usage_by_judgment(&self, judgment_id: &str) -> Result<Vec<TokenUsage>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, judgment_id, service, tokens_used, cost_usd, complexity, created_at
+             FROM token_usage
+             WHERE judgment_id = ?1
+             ORDER BY created_at DESC"
+        )?;
+
+        let rows = stmt.query_map(params![judgment_id], |row| {
+            Ok(TokenUsage {
+                id: row.get(0)?,
+                judgment_id: row.get(1)?,
+                service: row.get(2)?,
+                tokens_used: row.get(3)?,
+                cost_usd: row.get(4)?,
+                complexity: row.get(5)?,
+                created_at: row.get::<_, String>(6)?.parse().unwrap(),
+            })
+        })?;
+
+        let mut usages = Vec::new();
+        for usage in rows {
+            usages.push(usage?);
+        }
+        Ok(usages)
+    }
+
+    pub fn get_token_usage_by_date_range(
+        &self,
+        start_date: &str,
+        end_date: &str,
+    ) -> Result<Vec<TokenUsage>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, judgment_id, service, tokens_used, cost_usd, complexity, created_at
+             FROM token_usage
+             WHERE created_at >= ?1 AND created_at <= ?2
+             ORDER BY created_at DESC"
+        )?;
+
+        let rows = stmt.query_map(params![start_date, end_date], |row| {
+            Ok(TokenUsage {
+                id: row.get(0)?,
+                judgment_id: row.get(1)?,
+                service: row.get(2)?,
+                tokens_used: row.get(3)?,
+                cost_usd: row.get(4)?,
+                complexity: row.get(5)?,
+                created_at: row.get::<_, String>(6)?.parse().unwrap(),
+            })
+        })?;
+
+        let mut usages = Vec::new();
+        for usage in rows {
+            usages.push(usage?);
+        }
+        Ok(usages)
+    }
+
+    pub fn get_token_usage_by_service(
+        &self,
+        service: &str,
+        limit: Option<u32>,
+    ) -> Result<Vec<TokenUsage>> {
+        let conn = self.conn.lock().unwrap();
+        let query = if let Some(lim) = limit {
+            format!(
+                "SELECT id, judgment_id, service, tokens_used, cost_usd, complexity, created_at
+                 FROM token_usage
+                 WHERE service = ?1
+                 ORDER BY created_at DESC
+                 LIMIT {}",
+                lim
+            )
+        } else {
+            "SELECT id, judgment_id, service, tokens_used, cost_usd, complexity, created_at
+             FROM token_usage
+             WHERE service = ?1
+             ORDER BY created_at DESC"
+                .to_string()
+        };
+
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(params![service], |row| {
+            Ok(TokenUsage {
+                id: row.get(0)?,
+                judgment_id: row.get(1)?,
+                service: row.get(2)?,
+                tokens_used: row.get(3)?,
+                cost_usd: row.get(4)?,
+                complexity: row.get(5)?,
+                created_at: row.get::<_, String>(6)?.parse().unwrap(),
+            })
+        })?;
+
+        let mut usages = Vec::new();
+        for usage in rows {
+            usages.push(usage?);
+        }
+        Ok(usages)
+    }
+
+    /// Get aggregated token usage statistics for a given time range
+    pub fn get_token_usage_summary(
+        &self,
+        start_date: &str,
+        end_date: &str,
+    ) -> Result<TokenUsageSummary> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT
+                SUM(tokens_used) as total_tokens,
+                SUM(cost_usd) as total_cost,
+                COUNT(*) as total_requests,
+                AVG(tokens_used) as avg_tokens_per_request,
+                service
+             FROM token_usage
+             WHERE created_at >= ?1 AND created_at <= ?2
+             GROUP BY service"
+        )?;
+
+        let mut rows = stmt.query(params![start_date, end_date])?;
+
+        let mut summary = TokenUsageSummary {
+            total_tokens: 0,
+            total_cost_usd: 0.0,
+            total_requests: 0,
+            by_service: std::collections::HashMap::new(),
+        };
+
+        while let Some(row) = rows.next()? {
+            let total_tokens: i32 = row.get(0)?;
+            let total_cost: f64 = row.get(1)?;
+            let total_requests: i32 = row.get(2)?;
+            let avg_tokens: f64 = row.get(3)?;
+            let service: String = row.get(4)?;
+
+            summary.total_tokens += total_tokens;
+            summary.total_cost_usd += total_cost;
+            summary.total_requests += total_requests;
+
+            summary.by_service.insert(service.clone(), ServiceUsageStats {
+                total_tokens,
+                total_cost_usd: total_cost,
+                total_requests,
+                avg_tokens_per_request: avg_tokens,
+            });
+        }
+
+        Ok(summary)
+    }
+
+    /// Get simplified token metrics for Cost Dashboard
+    ///
+    /// Returns overall token usage metrics including cache savings
+    pub fn get_token_metrics(&self) -> Result<TokenMetrics> {
+        let conn = self.conn.lock().unwrap();
+
+        // Get total tokens and cost
+        let mut stmt = conn.prepare(
+            "SELECT
+                COALESCE(SUM(tokens_used), 0) as total_tokens,
+                COALESCE(SUM(cost_usd), 0.0) as total_cost,
+                COUNT(*) as total_requests
+             FROM token_usage"
+        )?;
+
+        let (total_tokens, total_cost, total_requests) = stmt.query_row([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, f64>(1)?,
+                row.get::<_, i64>(2)?
+            ))
+        })?;
+
+        // Calculate average tokens per request
+        let avg_tokens = if total_requests > 0 {
+            total_tokens as f64 / total_requests as f64
+        } else {
+            0.0
+        };
+
+        // Estimate cache savings (assume 70% token reduction when cache hit)
+        // For now, use a simplified heuristic: if Context7 is in service, estimate savings
+        let mut cache_stmt = conn.prepare(
+            "SELECT COUNT(*) FROM token_usage WHERE service = 'context7' AND complexity = 'simple'"
+        )?;
+        let cache_hits: i64 = cache_stmt.query_row([], |row| row.get(0))?;
+
+        let tokens_saved = (cache_hits as f64 * avg_tokens * 0.7) as i64;
+        let cost_saved = tokens_saved as f64 * 0.000002; // Approximate $0.002 per 1K tokens
+
+        // Calculate cache hit rate (rough estimate)
+        let cache_hit_rate = if total_requests > 0 {
+            (cache_hits as f64 / total_requests as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        Ok(TokenMetrics {
+            total_tokens_used: total_tokens,
+            total_cost_usd: total_cost,
+            tokens_saved_by_cache: tokens_saved,
+            cost_saved_usd: cost_saved,
+            cache_hit_rate,
+            avg_tokens_per_request: avg_tokens,
+        })
+    }
+}
+
+// Token Usage summary structs
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenUsageSummary {
+    pub total_tokens: i32,
+    pub total_cost_usd: f64,
+    pub total_requests: i32,
+    pub by_service: std::collections::HashMap<String, ServiceUsageStats>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ServiceUsageStats {
+    pub total_tokens: i32,
+    pub total_cost_usd: f64,
+    pub total_requests: i32,
+    pub avg_tokens_per_request: f64,
+}
+
+/// Simplified token metrics for Cost Dashboard
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenMetrics {
+    pub total_tokens_used: i64,
+    pub total_cost_usd: f64,
+    pub tokens_saved_by_cache: i64,
+    pub cost_saved_usd: f64,
+    pub cache_hit_rate: f64,
+    pub avg_tokens_per_request: f64,
 }
 
 impl Clone for Database {

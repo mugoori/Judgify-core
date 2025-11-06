@@ -6,6 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   CheckCircle,
   XCircle,
@@ -14,11 +22,33 @@ import {
   Download,
   Folder,
   Info,
+  Zap,
+  DollarSign,
+  HelpCircle,
 } from 'lucide-react';
 import { save } from '@tauri-apps/api/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+interface MCPSettings {
+  context7_enabled: boolean;
+  complexity_threshold: 'simple' | 'medium' | 'complex';
+  daily_token_limit: number;
+  cache_ttl_minutes: number;
+}
 
 export default function Settings() {
-  const [openaiKey, setOpenaiKey] = useState('');
+  const [claudeKey, setClaudeKey] = useState('');
+  const [mcpSettings, setMcpSettings] = useState<MCPSettings>({
+    context7_enabled: true,
+    complexity_threshold: 'medium',
+    daily_token_limit: 100000,
+    cache_ttl_minutes: 30,
+  });
 
   const { data: status } = useQuery({
     queryKey: ['system-status'],
@@ -32,44 +62,71 @@ export default function Settings() {
   });
 
   useEffect(() => {
-    // 환경 변수에서 OpenAI API 키 로드
+    // 환경 변수에서 Claude API 키 로드
     if (typeof window !== 'undefined') {
-      const savedKey = localStorage.getItem('openai_api_key');
-      if (savedKey) setOpenaiKey(savedKey);
+      const savedKey = localStorage.getItem('claude_api_key');
+      if (savedKey) setClaudeKey(savedKey);
+
+      // MCP 설정 로드
+      const savedMcpSettings = localStorage.getItem('mcp_settings');
+      if (savedMcpSettings) {
+        try {
+          setMcpSettings(JSON.parse(savedMcpSettings));
+        } catch (e) {
+          console.error('Failed to parse MCP settings:', e);
+        }
+      }
     }
   }, []);
 
   const handleSaveApiKey = () => {
-    localStorage.setItem('openai_api_key', openaiKey);
+    localStorage.setItem('claude_api_key', claudeKey);
     // 실제 구현에서는 Tauri를 통해 환경 변수나 secure storage에 저장
     alert('API 키가 저장되었습니다. 앱을 재시작해주세요.');
   };
 
+  const handleSaveMcpSettings = () => {
+    localStorage.setItem('mcp_settings', JSON.stringify(mcpSettings));
+    alert('MCP 설정이 저장되었습니다.');
+  };
+
   const handleExportDatabase = async () => {
     try {
+      console.log('[DEBUG] 백업 다이얼로그 열기 시작...');
       const exportPath = await save({
         defaultPath: 'judgify-backup.db',
         filters: [{ name: 'SQLite Database', extensions: ['db'] }],
       });
 
+      console.log('[DEBUG] save() 반환값:', exportPath);
+
       if (exportPath) {
-        await exportDatabase(exportPath);
+        // 확장자가 없으면 .db 추가
+        const finalPath = exportPath.endsWith('.db') ? exportPath : `${exportPath}.db`;
+        console.log('[DEBUG] 최종 백업 경로:', finalPath);
+        console.log('[DEBUG] IPC 호출 직전...');
+        await exportDatabase(finalPath);
+        console.log('[DEBUG] IPC 호출 성공!');
         alert('데이터베이스가 성공적으로 백업되었습니다.');
+      } else {
+        console.log('[DEBUG] 사용자가 다이얼로그를 취소했습니다.');
       }
     } catch (error) {
+      console.error('[DEBUG] 에러 발생:', error);
       alert('백업 실패: ' + error);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">설정</h1>
-        <p className="text-muted-foreground">
-          시스템 상태 확인 및 설정을 관리하세요.
-        </p>
-      </div>
+    <TooltipProvider delayDuration={300}>
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold mb-2">설정</h1>
+          <p className="text-muted-foreground">
+            시스템 상태 확인 및 설정을 관리하세요.
+          </p>
+        </div>
 
       {/* System Status */}
       <Card>
@@ -103,9 +160,9 @@ export default function Settings() {
             <div className="flex items-center justify-between p-3 rounded-lg border">
               <div className="flex items-center gap-2">
                 <Key className="w-4 h-4" />
-                <span className="text-sm font-medium">OpenAI API</span>
+                <span className="text-sm font-medium">Claude API</span>
               </div>
-              {status?.openai_configured ? (
+              {status?.claude_configured ? (
                 <Badge variant="default" className="gap-1">
                   <CheckCircle className="w-3 h-3" />
                   설정됨
@@ -134,26 +191,38 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* OpenAI API Key */}
+      {/* Claude API Key */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="w-5 h-5" />
-            OpenAI API 설정
+            Claude API 설정
           </CardTitle>
           <CardDescription>
-            LLM 기능을 사용하려면 OpenAI API 키를 설정하세요.
+            LLM 기능을 사용하려면 Claude API 키를 설정하세요.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="api-key">API 키</Label>
+            <div className="flex items-center gap-2 mb-2">
+              <Label htmlFor="api-key">API 키</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">
+                    Claude API 키를 입력하세요. <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="underline">console.anthropic.com</a>에서 발급받을 수 있습니다.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <Input
               id="api-key"
               type="password"
-              value={openaiKey}
-              onChange={(e) => setOpenaiKey(e.target.value)}
-              placeholder="sk-..."
+              value={claudeKey}
+              onChange={(e) => setClaudeKey(e.target.value)}
+              placeholder="sk-ant-..."
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground mt-2">
@@ -161,7 +230,7 @@ export default function Settings() {
             </p>
           </div>
 
-          <Button onClick={handleSaveApiKey} disabled={!openaiKey.trim()}>
+          <Button onClick={handleSaveApiKey} disabled={!claudeKey.trim()}>
             API 키 저장
           </Button>
         </CardContent>
@@ -192,6 +261,143 @@ export default function Settings() {
         </CardContent>
       </Card>
 
+      {/* MCP Conditional Activation */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5" />
+            MCP Conditional Activation
+          </CardTitle>
+          <CardDescription>
+            복잡도 기반 Context7 MCP 활성화로 토큰 비용 최적화 (예상 54% 절감)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Context7 Enable Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="context7-enabled">Context7 MCP 활성화</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">
+                      Context7 MCP는 라이브러리 문서를 자동으로 검색하여 판단 정확도를 높입니다. 복잡한 판단에만 활성화하여 비용을 절감할 수 있습니다.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                복잡한 판단에만 Context7 문서 검색 활성화
+              </p>
+            </div>
+            <Switch
+              id="context7-enabled"
+              checked={mcpSettings.context7_enabled}
+              onCheckedChange={(checked) =>
+                setMcpSettings({ ...mcpSettings, context7_enabled: checked })
+              }
+            />
+          </div>
+
+          {/* Complexity Threshold Select */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label>활성화 임계값</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">
+                    <strong>Simple:</strong> Rule만 사용 (MCP 없음, 가장 빠름)<br />
+                    <strong>Medium:</strong> LLM 사용 (30% 케이스에 MCP)<br />
+                    <strong>Complex:</strong> 모든 케이스에 MCP (가장 정확)
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <Select
+              value={mcpSettings.complexity_threshold}
+              onValueChange={(value: 'simple' | 'medium' | 'complex') =>
+                setMcpSettings({ ...mcpSettings, complexity_threshold: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="simple">Simple (Rule만, 0% MCP)</SelectItem>
+                <SelectItem value="medium">Medium (LLM, 30% MCP)</SelectItem>
+                <SelectItem value="complex">Complex (Full MCP, 100%)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              선택한 복잡도 이상일 때만 Context7 활성화
+            </p>
+          </div>
+
+          {/* Daily Token Limit */}
+          <div className="space-y-2">
+            <Label htmlFor="token-limit">일일 토큰 한도</Label>
+            <Input
+              id="token-limit"
+              type="number"
+              value={mcpSettings.daily_token_limit}
+              onChange={(e) =>
+                setMcpSettings({
+                  ...mcpSettings,
+                  daily_token_limit: parseInt(e.target.value) || 0,
+                })
+              }
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              하루 최대 사용 가능한 토큰 수 (기본: 100,000)
+            </p>
+          </div>
+
+          {/* Cache TTL */}
+          <div className="space-y-2">
+            <Label htmlFor="cache-ttl">캐시 TTL (분)</Label>
+            <Input
+              id="cache-ttl"
+              type="number"
+              value={mcpSettings.cache_ttl_minutes}
+              onChange={(e) =>
+                setMcpSettings({
+                  ...mcpSettings,
+                  cache_ttl_minutes: parseInt(e.target.value) || 30,
+                })
+              }
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              Redis 캐시 만료 시간 (기본: 30분, 권장 적중률 80%)
+            </p>
+          </div>
+
+          {/* Cost Estimate */}
+          <div className="p-4 rounded-lg bg-muted space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <DollarSign className="w-4 h-4" />
+              예상 비용 절감
+            </div>
+            <div className="text-2xl font-bold">54% ↓</div>
+            <div className="text-xs text-muted-foreground">
+              월 $300 → $138 (Simple: 0 tokens, Medium: 2K, Complex: 5K)
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <Button onClick={handleSaveMcpSettings} className="w-full">
+            MCP 설정 저장
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* About */}
       <Card>
         <CardHeader>
@@ -204,6 +410,7 @@ export default function Settings() {
           <p>© 2024 Judgify. All rights reserved.</p>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

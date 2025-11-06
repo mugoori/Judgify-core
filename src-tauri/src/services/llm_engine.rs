@@ -135,6 +135,7 @@ impl LLMEngine {
                 explanation,
                 few_shot_samples.len()
             ),
+            created_at: chrono::Utc::now().to_rfc3339(),
         })
     }
 

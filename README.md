@@ -1,10 +1,13 @@
 # Judgify-core Ver2.0 Final 🚀
 
+[![Test & Coverage](https://github.com/mugoori/Judgify-core/actions/workflows/test.yml/badge.svg)](https://github.com/mugoori/Judgify-core/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/mugoori/Judgify-core/branch/main/graph/badge.svg)](https://codecov.io/gh/mugoori/Judgify-core)
+[![Rust Coverage](https://img.shields.io/badge/Rust_Coverage-48.31%25-yellow)](https://codecov.io/gh/mugoori/Judgify-core)
+[![TypeScript Coverage](https://img.shields.io/badge/TypeScript_Coverage-0%25-red)](https://codecov.io/gh/mugoori/Judgify-core)
+
 **AI 판단 플랫폼 - 제조업 SME를 위한 하이브리드 자동화 시스템**
 
 Ver2.0 Final은 마이크로서비스 아키텍처 기반으로 전면 재설계된 차세대 AI 판단 플랫폼입니다.
-
-> 🚧 **Development Status**: 초기 개발 단계 - CI/CD 워크플로우는 서비스 구현 완료 후 활성화 예정 ([재활성화 가이드](docs/development/plan.md#-14-github-actions-워크플로우-관리))
 
 ---
 

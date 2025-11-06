@@ -4,7 +4,7 @@ import { sendChatMessage, getChatHistory, type ChatMessageRequest, type ChatMess
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { Send, Bot, User, Trash2 } from 'lucide-react';
+import { Send, Bot, User, Trash2, TrendingUp, Play, FileQuestion, Activity } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -56,6 +56,7 @@ export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>();
   const messagesRef = useRef<Message[]>([]); // 🔧 최신 messages 추적용 ref
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load chat history from localStorage on mount + recover pending responses
   useEffect(() => {
@@ -76,7 +77,7 @@ export default function ChatInterface() {
           // If parsing fails, set initial welcome message
           const initialMessage: Message = {
             role: 'assistant',
-            content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
+            content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
           };
           parsedMessages = [initialMessage];
           setMessages(parsedMessages);
@@ -85,7 +86,7 @@ export default function ChatInterface() {
         // No saved messages, set initial welcome message
         const initialMessage: Message = {
           role: 'assistant',
-          content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
+          content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
         };
         parsedMessages = [initialMessage];
         setMessages(parsedMessages);
@@ -199,6 +200,20 @@ export default function ChatInterface() {
     const timeoutId = setTimeout(syncWithBackend, 300);
     return () => clearTimeout(timeoutId);
   }, [sessionId, messages.length]); // sessionId 변경시 실행
+
+  // ⌨️ Keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyPress = (e: KeyboardEvent) => {
+      // Ctrl+/ to focus input
+      if (e.key === '/' && e.ctrlKey) {
+        e.preventDefault();
+        textareaRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyPress);
+    return () => document.removeEventListener('keydown', handleGlobalKeyPress);
+  }, []);
 
   // 🔄 Page Visibility API: 탭 복귀시 백엔드 히스토리와 무조건 동기화
   useEffect(() => {
@@ -362,6 +377,23 @@ export default function ChatInterface() {
     }
   };
 
+  const handleQuickAction = (query: string) => {
+    setInput(query);
+    // 약간의 지연을 주어 입력창에 텍스트가 표시되도록 함
+    setTimeout(() => {
+      const userMessage: Message = {
+        role: 'user',
+        content: query,
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      sendMessageMutation.mutate({
+        message: query,
+        session_id: sessionId,
+      });
+      setInput('');
+    }, 100);
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -382,6 +414,48 @@ export default function ChatInterface() {
           대화 초기화
         </Button>
       </div>
+
+      {/* Quick Actions */}
+      {messages.length === 1 && ( // 초기 환영 메시지만 있을 때 표시
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            className="justify-start h-auto py-3"
+            onClick={() => handleQuickAction('지난 주 불량률 트렌드 보여줘')}
+            disabled={sendMessageMutation.isPending}
+          >
+            <TrendingUp className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="text-sm">지난 주 불량률 트렌드</span>
+          </Button>
+          <Button
+            variant="outline"
+            className="justify-start h-auto py-3"
+            onClick={() => handleQuickAction('품질 검사 워크플로우 실행해줘')}
+            disabled={sendMessageMutation.isPending}
+          >
+            <Play className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="text-sm">워크플로우 실행</span>
+          </Button>
+          <Button
+            variant="outline"
+            className="justify-start h-auto py-3"
+            onClick={() => handleQuickAction('워크플로우 생성 방법 알려줘')}
+            disabled={sendMessageMutation.isPending}
+          >
+            <FileQuestion className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="text-sm">워크플로우 생성 방법</span>
+          </Button>
+          <Button
+            variant="outline"
+            className="justify-start h-auto py-3"
+            onClick={() => handleQuickAction('시스템 상태 확인해줘')}
+            disabled={sendMessageMutation.isPending}
+          >
+            <Activity className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="text-sm">시스템 상태 확인</span>
+          </Button>
+        </div>
+      )}
 
       {/* Messages */}
       <Card className="flex-1 overflow-y-auto p-6 mb-4 space-y-4">
@@ -404,10 +478,11 @@ export default function ChatInterface() {
       {/* Input */}
       <div className="flex gap-2">
         <Textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="메시지를 입력하세요... (Shift+Enter로 줄바꿈)"
+          placeholder="메시지를 입력하세요... (Shift+Enter로 줄바꿈, Ctrl+/로 포커스)"
           className="min-h-[60px] resize-none"
         />
         <Button

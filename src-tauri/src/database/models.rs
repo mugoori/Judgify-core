@@ -44,3 +44,28 @@ pub struct Feedback {
     pub comment: Option<String>,
     pub created_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PromptTemplate {
+    pub id: String,
+    pub name: String,
+    pub template_type: String, // "judgment", "explanation", "insight"
+    pub content: String, // Handlebars template with {{variables}}
+    pub variables: String, // JSON array of variable names: ["workflow_context", "input_data"]
+    pub version: i32,
+    pub is_active: bool,
+    pub token_limit: Option<i32>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TokenUsage {
+    pub id: String,
+    pub judgment_id: String,
+    pub service: String, // "context7" | "openai" | "judgment"
+    pub tokens_used: i32,
+    pub cost_usd: f64, // Calculated based on service pricing
+    pub complexity: String, // "simple" | "medium" | "complex"
+    pub created_at: DateTime<Utc>,
+}
