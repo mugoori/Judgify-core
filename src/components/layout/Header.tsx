@@ -25,7 +25,7 @@ export default function Header() {
               DB 연결
             </Badge>
           )}
-          {status?.openai_configured && (
+          {status?.claude_configured && (
             <Badge variant="outline" className="text-xs">
               LLM 활성
             </Badge>

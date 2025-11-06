@@ -128,7 +128,8 @@
       "Bash(gh pr checks:*)",
       "Bash(cargo tarpaulin:*)",
       "Bash(cargo install:*)",
-      "Bash(del srclib__tests__simple.test.ts srclib__tests__workflow-generator.test.ts)"
+      "Bash(del srclib__tests__simple.test.ts srclib__tests__workflow-generator.test.ts)",
+      "Bash(git for-each-ref:*)"
     ],
     "deny": [],
     "additionalDirectories": [

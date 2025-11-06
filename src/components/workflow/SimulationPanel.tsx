@@ -4,7 +4,7 @@
  * 워크플로우 Step-by-step 시뮬레이션 UI
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Node, Edge } from 'reactflow';
 import {
   Play,
@@ -25,7 +25,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import {
   WorkflowSimulator,
-  SimulationStep,
   SimulationState,
   NodeStatus,
 } from '@/lib/workflow-simulator';
