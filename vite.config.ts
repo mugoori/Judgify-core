@@ -29,9 +29,22 @@ export default defineConfig({
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
+    // Performance optimization: Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000,
     // Manual chunk splitting for better caching
     rollupOptions: {
       output: {
+        // Optimize asset file names
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name?.split('.');
+          const ext = info?.[info.length - 1];
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext ?? '')) {
+            return `assets/images/[name]-[hash][extname]`;
+          } else if (/woff|woff2|eot|ttf|otf/i.test(ext ?? '')) {
+            return `assets/fonts/[name]-[hash][extname]`;
+          }
+          return `assets/[name]-[hash][extname]`;
+        },
         manualChunks: {
           // React core (changes rarely)
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
@@ -45,5 +58,11 @@ export default defineConfig({
         },
       },
     },
+  },
+
+  // Optimize dependencies pre-bundling
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom'],
+    exclude: ['@tauri-apps/api'],
   },
 })

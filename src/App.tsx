@@ -2,6 +2,8 @@ import { useState, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './components/theme-provider'
+
+// Lazy load framer-motion for better initial load performance
 import { AnimatePresence, motion } from 'framer-motion'
 
 // Pages (lazy loaded for code splitting)
