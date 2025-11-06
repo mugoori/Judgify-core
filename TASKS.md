@@ -1276,9 +1276,138 @@ ignore:
 
 ---
 
-#### Task 4.2: 커버리지 향상 ⏳ **대기 중**
+#### Task 4.2-Partial: TypeScript 유닛 테스트 작성 (40% 커버리지) 🟡 **일시 중단** (2025-11-06)
+
+**범위 조정**: Task 4.2 전체 (8시간, 60% 커버리지)에서 **4시간 (40% 커버리지)로 축소**
+- **제외**: workflow-generator.ts, CustomNode.tsx 등 워크플로우 기능 (복잡도 높음)
+- **포함**: 핵심 유틸/훅 4개 파일만 집중
+
+**목표**:
+- TypeScript 커버리지: 3.68% → **40%** (+36.32%p)
+- 4개 핵심 파일 유닛 테스트 작성 (34 tests)
+
+**타겟 파일** (우선순위):
+1. ✅ **useRuleValidation.ts** (8 tests, 1h) - **완료!**
+2. ⏳ **tauri-api.ts** (12 tests, 1.5h) - 다음 세션
+3. ⏳ **sample-data.ts** (6 tests, 0.5h)
+4. ⏳ **MessageBubble.tsx** (8 tests, 1h)
+
+---
+
+**✅ 완료 항목 (2025-11-06 09:00-10:00)**:
+
+**1. useRuleValidation.ts 테스트 (8/8 tests passing)**
+
+**테스트 커버리지**:
+```
+File                        | % Stmts | % Branch | % Funcs | % Lines
+useRuleValidation.ts        |   94.23 |    85.71 |     100 |   94.23
+```
+
+**구현된 테스트**:
+- ✅ Empty rule validation (기본 유효성)
+- ✅ Simple rule expression (온도 > 80)
+- ✅ Complex rule expression (온도 && 습도)
+- ✅ Invalid syntax error handling
+- ✅ Suggestion generation (괄호 불일치)
+- ✅ Debounce validation (100ms)
+- ✅ Network error handling
+- ✅ Enabled option (비활성화 시 호출 안 함)
+
+**테스트 실행 결과**:
+```bash
+Test Files  1 passed (1)
+Tests       8 passed (8)
+Duration    519ms
+
+✓ src/hooks/__tests__/useRuleValidation.test.ts (8 tests) 519ms
+```
+
+**학습 내용**:
+1. **Vitest 버전 호환성**: v4.0.7 → v2.1.9 다운그레이드 (안정성)
+   - Root Cause: vitest v4.0.7이 vite@7.1.12 요구, 프로젝트는 vite@5.4.20 사용
+   - 해결: `npm install -D vitest@^2.1.9 @vitest/ui@^2.1.9 @vitest/coverage-v8@^2.1.9`
+   - 소요 시간: ~30분 디버깅 (Debug_Report.md에 상세 기록)
+
+2. **React Hook 테스트 패턴 확립**:
+   ```typescript
+   import { renderHook, waitFor } from '@testing-library/react';
+
+   const { result } = renderHook(() => useRuleValidation('rule'));
+   await waitFor(() => expect(result.current.isValidating).toBe(false));
+   ```
+
+3. **Tauri API 모킹 패턴**:
+   ```typescript
+   vi.mock('@tauri-apps/api/tauri', () => ({ invoke: vi.fn() }));
+   vi.mocked(invoke).mockResolvedValue({ isValid: true });
+   ```
+
+4. **Debounce 테스트 전략**:
+   - ❌ 실패: `vi.useFakeTimers()` + `vi.runAllTicksAsync()` (v2.1.9에 없음)
+   - ✅ 성공: 실제 `setTimeout()` 사용 (100ms debounce + 150ms wait)
+
+5. **Error Handling 테스트**:
+   - Console error spy로 출력 억제: `vi.spyOn(console, 'error').mockImplementation(() => {})`
+   - 타임아웃 조정: `waitFor(() => {...}, { timeout: 500 })`
+
+**생성된 파일** (5개):
+- `src/hooks/__tests__/useRuleValidation.test.ts` (173줄, 8 tests)
+- `src/setupTests.ts` (1줄, jest-dom 설정)
+- `tsconfig.vitest.json` (8줄, TypeScript 설정)
+- `vitest.config.ts` (수정, setupFiles 추가)
+- `Debug_Report.md` (361줄, 에러 문서화 시스템 + vitest 디버깅 케이스)
+
+**Git 기록**:
+- **커밋 1**: [f9d3c55](https://github.com/mugoori/Judgify-core/commit/f9d3c55) - `test: Add comprehensive useRuleValidation tests (8/8 passing)`
+- **커밋 2**: [ecf6ebd](https://github.com/mugoori/Judgify-core/commit/ecf6ebd) - `docs: Add Debug_Report.md and integrate error logging into /init workflow`
+- **브랜치**: main (푸시 대기 중)
+
+**소요 시간**: 실제 1.5시간 (예상 1시간 + 0.5시간 디버깅)
+
+---
+
+**⏳ 다음 세션 계획**:
+
+**1. tauri-api.ts 테스트 작성** (12 tests, 1.5h):
+- Tauri invoke 함수 모킹 (확립된 패턴 적용)
+- 예상 테스트:
+  - ✅ Rule validation invoke
+  - ✅ Rule suggestions invoke
+  - ✅ Workflow execution invoke
+  - ✅ Error handling (network, timeout)
+  - ✅ Response parsing
+  - ✅ Type safety validation
+
+**2. sample-data.ts 테스트** (6 tests, 0.5h):
+- 데이터 생성 함수 검증
+- 타입 안전성 확인
+
+**3. MessageBubble.tsx 테스트** (8 tests, 1h):
+- React 컴포넌트 렌더링
+- 사용자 상호작용 테스트
+
+**4. 40% 커버리지 달성 확인**:
+```bash
+npm run test:coverage
+# 목표: TypeScript 3.68% → 40%
+```
+
+---
+
+**📊 진행 상황**:
+- ✅ useRuleValidation.ts: 8/8 tests (100%)
+- ⏳ tauri-api.ts: 0/12 tests (0%)
+- ⏳ sample-data.ts: 0/6 tests (0%)
+- ⏳ MessageBubble.tsx: 0/8 tests (0%)
+
+**Total**: 8/34 tests (23.5% 완료)
+
+---
+
+#### Task 4.2: 커버리지 향상 (Full) ⏳ **대기 중**
    - Rust: 42% → 80%
-   - TypeScript: 28% → 70%
+   - TypeScript: 40% → 70% (Task 4.2-Partial 완료 후 시작)
 
 7. **Task 4.3: 테스트 가이드 문서화**
    - `docs/testing/testing-guide.md` 작성
