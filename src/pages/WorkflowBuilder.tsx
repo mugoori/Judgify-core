@@ -1120,7 +1120,7 @@ export default function WorkflowBuilder() {
         <CardContent className="p-0 flex-1 min-h-0 overflow-hidden">
           <div className="h-full relative">
             {/* Sticky 컨트롤 패널 (좌측 스크롤 따라다님) */}
-            <div className="absolute left-4 top-4 z-10" style={{ position: 'sticky', top: '1rem' }}>
+            <div className="absolute left-4 z-10" style={{ position: 'sticky', top: '1rem' }}>
               <Card className="w-12 shadow-lg">
                 <CardContent className="p-2 flex flex-col gap-2">
                   <Button
@@ -1169,56 +1169,59 @@ export default function WorkflowBuilder() {
               </Card>
             </div>
 
-            <ReactFlow
-              onInit={setReactFlowInstance}
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onNodeClick={handleNodeClick}
-              nodeTypes={nodeTypes}
-              fitView
-              defaultEdgeOptions={{
-                type: 'smoothstep',
-                animated: true,
-                style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
-              }}
-              connectionLineStyle={{ stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
-              connectionLineType={ConnectionLineType.SmoothStep}
-              snapToGrid
-              snapGrid={[15, 15]}
-              // 성능 최적화 설정
-              minZoom={0.1}
-              maxZoom={4}
-              onlyRenderVisibleElements={true}
-              nodesDraggable={true}
-              nodesConnectable={true}
-              elementsSelectable={true}
-              selectNodesOnDrag={false}
-              panOnScroll={true}
-              zoomOnScroll={true}
-              zoomOnPinch={true}
-              panOnDrag={true}
-              preventScrolling={true}
-            >
-              <Background gap={15} />
-              <MiniMap
-                nodeColor={(node) => {
-                  const type = (node.data as any).type || 'default';
-                  const colors = {
-                    input: '#3b82f6',
-                    decision: '#a855f7',
-                    action: '#eab308',
-                    output: '#22c55e',
-                    default: '#6b7280',
-                  };
-                  return colors[type as keyof typeof colors] || colors.default;
+            {/* ReactFlow 캔버스를 absolute로 전체 공간 활용 */}
+            <div className="absolute inset-0">
+              <ReactFlow
+                onInit={setReactFlowInstance}
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onNodeClick={handleNodeClick}
+                nodeTypes={nodeTypes}
+                fitView
+                defaultEdgeOptions={{
+                  type: 'smoothstep',
+                  animated: true,
+                  style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
                 }}
-                zoomable
-                pannable
-              />
-            </ReactFlow>
+                connectionLineStyle={{ stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
+                connectionLineType={ConnectionLineType.SmoothStep}
+                snapToGrid
+                snapGrid={[15, 15]}
+                // 성능 최적화 설정
+                minZoom={0.1}
+                maxZoom={4}
+                onlyRenderVisibleElements={true}
+                nodesDraggable={true}
+                nodesConnectable={true}
+                elementsSelectable={true}
+                selectNodesOnDrag={false}
+                panOnScroll={true}
+                zoomOnScroll={true}
+                zoomOnPinch={true}
+                panOnDrag={true}
+                preventScrolling={true}
+              >
+                <Background gap={15} />
+                <MiniMap
+                  nodeColor={(node) => {
+                    const type = (node.data as any).type || 'default';
+                    const colors = {
+                      input: '#3b82f6',
+                      decision: '#a855f7',
+                      action: '#eab308',
+                      output: '#22c55e',
+                      default: '#6b7280',
+                    };
+                    return colors[type as keyof typeof colors] || colors.default;
+                  }}
+                  zoomable
+                  pannable
+                />
+              </ReactFlow>
+            </div>
           </div>
         </CardContent>
       </Card>
