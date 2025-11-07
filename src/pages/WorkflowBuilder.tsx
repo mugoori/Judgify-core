@@ -1151,7 +1151,7 @@ export default function WorkflowBuilder() {
               preventScrolling={true}
             >
               <Background gap={15} />
-              <Controls position="bottom-left" style={{ bottom: '50%', transform: 'translateY(50%)' }} />
+              <Controls position="center-left" />
               <MiniMap
                 nodeColor={(node) => {
                   const type = (node.data as any).type || 'default';
