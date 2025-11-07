@@ -5,12 +5,12 @@ import ReactFlow, {
   Edge,
   addEdge,
   Background,
-  Controls,
   Connection,
   useNodesState,
   useEdgesState,
   MiniMap,
   ConnectionLineType,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { getAllWorkflows, createWorkflow, updateWorkflow, deleteWorkflow, executeJudgment, type JudgmentResult } from '@/lib/tauri-api';
@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Save, Play, CheckCircle, XCircle, Sparkles, FileText, AlertCircle, Zap, RefreshCw, Workflow, Wand2, Trash2, AlertTriangle, ChevronDown, ChevronUp, Bug, Database, FileCode, Brain, Bell, BarChart } from 'lucide-react';
+import { Save, Play, CheckCircle, XCircle, Sparkles, FileText, AlertCircle, Zap, RefreshCw, Workflow, Wand2, Trash2, AlertTriangle, ChevronDown, ChevronUp, Bug, Database, FileCode, Brain, Bell, BarChart, ZoomIn, ZoomOut, Maximize2, RotateCcw } from 'lucide-react';
 import CustomNode from '@/components/workflow/CustomNode';
 import { NodeType } from '@/types/workflow';
 import { NodeEditPanel } from '@/components/workflow/NodeEditPanel';
@@ -62,6 +62,7 @@ const initialEdges: Edge[] = [];
 export default function WorkflowBuilder() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [workflowName, setWorkflowName] = useState('새 워크플로우');
@@ -1117,7 +1118,54 @@ export default function WorkflowBuilder() {
           </div>
         </CardHeader>
         <CardContent className="p-0 flex-1">
-          <div className="h-full">
+          <div className="h-full relative">
+            {/* Sticky 컨트롤 패널 (좌측 스크롤 따라다님) */}
+            <div className="absolute left-4 top-20 z-10" style={{ position: 'sticky', top: '5rem' }}>
+              <Card className="w-12 shadow-lg">
+                <CardContent className="p-2 flex flex-col gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => zoomIn()}
+                    className="w-full h-10 p-0"
+                    title="확대"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => zoomOut()}
+                    className="w-full h-10 p-0"
+                    title="축소"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => fitView()}
+                    className="w-full h-10 p-0"
+                    title="전체 보기"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setNodes(initialNodes);
+                      setEdges(initialEdges);
+                    }}
+                    className="w-full h-10 p-0"
+                    title="초기화"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -1151,7 +1199,6 @@ export default function WorkflowBuilder() {
               preventScrolling={true}
             >
               <Background gap={15} />
-              <Controls position="center-left" />
               <MiniMap
                 nodeColor={(node) => {
                   const type = (node.data as any).type || 'default';
