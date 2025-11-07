@@ -26,8 +26,17 @@ import { NodeType } from '@/types/workflow';
 import { NodeEditPanel } from '@/components/workflow/NodeEditPanel';
 import { SimulationPanel } from '@/components/workflow/SimulationPanel';
 import EmptyState from '@/components/EmptyState';
-import { generateWorkflowFromDescription, testScenarios } from '@/lib/workflow-generator';
+import { WorkflowGenerator, testScenarios, type GenerationMode } from '@/lib/workflow-generator';
+import { ClaudeProvider } from '@/lib/claude-provider';
 import { useToast } from '@/components/ui/use-toast';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { HelpCircle } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,6 +80,11 @@ export default function WorkflowBuilder() {
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [aiDescription, setAiDescription] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationMode, setGenerationMode] = useState<GenerationMode>('hybrid');
+  const [claudeApiKey, setClaudeApiKey] = useState<string>(() => {
+    // Load from localStorage
+    return localStorage.getItem('claude_api_key') || '';
+  });
 
   // Delete workflow state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -292,27 +306,128 @@ export default function WorkflowBuilder() {
 
   const handleGenerateAIWorkflow = async () => {
     if (!aiDescription.trim()) {
-      alert('워크플로우 설명을 입력해주세요.');
+      toast({
+        variant: 'destructive',
+        title: '입력 필요',
+        description: '워크플로우 설명을 입력해주세요.',
+      });
+      return;
+    }
+
+    // LLM 모드일 때 API 키 확인
+    if ((generationMode === 'llm' || generationMode === 'hybrid') && !claudeApiKey.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'API 키 필요',
+        description: 'Claude API 키를 입력해주세요. Settings에서 저장할 수 있습니다.',
+        action: (
+          <button
+            onClick={() => window.location.href = '/#/settings'}
+            className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium"
+          >
+            Settings로 이동
+          </button>
+        ),
+      });
       return;
     }
 
     setIsGenerating(true);
-    try {
-      const result = await generateWorkflowFromDescription(aiDescription);
+    const startTime = Date.now();
 
-      // 생성된 워크플로우 적용
+    try {
+      // WorkflowGenerator 초기화
+      const llmProvider = (generationMode !== 'pattern' && claudeApiKey.trim())
+        ? new ClaudeProvider()
+        : undefined;
+
+      const generator = new WorkflowGenerator(llmProvider);
+
+      // 워크플로우 생성
+      const result = await generator.generate(aiDescription, {
+        mode: generationMode,
+        llmConfig: claudeApiKey.trim() ? {
+          apiKey: claudeApiKey,
+          model: 'claude-3-5-sonnet-20241022',
+          maxTokens: 4096,
+          temperature: 0.7,
+        } : undefined,
+      });
+
+      // React Flow 노드로 변환
+      const flowNodes = result.nodes.map(node => ({
+        ...node,
+        type: 'custom',
+        data: { ...node.data },
+      }));
+
+      // 워크플로우 적용
       setWorkflowName(result.name);
-      setNodes(result.nodes);
+      setNodes(flowNodes);
       setEdges(result.edges);
 
       // 패널 닫고 초기화
       setShowAIPanel(false);
       setAiDescription('');
 
-      alert(`✅ "${result.name}" 워크플로우가 생성되었습니다!`);
-    } catch (error) {
-      alert('워크플로우 생성 중 오류가 발생했습니다.');
-      console.error(error);
+      // 성공 Toast (메타데이터 포함)
+      const generationTime = Date.now() - startTime;
+      toast({
+        title: '✨ 워크플로우 생성 완료',
+        description: (
+          <div className="space-y-1 text-sm">
+            <p>• 이름: {result.name}</p>
+            <p>• 모드: {result.metadata?.generationMode || generationMode}</p>
+            <p>• LLM 사용: {result.metadata?.usedLLM ? '예' : '아니오'}</p>
+            <p>• 생성 시간: {generationTime}ms</p>
+            {result.metadata?.confidence && (
+              <p>• 신뢰도: {Math.round(result.metadata.confidence * 100)}%</p>
+            )}
+          </div>
+        ),
+        duration: 5000,
+      });
+
+    } catch (error: any) {
+      const errorMessage = error.message || '워크플로우 생성 중 오류가 발생했습니다.';
+
+      // 에러 타입별 처리
+      let description = errorMessage;
+      let action = undefined;
+
+      if (errorMessage.includes('Invalid Claude API key')) {
+        description = 'API 키가 유효하지 않습니다. 확인 후 다시 시도해주세요.';
+        action = (
+          <button
+            onClick={() => setClaudeApiKey('')}
+            className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium"
+          >
+            API 키 재입력
+          </button>
+        );
+      } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+        description = 'API 사용량 한도 초과. 잠시 후 다시 시도해주세요.';
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('시간 초과')) {
+        description = '생성 시간 초과 (30초). Pattern 모드로 재시도해보세요.';
+        action = (
+          <button
+            onClick={() => setGenerationMode('pattern')}
+            className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium"
+          >
+            Pattern 재시도
+          </button>
+        );
+      }
+
+      toast({
+        variant: 'destructive',
+        title: '생성 실패',
+        description,
+        action,
+        duration: 7000,
+      });
+
+      console.error('Workflow generation error:', error);
     } finally {
       setIsGenerating(false);
     }
@@ -617,6 +732,87 @@ export default function WorkflowBuilder() {
           </CardHeader>
           {showAIPanel && (
             <CardContent className="space-y-4">
+              {/* Generation Mode Selection */}
+              <div>
+                <Label className="text-sm font-medium mb-3 block">생성 모드</Label>
+                <TooltipProvider>
+                  <RadioGroup value={generationMode} onValueChange={(value: string) => setGenerationMode(value as GenerationMode)}>
+                    {/* Pattern Mode */}
+                    <div className="flex items-center space-x-2 mb-2">
+                      <RadioGroupItem value="pattern" id="mode-pattern" />
+                      <Label htmlFor="mode-pattern" className="flex-1 cursor-pointer flex items-center gap-2">
+                        <span>Pattern 모드</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs max-w-xs">빠른 생성 (평균 0.5초). 간단한 조건문에 최적화.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </Label>
+                    </div>
+
+                    {/* LLM Mode */}
+                    <div className="flex items-center space-x-2 mb-2">
+                      <RadioGroupItem value="llm" id="mode-llm" />
+                      <Label htmlFor="mode-llm" className="flex-1 cursor-pointer flex items-center gap-2">
+                        <span>LLM 모드</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs max-w-xs">지능형 생성 (평균 5초). 복잡한 비즈니스 로직 지원.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </Label>
+                    </div>
+
+                    {/* Hybrid Mode */}
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="hybrid" id="mode-hybrid" />
+                      <Label htmlFor="mode-hybrid" className="flex-1 cursor-pointer flex items-center gap-2">
+                        <span>Hybrid 모드 (권장)</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs max-w-xs">자동 선택 (권장). 간단하면 Pattern, 복잡하면 LLM 사용.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </TooltipProvider>
+              </div>
+
+              {/* API Key Input (LLM/Hybrid 모드일 때만 표시) */}
+              {(generationMode === 'llm' || generationMode === 'hybrid') && (
+                <div>
+                  <Label htmlFor="claude-api-key" className="flex items-center gap-2">
+                    Claude API Key
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs max-w-xs">Settings에서 저장하여 매번 입력하지 않도록 할 수 있습니다.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </Label>
+                  <Input
+                    id="claude-api-key"
+                    type="password"
+                    value={claudeApiKey}
+                    onChange={(e) => setClaudeApiKey(e.target.value)}
+                    placeholder="sk-ant-..."
+                    className="font-mono text-xs"
+                  />
+                </div>
+              )}
+
               {/* Sample Scenarios */}
               <div>
                 <Label className="text-xs text-muted-foreground mb-2 block">
