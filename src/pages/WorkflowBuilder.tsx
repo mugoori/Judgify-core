@@ -541,9 +541,9 @@ export default function WorkflowBuilder() {
   }, [setNodes]);
 
   return (
-    <div className="h-full flex gap-6">
+    <div className="h-screen max-h-screen flex gap-6 overflow-hidden">
       {/* Sidebar */}
-      <div className="w-80 space-y-4 overflow-y-auto">
+      <div className="w-80 space-y-4 overflow-y-auto flex-shrink-0">
         <Card>
           <CardHeader>
             <CardTitle>워크플로우 정보</CardTitle>
@@ -1097,7 +1097,7 @@ export default function WorkflowBuilder() {
       </div>
 
       {/* Canvas */}
-      <Card className="flex-1 flex flex-col">
+      <Card className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -1117,10 +1117,10 @@ export default function WorkflowBuilder() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-0 flex-1">
+        <CardContent className="p-0 flex-1 min-h-0 overflow-hidden">
           <div className="h-full relative">
             {/* Sticky 컨트롤 패널 (좌측 스크롤 따라다님) */}
-            <div className="absolute left-4 top-20 z-10" style={{ position: 'sticky', top: '5rem' }}>
+            <div className="absolute left-4 top-4 z-10" style={{ position: 'sticky', top: '1rem' }}>
               <Card className="w-12 shadow-lg">
                 <CardContent className="p-2 flex flex-col gap-2">
                   <Button
