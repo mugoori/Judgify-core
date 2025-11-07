@@ -10,7 +10,7 @@ import ReactFlow, {
   useEdgesState,
   MiniMap,
   ConnectionLineType,
-  useReactFlow,
+  ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { getAllWorkflows, createWorkflow, updateWorkflow, deleteWorkflow, executeJudgment, type JudgmentResult } from '@/lib/tauri-api';
@@ -62,7 +62,7 @@ const initialEdges: Edge[] = [];
 export default function WorkflowBuilder() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [workflowName, setWorkflowName] = useState('새 워크플로우');
@@ -1126,27 +1126,30 @@ export default function WorkflowBuilder() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => zoomIn()}
+                    onClick={() => reactFlowInstance?.zoomIn()}
                     className="w-full h-10 p-0"
                     title="확대"
+                    disabled={!reactFlowInstance}
                   >
                     <ZoomIn className="w-4 h-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => zoomOut()}
+                    onClick={() => reactFlowInstance?.zoomOut()}
                     className="w-full h-10 p-0"
                     title="축소"
+                    disabled={!reactFlowInstance}
                   >
                     <ZoomOut className="w-4 h-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => fitView()}
+                    onClick={() => reactFlowInstance?.fitView()}
                     className="w-full h-10 p-0"
                     title="전체 보기"
+                    disabled={!reactFlowInstance}
                   >
                     <Maximize2 className="w-4 h-4" />
                   </Button>
@@ -1167,6 +1170,7 @@ export default function WorkflowBuilder() {
             </div>
 
             <ReactFlow
+              onInit={setReactFlowInstance}
               nodes={nodes}
               edges={edges}
               onNodesChange={onNodesChange}
