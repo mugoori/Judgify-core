@@ -1,181 +1,204 @@
-use crate::database::Workflow;
-use crate::services::workflow_service::WorkflowService;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateWorkflowRequest {
-    pub name: String,
-    pub definition: serde_json::Value,
-    pub rule_expression: Option<String>,
+pub struct WorkflowGenerationRequest {
+    pub description: String,
+    pub context: Option<WorkflowContext>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct UpdateWorkflowRequest {
-    pub id: String,
-    pub name: Option<String>,
-    pub definition: Option<serde_json::Value>,
-    pub rule_expression: Option<String>,
-    pub is_active: Option<bool>,
+pub struct WorkflowContext {
+    pub industry: Option<String>,
+    pub complexity: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct WorkflowResponse {
-    pub id: String,
-    pub name: String,
-    pub definition: serde_json::Value,
-    pub rule_expression: Option<String>,
-    pub version: i32,
-    pub is_active: bool,
-    pub created_at: String,
+pub struct WorkflowGenerationResponse {
+    pub nodes: Vec<serde_json::Value>,
+    pub edges: Vec<serde_json::Value>,
+    pub metadata: WorkflowMetadata,
 }
 
-impl From<Workflow> for WorkflowResponse {
-    fn from(w: Workflow) -> Self {
-        Self {
-            id: w.id,
-            name: w.name,
-            definition: serde_json::from_str(&w.definition).unwrap_or(serde_json::json!({})),
-            rule_expression: w.rule_expression,
-            version: w.version,
-            is_active: w.is_active,
-            created_at: w.created_at.to_rfc3339(),
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkflowMetadata {
+    pub provider: String,
+    pub model: String,
+    pub confidence: f64,
+    #[serde(rename = "generationTime")]
+    pub generation_time: u64,
+}
+
+/// Tauri command to generate workflow using Claude API
+/// This bypasses browser CORS restrictions by calling from Rust backend
+#[tauri::command]
+pub async fn generate_workflow_with_llm(
+    request: WorkflowGenerationRequest,
+    api_key: String,
+    model: Option<String>,
+) -> Result<WorkflowGenerationResponse, String> {
+    println!("🚀 [Workflow] Generating workflow via Tauri backend");
+    println!("   Description: {}", request.description);
+    println!("   Model: {}", model.as_ref().unwrap_or(&"claude-3-5-sonnet-20241022".to_string()));
+
+    let start_time = std::time::Instant::now();
+
+    // Build the prompt
+    let mut prompt = format!(
+        "Generate a workflow JSON for the following requirement:\n\nDescription: {}\n",
+        request.description
+    );
+
+    if let Some(context) = &request.context {
+        if let Some(industry) = &context.industry {
+            prompt.push_str(&format!("Industry: {}\n", industry));
+        }
+        if let Some(complexity) = &context.complexity {
+            prompt.push_str(&format!("Complexity: {}\n", complexity));
         }
     }
+
+    prompt.push_str(r#"
+IMPORTANT: Return ONLY valid JSON in this exact format:
+{
+  "nodes": [
+    {
+      "id": "node-1",
+      "type": "data-input",
+      "label": "Node Label",
+      "config": {},
+      "position": { "x": 100, "y": 100 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "node-1",
+      "target": "node-2"
+    }
+  ]
 }
 
-#[tauri::command]
-pub async fn create_workflow(request: CreateWorkflowRequest) -> Result<WorkflowResponse, String> {
-    println!("📝 [IPC] create_workflow called! name: {:?}", request.name);
-    let service = WorkflowService::new().map_err(|e| e.to_string())?;
+Available node types: data-input, condition, action, notification, data-output
 
-    // Validate workflow definition
-    service
-        .validate_workflow(&request.definition)
-        .map_err(|e| e.to_string())?;
+Rules:
+1. First node must be data-input
+2. Last node must be data-output
+3. All nodes must be connected
+4. Use descriptive labels
+5. Position nodes left-to-right (increment x by 250)
+"#);
 
-    let workflow = service
-        .create_workflow(request.name, request.definition, request.rule_expression)
-        .map_err(|e| e.to_string())?;
+    // Call Claude API
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://api.anthropic.com/v1/messages")
+        .header("x-api-key", api_key)
+        .header("anthropic-version", "2023-06-01")
+        .header("content-type", "application/json")
+        .json(&json!({
+            "model": model.unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string()),
+            "max_tokens": 4096,
+            "temperature": 0.7,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to call Claude API: {}", e))?;
 
-    Ok(workflow.into())
-}
-
-#[tauri::command]
-pub async fn get_workflow(id: String) -> Result<WorkflowResponse, String> {
-    println!("🔍 [IPC] get_workflow called! id: {:?}", id);
-    let service = WorkflowService::new().map_err(|e| e.to_string())?;
-
-    let workflow = service
-        .get_workflow(&id)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Workflow not found".to_string())?;
-
-    Ok(workflow.into())
-}
-
-#[tauri::command]
-pub async fn get_all_workflows() -> Result<Vec<WorkflowResponse>, String> {
-    println!("📋 [IPC] get_all_workflows called!");
-    let service = WorkflowService::new().map_err(|e| e.to_string())?;
-
-    let workflows = service.get_all_workflows().map_err(|e| e.to_string())?;
-
-    Ok(workflows.into_iter().map(|w| w.into()).collect())
-}
-
-#[tauri::command]
-pub async fn update_workflow(request: UpdateWorkflowRequest) -> Result<WorkflowResponse, String> {
-    println!("✏️ [IPC] update_workflow called! id: {:?}, name: {:?}", request.id, request.name);
-    let service = WorkflowService::new().map_err(|e| e.to_string())?;
-
-    // Validate if definition is provided
-    if let Some(ref def) = request.definition {
-        service.validate_workflow(def).map_err(|e| e.to_string())?;
+    // Check response status
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(format!("Claude API error ({}): {}", status, error_text));
     }
 
-    let workflow = service
-        .update_workflow(
-            request.id,
-            request.name,
-            request.definition,
-            request.rule_expression,
-            request.is_active,
-        )
-        .map_err(|e| e.to_string())?;
+    // Parse response
+    let response_json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Claude response: {}", e))?;
 
-    Ok(workflow.into())
+    // Extract content from Claude response
+    let content = response_json["content"][0]["text"]
+        .as_str()
+        .ok_or("Invalid Claude response format")?;
+
+    // Parse the workflow JSON from the response
+    let workflow_json = parse_workflow_from_text(content)?;
+
+    let generation_time = start_time.elapsed().as_millis() as u64;
+
+    println!("✅ [Workflow] Generated successfully in {}ms", generation_time);
+
+    Ok(WorkflowGenerationResponse {
+        nodes: workflow_json["nodes"]
+            .as_array()
+            .ok_or("Missing nodes array")?
+            .clone(),
+        edges: workflow_json["edges"]
+            .as_array()
+            .ok_or("Missing edges array")?
+            .clone(),
+        metadata: WorkflowMetadata {
+            provider: "Claude (Anthropic)".to_string(),
+            model: response_json["model"]
+                .as_str()
+                .unwrap_or("claude-3-5-sonnet-20241022")
+                .to_string(),
+            confidence: 0.85,
+            generation_time,
+        },
+    })
 }
 
-#[tauri::command]
-pub async fn delete_workflow(id: String) -> Result<(), String> {
-    println!("🗑️ [IPC] delete_workflow called! id: {:?}", id);
-    let service = WorkflowService::new().map_err(|e| e.to_string())?;
+/// Parse workflow JSON from Claude's text response
+fn parse_workflow_from_text(text: &str) -> Result<serde_json::Value, String> {
+    // Try to extract JSON from markdown code blocks if present
+    let json_text = if let Some(start) = text.find("```") {
+        let start_idx = text[start..].find('\n').map(|i| start + i + 1).unwrap_or(start + 3);
+        let end = text[start_idx..]
+            .find("```")
+            .map(|i| start_idx + i)
+            .unwrap_or(text.len());
+        &text[start_idx..end]
+    } else {
+        text
+    };
 
-    service.delete_workflow(&id).map_err(|e| e.to_string())?;
-
-    Ok(())
+    // Parse JSON
+    serde_json::from_str(json_text.trim())
+        .map_err(|e| format!("Failed to parse workflow JSON: {}", e))
 }
 
-#[tauri::command]
-pub async fn validate_workflow(definition: serde_json::Value) -> Result<bool, String> {
-    println!("✅ [IPC] validate_workflow called!");
-    let service = WorkflowService::new().map_err(|e| e.to_string())?;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    service
-        .validate_workflow(&definition)
-        .map_err(|e| e.to_string())
+    #[test]
+    fn test_parse_workflow_from_text() {
+        let text = r#"```json
+{
+  "nodes": [{"id": "node-1", "type": "data-input"}],
+  "edges": []
 }
+```"#;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RuleValidationResult {
-    pub is_valid: bool,
-    pub errors: Vec<String>,
-    pub suggestions: Option<Vec<String>>,
-}
+        let result = parse_workflow_from_text(text).unwrap();
+        assert!(result["nodes"].is_array());
+        assert!(result["edges"].is_array());
+    }
 
-#[tauri::command]
-pub async fn validate_rule_expression(rule: String) -> Result<RuleValidationResult, String> {
-    println!("🔍 [IPC] validate_rule_expression called! rule: {:?}", rule);
-
-    use rhai::{Engine, Scope};
-
-    // Rhai 엔진 직접 사용 (간단한 문법 검증용)
-    let engine = Engine::new();
-    let mut scope = Scope::new();
-
-    // 테스트용 변수 등록
-    scope.push("temperature", 90i64);
-    scope.push("vibration", 45i64);
-    scope.push("status", "normal".to_string());
-    scope.push("count", 10i64);
-    scope.push("pressure", 100.0);
-
-    match engine.eval_with_scope::<bool>(&mut scope, &rule) {
-        Ok(_) => Ok(RuleValidationResult {
-            is_valid: true,
-            errors: vec![],
-            suggestions: None,
-        }),
-        Err(e) => {
-            let error_msg = e.to_string();
-            let mut suggestions = vec![];
-
-            // Provide helpful suggestions based on error type
-            if error_msg.contains("Unknown variable") || error_msg.contains("not found") {
-                suggestions.push("사용 가능한 변수: temperature, vibration, status, count, pressure".to_string());
-                suggestions.push("변수명 철자를 확인하세요.".to_string());
-            } else if error_msg.contains("syntax") || error_msg.contains("parse") {
-                suggestions.push("지원되는 연산자: >, <, ==, !=, >=, <=, &&, ||".to_string());
-                suggestions.push("예시: temperature > 90 && vibration < 50".to_string());
-            } else if error_msg.contains("type") {
-                suggestions.push("타입이 일치하는지 확인하세요 (숫자, 문자열).".to_string());
-            }
-
-            Ok(RuleValidationResult {
-                is_valid: false,
-                errors: vec![error_msg],
-                suggestions: if suggestions.is_empty() { None } else { Some(suggestions) },
-            })
-        }
+    #[test]
+    fn test_parse_workflow_from_plain_json() {
+        let text = r#"{"nodes": [], "edges": []}"#;
+        let result = parse_workflow_from_text(text).unwrap();
+        assert!(result["nodes"].is_array());
+        assert!(result["edges"].is_array());
     }
 }

@@ -53,13 +53,14 @@ fn main() {
             chat::get_chat_history,
 
             // Workflow Service Commands
-            workflow::create_workflow,
-            workflow::get_workflow,
-            workflow::get_all_workflows,
-            workflow::update_workflow,
-            workflow::delete_workflow,
-            workflow::validate_workflow,
-            workflow::validate_rule_expression,
+            // workflow::create_workflow,
+            // workflow::get_workflow,
+            // workflow::get_all_workflows,
+            // workflow::update_workflow,
+            // workflow::delete_workflow,
+            // workflow::validate_workflow,
+            // workflow::validate_rule_expression,
+            workflow::generate_workflow_with_llm,  // Phase 32: LLM workflow generation
 
             // System Commands
             system::get_system_status,
