@@ -115,12 +115,29 @@ export class WorkflowGenerator {
   ): Promise<WorkflowGenerationResult> {
     // 패턴 매칭으로 조건 추출
     const patterns = [
+      // === 기존 패턴 (3개) ===
       // "A가 B이면 C" 패턴
       /(.+?)가\s*(.+?)(이면|면)\s*(.+)/,
       // "만약 A 이면 B" 패턴
       /만약\s*(.+?)\s*(이면|면)\s*(.+)/,
       // "A > B 이면 C" 패턴
       /(.+?)\s*([><=!]+)\s*(.+?)\s*(이면|면)\s*(.+)/,
+
+      // === 신규 패턴 (7개) - Phase 44 ===
+      // 1. 조건 분기 패턴 (Conditional Branching)
+      /(조건|분기|if|else|선택)/i,
+      // 2. 반복 처리 패턴 (Loop Processing)
+      /(반복|루프|for|while|매번)/i,
+      // 3. 데이터 변환 패턴 (Data Transformation)
+      /(변환|매핑|transform|가공|처리)/i,
+      // 4. API 호출 패턴 (API Calls)
+      /(API|REST|호출|요청|request)/i,
+      // 5. 파일 처리 패턴 (File Processing)
+      /(파일|업로드|다운로드|file|upload|download)/i,
+      // 6. 이메일 패턴 (Email Workflows)
+      /(이메일|메일|email|발송|전송)/i,
+      // 7. 스케줄링 패턴 (Scheduled Tasks)
+      /(스케줄|예약|주기|매일|매주|cron|schedule)/i,
     ];
 
     let condition = '';
@@ -133,6 +150,8 @@ export class WorkflowGenerator {
       const match = description.match(pattern);
       if (match) {
         patternMatched = true;
+
+        // === 기존 패턴 처리 ===
         if (pattern.source.includes('[><=!]')) {
           // 비교 연산자 포함 패턴
           const [, left, operator, right, , actionText] = match;
@@ -145,13 +164,52 @@ export class WorkflowGenerator {
           condition = condText.trim();
           action = actionText.trim();
           workflowName = `${condText.trim()} 워크플로우`;
-        } else {
+        } else if (pattern.source.includes('가\\s*')) {
           // "A가 B이면 C" 패턴
           const [, subject, predicate, , actionText] = match;
           condition = `${subject.trim()} ${predicate.trim()}`;
           action = actionText.trim();
           workflowName = `${subject.trim()} 모니터링`;
         }
+
+        // === 신규 패턴 처리 (Phase 44) ===
+        else if (pattern.source.includes('조건|분기')) {
+          // 조건 분기 패턴
+          condition = description;
+          action = '조건별 분기 처리';
+          workflowName = '조건 분기 워크플로우';
+        } else if (pattern.source.includes('반복|루프')) {
+          // 반복 처리 패턴
+          condition = description;
+          action = '반복 실행';
+          workflowName = '반복 처리 워크플로우';
+        } else if (pattern.source.includes('변환|매핑')) {
+          // 데이터 변환 패턴
+          condition = description;
+          action = '데이터 변환 및 가공';
+          workflowName = '데이터 변환 워크플로우';
+        } else if (pattern.source.includes('API|REST')) {
+          // API 호출 패턴
+          condition = description;
+          action = '외부 API 호출';
+          workflowName = 'API 연동 워크플로우';
+        } else if (pattern.source.includes('파일|업로드')) {
+          // 파일 처리 패턴
+          condition = description;
+          action = '파일 업로드/다운로드';
+          workflowName = '파일 처리 워크플로우';
+        } else if (pattern.source.includes('이메일|메일')) {
+          // 이메일 패턴
+          condition = description;
+          action = '이메일 발송';
+          workflowName = '이메일 발송 워크플로우';
+        } else if (pattern.source.includes('스케줄|예약')) {
+          // 스케줄링 패턴
+          condition = description;
+          action = '주기적 실행';
+          workflowName = '스케줄링 워크플로우';
+        }
+
         break;
       }
     }
@@ -192,7 +250,9 @@ export class WorkflowGenerator {
       edges.push({
         id: 'e-input-decision',
         source: 'input-1',
+        sourceHandle: 'source',
         target: 'decision-1',
+        targetHandle: 'target',
         animated: true,
       });
 
@@ -216,6 +276,7 @@ export class WorkflowGenerator {
           source: 'decision-1',
           sourceHandle: 'true',
           target: 'action-1',
+          targetHandle: 'target',
           animated: true,
           label: '참',
         });
@@ -240,6 +301,7 @@ export class WorkflowGenerator {
         source: 'decision-1',
         sourceHandle: 'false',
         target: 'output-1',
+        targetHandle: 'target',
         animated: true,
         label: '거짓',
       });
@@ -262,7 +324,9 @@ export class WorkflowGenerator {
         edges.push({
           id: 'e-action-output',
           source: 'action-1',
+          sourceHandle: 'source',
           target: 'output-2',
+          targetHandle: 'target',
           animated: true,
         });
       }
@@ -295,14 +359,18 @@ export class WorkflowGenerator {
       edges.push({
         id: 'e-input-action',
         source: 'input-1',
+        sourceHandle: 'source',
         target: 'action-1',
+        targetHandle: 'target',
         animated: true,
       });
 
       edges.push({
         id: 'e-action-output',
         source: 'action-1',
+        sourceHandle: 'source',
         target: 'output-1',
+        targetHandle: 'target',
         animated: true,
       });
     }

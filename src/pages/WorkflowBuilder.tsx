@@ -13,14 +13,14 @@ import ReactFlow, {
   ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { getAllWorkflows, createWorkflow, updateWorkflow, deleteWorkflow, executeJudgment, type JudgmentResult } from '@/lib/tauri-api';
+import { getAllWorkflows, createWorkflow, updateWorkflow, deleteWorkflow, executeJudgment, type JudgmentResult } from '@/lib/tauri-api-wrapper';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Save, Play, CheckCircle, XCircle, Sparkles, FileText, AlertCircle, Zap, RefreshCw, Workflow, Wand2, Trash2, AlertTriangle, ChevronDown, ChevronUp, Bug, Database, FileCode, Brain, Bell, BarChart, ZoomIn, ZoomOut, Maximize2, RotateCcw } from 'lucide-react';
+import { Save, Play, CheckCircle, XCircle, Sparkles, FileText, AlertCircle, Zap, RefreshCw, Workflow, Wand2, Trash2, AlertTriangle, ChevronDown, ChevronUp, Bug, Database, FileCode, Brain, Bell, BarChart, ZoomIn, ZoomOut, Maximize2, RotateCcw, LayoutGrid } from 'lucide-react';
 import CustomNode from '@/components/workflow/CustomNode';
 import { NodeType } from '@/types/workflow';
 import { NodeEditPanel } from '@/components/workflow/NodeEditPanel';
@@ -28,6 +28,8 @@ import { SimulationPanel } from '@/components/workflow/SimulationPanel';
 import EmptyState from '@/components/EmptyState';
 import { WorkflowGenerator, testScenarios, type GenerationMode } from '@/lib/workflow-generator';
 import { ClaudeProvider } from '@/lib/claude-provider';
+import { TemplateGallery } from '@/components/workflow/TemplateGallery';
+import { templateToReactFlow, type WorkflowTemplate } from '@/lib/workflow-templates';
 import { useToast } from '@/components/ui/use-toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { HelpCircle } from 'lucide-react';
@@ -119,12 +121,27 @@ export default function WorkflowBuilder() {
     pressure: 100.0,
   };
 
+  // Template Gallery state
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false);
+
   // Focus on execute panel when opened
   useEffect(() => {
     if (showExecutePanel && executeSelectRef.current) {
       executeSelectRef.current.focus();
     }
   }, [showExecutePanel]);
+
+  // Phase 36b: Set data-reactflow-ready attribute for E2E tests
+  useEffect(() => {
+    if (reactFlowInstance && nodes.length > 0) {
+      // Mark as ready after ReactFlow completes layout
+      requestAnimationFrame(() => {
+        document.body.setAttribute('data-reactflow-ready', 'true');
+      });
+    } else {
+      document.body.removeAttribute('data-reactflow-ready');
+    }
+  }, [reactFlowInstance, nodes, edges]);
 
   // Handle Delete key for node deletion
   useEffect(() => {
@@ -428,6 +445,7 @@ export default function WorkflowBuilder() {
       // 성공 Toast (메타데이터 포함)
       const generationTime = Date.now() - startTime;
       toast({
+        'data-testid': 'toast-success',
         title: '✨ 워크플로우 생성 완료',
         description: (
           <div className="space-y-1 text-sm">
@@ -482,6 +500,7 @@ export default function WorkflowBuilder() {
       }
 
       toast({
+        'data-testid': 'toast-error',
         variant: 'destructive',
         title: '생성 실패',
         description,
@@ -600,6 +619,26 @@ export default function WorkflowBuilder() {
       }))
     );
   }, [setNodes]);
+
+  // Handle template selection from gallery
+  const handleSelectTemplate = useCallback((template: WorkflowTemplate) => {
+    const { nodes: templateNodes, edges: templateEdges } = templateToReactFlow(template);
+
+    // Apply template to canvas
+    setWorkflowName(template.name);
+    setNodes(templateNodes);
+    setEdges(templateEdges);
+
+    // Close gallery
+    setShowTemplateGallery(false);
+
+    // Show success toast
+    toast({
+      title: '✨ 템플릿 로드 완료',
+      description: `"${template.name}" 템플릿이 적용되었습니다.`,
+      duration: 3000,
+    });
+  }, [setNodes, setEdges, toast]);
 
   return (
     <div className="h-screen max-h-screen flex gap-6 overflow-hidden">
@@ -929,6 +968,30 @@ export default function WorkflowBuilder() {
               </TooltipProvider>
             </CardContent>
           )}
+        </Card>
+
+        {/* Template Gallery Section */}
+        <Card className="border-secondary/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LayoutGrid className="w-5 h-5 text-secondary flex-shrink-0" />
+              <span className="truncate">템플릿 갤러리</span>
+            </CardTitle>
+            <CardDescription>
+              미리 만들어진 10개 템플릿으로 빠르게 시작하세요.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="default"
+              size="lg"
+              onClick={() => setShowTemplateGallery(true)}
+              className="w-full"
+            >
+              <LayoutGrid className="w-4 h-4 mr-2" />
+              템플릿 선택
+            </Button>
+          </CardContent>
         </Card>
 
         <Card>
@@ -1368,6 +1431,13 @@ export default function WorkflowBuilder() {
           onClose={() => setShowSimulationPanel(false)}
         />
       )}
+
+      {/* 템플릿 갤러리 */}
+      <TemplateGallery
+        open={showTemplateGallery}
+        onOpenChange={setShowTemplateGallery}
+        onSelectTemplate={handleSelectTemplate}
+      />
     </div>
   );
 }
