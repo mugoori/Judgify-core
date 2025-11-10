@@ -70,6 +70,9 @@ export default function WorkflowBuilder() {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Phase 34: ReactFlow rendering ready state
+  const [isReactFlowReady, setIsReactFlowReady] = useState(false);
+
   // Execute workflow state
   const [showExecutePanel, setShowExecutePanel] = useState(false);
   const [executeWorkflowId, setExecuteWorkflowId] = useState<string>('');
@@ -83,6 +86,13 @@ export default function WorkflowBuilder() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationMode, setGenerationMode] = useState<GenerationMode>('hybrid');
   const [claudeApiKey, setClaudeApiKey] = useState<string>(() => {
+    // Phase 30: Check Vite env variable first, then localStorage
+    // @ts-ignore - Vite env variables
+    const viteKey = import.meta.env?.VITE_ANTHROPIC_API_KEY;
+    if (viteKey) {
+      console.log('[Phase 30] Using API key from VITE_ANTHROPIC_API_KEY');
+      return viteKey;
+    }
     // Load from localStorage
     return localStorage.getItem('claude_api_key') || '';
   });
@@ -118,6 +128,22 @@ export default function WorkflowBuilder() {
       executeSelectRef.current.focus();
     }
   }, [showExecutePanel]);
+
+  // Phase 34: Track nodes changes for ReactFlow rendering
+  useEffect(() => {
+    // Reset ready flag when nodes change
+    setIsReactFlowReady(false);
+    document.body.removeAttribute('data-reactflow-ready');
+
+    // Wait for ReactFlow to render the new nodes
+    const timer = setTimeout(() => {
+      setIsReactFlowReady(true);
+      document.body.setAttribute('data-reactflow-ready', 'true');
+      console.log('[Phase 34] ReactFlow rendering complete:', { nodeCount: nodes.length });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [nodes]);
 
   // Handle Delete key for node deletion
   useEffect(() => {
@@ -315,40 +341,74 @@ export default function WorkflowBuilder() {
       return;
     }
 
-    // LLM 모드일 때 API 키 확인
-    if ((generationMode === 'llm' || generationMode === 'hybrid') && !claudeApiKey.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'API 키 필요',
-        description: 'Claude API 키를 입력해주세요. Settings에서 저장할 수 있습니다.',
-        action: (
-          <button
-            onClick={() => window.location.href = '/#/settings'}
-            className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium"
-          >
-            Settings로 이동
-          </button>
-        ),
-      });
-      return;
+    // LLM 모드일 때 API 키 확인 (3-tier fallback)
+    // Hybrid 모드는 API 키 없으면 Pattern만 사용
+    let finalApiKey = '';
+    if (generationMode === 'llm') {
+      // 1순위: React state
+      finalApiKey = claudeApiKey.trim();
+
+      // 2순위: localStorage (Settings에서 저장한 값)
+      if (!finalApiKey) {
+        finalApiKey = localStorage.getItem('claude_api_key') || '';
+      }
+
+      // 3순위: DOM value 직접 읽기 (E2E 테스트 전용)
+      if (!finalApiKey) {
+        const inputElement = document.getElementById('claude-api-key') as HTMLInputElement;
+        finalApiKey = inputElement?.value?.trim() || '';
+      }
+
+      if (!finalApiKey) {
+        toast({
+          variant: 'destructive',
+          title: 'API 키 필요',
+          description: 'LLM 모드는 Claude API 키가 필요합니다. Hybrid 모드를 사용하거나 API 키를 입력하세요.',
+          action: (
+            <button
+              onClick={() => setGenerationMode('hybrid')}
+              className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium"
+            >
+              Hybrid 모드로 전환
+            </button>
+          ),
+        });
+        return;
+      }
+
+      // React state 동기화 (DOM에서 가져온 경우)
+      if (finalApiKey !== claudeApiKey) {
+        setClaudeApiKey(finalApiKey);
+      }
     }
 
     setIsGenerating(true);
     const startTime = Date.now();
 
     try {
+      // API 키 결정 (Hybrid 모드용)
+      const apiKeyForGeneration = finalApiKey || claudeApiKey.trim();
+
       // WorkflowGenerator 초기화
-      const llmProvider = (generationMode !== 'pattern' && claudeApiKey.trim())
+      const llmProvider = (generationMode !== 'pattern' && apiKeyForGeneration)
         ? new ClaudeProvider()
         : undefined;
 
       const generator = new WorkflowGenerator(llmProvider);
 
+      // 디버깅: 생성 시작 로그
+      console.log('[AI Gen] Starting generation:', {
+        mode: generationMode,
+        hasLLM: !!llmProvider,
+        hasApiKey: !!apiKeyForGeneration,
+        description: aiDescription.substring(0, 50) + '...'
+      });
+
       // 워크플로우 생성
       const result = await generator.generate(aiDescription, {
         mode: generationMode,
-        llmConfig: claudeApiKey.trim() ? {
-          apiKey: claudeApiKey,
+        llmConfig: apiKeyForGeneration ? {
+          apiKey: apiKeyForGeneration,
           model: 'claude-3-5-sonnet-20241022',
           maxTokens: 4096,
           temperature: 0.7,
@@ -356,11 +416,24 @@ export default function WorkflowBuilder() {
       });
 
       // React Flow 노드로 변환
-      const flowNodes = result.nodes.map(node => ({
-        ...node,
+      const flowNodes: Node[] = result.nodes.map((node: any, index) => ({
+        id: node.id || `node-${index}`,
         type: 'custom',
-        data: { ...node.data },
+        data: {
+          label: node.label,
+          ...(node.config || {}),  // API response config를 data로 변환
+        },
+        position: node.position || { x: 100 + index * 250, y: 100 },
+        draggable: true,
+        selectable: true,
       }));
+
+      // 디버깅: 생성 성공 로그
+      console.log('[AI Gen] Generation successful:', {
+        nodeCount: flowNodes.length,
+        edgeCount: result.edges.length,
+        metadata: result.metadata
+      });
 
       // 워크플로우 적용
       setWorkflowName(result.name);
@@ -390,6 +463,13 @@ export default function WorkflowBuilder() {
       });
 
     } catch (error: any) {
+      // 디버깅: 에러 발생 로그
+      console.error('[AI Gen] CAUGHT ERROR:', {
+        message: error.message,
+        stack: error.stack,
+        fullError: error
+      });
+
       const errorMessage = error.message || '워크플로우 생성 중 오류가 발생했습니다.';
 
       // 에러 타입별 처리
@@ -539,6 +619,20 @@ export default function WorkflowBuilder() {
       }))
     );
   }, [setNodes]);
+
+  // Phase 34: Enhanced ReactFlow init handler with rendering detection
+  const handleReactFlowInit = useCallback((instance: ReactFlowInstance) => {
+    setReactFlowInstance(instance);
+
+    // Double requestAnimationFrame ensures DOM is fully painted
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setIsReactFlowReady(true);
+        document.body.setAttribute('data-reactflow-ready', 'true');
+        console.log('[Phase 34] ReactFlow initialized and ready');
+      });
+    });
+  }, []);
 
   return (
     <div className="h-screen max-h-screen flex gap-6 overflow-hidden">
@@ -733,10 +827,11 @@ export default function WorkflowBuilder() {
           </CardHeader>
           {showAIPanel && (
             <CardContent className="space-y-4">
+              <TooltipProvider>
               {/* Generation Mode Selection */}
               <div>
                 <Label className="text-sm font-medium mb-3 block">생성 모드</Label>
-                <TooltipProvider>
+                <div>
                   <RadioGroup value={generationMode} onValueChange={(value: string) => setGenerationMode(value as GenerationMode)}>
                     {/* Pattern Mode */}
                     <div className="flex items-center space-x-2 mb-2">
@@ -786,7 +881,7 @@ export default function WorkflowBuilder() {
                       </Label>
                     </div>
                   </RadioGroup>
-                </TooltipProvider>
+                </div>
               </div>
 
               {/* API Key Input (LLM/Hybrid 모드일 때만 표시) */}
@@ -864,6 +959,7 @@ export default function WorkflowBuilder() {
                   </>
                 )}
               </Button>
+              </TooltipProvider>
             </CardContent>
           )}
         </Card>
@@ -1172,7 +1268,7 @@ export default function WorkflowBuilder() {
             {/* ReactFlow 캔버스를 absolute로 전체 공간 활용 */}
             <div className="absolute inset-0">
               <ReactFlow
-                onInit={setReactFlowInstance}
+                onInit={handleReactFlowInit}
                 nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChange}
