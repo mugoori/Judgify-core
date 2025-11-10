@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getSystemStatus, getDataDirectory, exportDatabase } from '@/lib/tauri-api';
+import { getSystemStatus, getDataDirectory, exportDatabase } from '@/lib/tauri-api-wrapper';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';

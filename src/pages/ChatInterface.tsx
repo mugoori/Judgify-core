@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { sendChatMessage, getChatHistory, type ChatMessageRequest, type ChatMessageResponse } from '@/lib/tauri-api';
+import { sendChatMessage, getChatHistory, type ChatMessageRequest, type ChatMessageResponse } from '@/lib/tauri-api-wrapper';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
@@ -71,13 +71,20 @@ export default function ChatInterface() {
       if (savedMessages) {
         try {
           parsedMessages = JSON.parse(savedMessages);
+
+          // 🔄 마이그레이션: "Judgify AI" → "TriFlow AI" 자동 변환
+          parsedMessages = parsedMessages.map((msg: Message) => ({
+            ...msg,
+            content: msg.content.replace(/Judgify AI/g, 'TriFlow AI')
+          }));
+
           setMessages(parsedMessages);
         } catch (error) {
           console.error('Failed to parse saved messages:', error);
           // If parsing fails, set initial welcome message
           const initialMessage: Message = {
             role: 'assistant',
-            content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
+            content: '안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
           };
           parsedMessages = [initialMessage];
           setMessages(parsedMessages);
@@ -86,7 +93,7 @@ export default function ChatInterface() {
         // No saved messages, set initial welcome message
         const initialMessage: Message = {
           role: 'assistant',
-          content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
+          content: '안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
         };
         parsedMessages = [initialMessage];
         setMessages(parsedMessages);
@@ -368,7 +375,7 @@ export default function ChatInterface() {
     if (confirmed) {
       const initialMessage: Message = {
         role: 'assistant',
-        content: '안녕하세요! Judgify AI 어시스턴트입니다. 무엇을 도와드릴까요?',
+        content: '안녕하세요! 👋 TriFlow AI 어시스턴트입니다.\n\n판단 실행, 워크플로우 관리, 데이터 시각화, BI 인사이트 생성 등을 도와드릴 수 있어요. 무엇을 도와드릴까요?',
       };
       setMessages([initialMessage]);
       setSessionId(undefined);

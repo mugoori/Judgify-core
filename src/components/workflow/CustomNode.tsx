@@ -249,6 +249,7 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
         <Handle
           type="target"
           position={Position.Top}
+          id="target"
           className="w-3 h-3 border-2 border-white bg-primary"
         />
       )}
@@ -284,6 +285,7 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
         <Handle
           type="source"
           position={Position.Bottom}
+          id="source"
           className="w-3 h-3 border-2 border-white bg-primary"
         />
       )}

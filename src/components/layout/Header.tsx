@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getSystemStatus } from '@/lib/tauri-api';
+import { getSystemStatus } from '@/lib/tauri-api-wrapper';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Bell, Moon, Sun } from 'lucide-react';
@@ -17,7 +17,7 @@ export default function Header() {
   return (
     <header className="h-16 border-b bg-card px-6 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <h2 className="text-lg font-semibold">Judgify Desktop</h2>
+        <h2 className="text-lg font-semibold">TriFlow Desktop</h2>
 
         <div className="flex items-center gap-2">
           {status?.database_connected && (

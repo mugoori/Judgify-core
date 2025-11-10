@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { generateBiInsight, type BiInsightResponse } from '@/lib/tauri-api';
+import { generateBiInsight, type BiInsightResponse } from '@/lib/tauri-api-wrapper';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

@@ -67,10 +67,12 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
               transition={{ duration: 0.2 }}
               className="flex items-center gap-2"
             >
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold">J</span>
-              </div>
-              <span className="font-bold text-lg">Judgify</span>
+              <img
+                src="/triflow-logo.png"
+                alt="TriFlow Logo"
+                className="w-8 h-8 rounded-lg object-contain"
+              />
+              <span className="font-bold text-lg">TriFlow</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -138,7 +140,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
             transition={{ duration: 0.2 }}
             className="p-4 border-t text-xs text-muted-foreground"
           >
-            <p>Judgify Desktop v1.0.0</p>
+            <p>TriFlow Desktop v1.0.0</p>
             <p className="mt-1">Tauri + Rust + React</p>
           </motion.div>
         )}

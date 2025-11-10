@@ -1,6 +1,6 @@
 import { useState, memo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getSystemStats, getJudgmentHistory, getTokenMetrics } from '@/lib/tauri-api';
+import { getSystemStats, getJudgmentHistory, getTokenMetrics } from '@/lib/tauri-api-wrapper';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Activity, CheckCircle, XCircle, TrendingUp, DollarSign, Zap, TrendingDown, Database, Sparkles } from 'lucide-react';

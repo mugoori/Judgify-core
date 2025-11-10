@@ -163,16 +163,5 @@
                   - /url: https://reactflow.dev
                   - text: React Flow
   - region "Notifications (F8)":
-    - list [ref=e232]:
-      - listitem [ref=e233]:
-        - generic [ref=e234]:
-          - generic [ref=e235]: ✨ 워크플로우 생성 완료
-          - generic [ref=e237]:
-            - paragraph [ref=e238]: "• 이름: LLM 생성 워크플로우"
-            - paragraph [ref=e239]: "• 모드: llm"
-            - paragraph [ref=e240]: "• LLM 사용: 예"
-            - paragraph [ref=e241]: "• 생성 시간: 113ms"
-            - paragraph [ref=e242]: "• 신뢰도: 95%"
-        - button [ref=e243] [cursor=pointer]:
-          - img [ref=e244]
+    - list
 ```

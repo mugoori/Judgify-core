@@ -7,7 +7,7 @@
     "withGlobalTauri": false
   },
   "package": {
-    "productName": "Judgify",
+    "productName": "TriFlow",
     "version": "2.0.0"
   },
   "tauri": {
@@ -28,7 +28,7 @@
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.judgify.desktop",
+      "identifier": "com.triflow.desktop",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -41,8 +41,8 @@
         "digestAlgorithm": "sha256",
         "timestampUrl": ""
       },
-      "longDescription": "AI 기반 하이브리드 판단 플랫폼으로, Rule Engine과 LLM을 결합하여 정확하고 설명 가능한 의사결정을 제공합니다.",
-      "shortDescription": "Judgify AI 판단 플랫폼",
+      "longDescription": "TriFlow - AI 기반 워크플로우 자동화 플랫폼으로, 드래그앤드롭 방식의 직관적인 인터페이스로 복잡한 비즈니스 프로세스를 시각적으로 설계하고 자동화합니다.",
+      "shortDescription": "TriFlow AI 워크플로우 플랫폼",
       "resources": []
     },
     "security": {
@@ -60,7 +60,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "Judgify AI Platform",
+        "title": "TriFlow AI Platform",
         "width": 1400,
         "height": 900,
         "minWidth": 1200,
