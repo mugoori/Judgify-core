@@ -70,9 +70,6 @@ export default function WorkflowBuilder() {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Phase 34: ReactFlow rendering ready state
-  const [isReactFlowReady, setIsReactFlowReady] = useState(false);
-
   // Execute workflow state
   const [showExecutePanel, setShowExecutePanel] = useState(false);
   const [executeWorkflowId, setExecuteWorkflowId] = useState<string>('');
@@ -128,22 +125,6 @@ export default function WorkflowBuilder() {
       executeSelectRef.current.focus();
     }
   }, [showExecutePanel]);
-
-  // Phase 34: Track nodes changes for ReactFlow rendering
-  useEffect(() => {
-    // Reset ready flag when nodes change
-    setIsReactFlowReady(false);
-    document.body.removeAttribute('data-reactflow-ready');
-
-    // Wait for ReactFlow to render the new nodes
-    const timer = setTimeout(() => {
-      setIsReactFlowReady(true);
-      document.body.setAttribute('data-reactflow-ready', 'true');
-      console.log('[Phase 34] ReactFlow rendering complete:', { nodeCount: nodes.length });
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [nodes]);
 
   // Handle Delete key for node deletion
   useEffect(() => {
@@ -619,20 +600,6 @@ export default function WorkflowBuilder() {
       }))
     );
   }, [setNodes]);
-
-  // Phase 34: Enhanced ReactFlow init handler with rendering detection
-  const handleReactFlowInit = useCallback((instance: ReactFlowInstance) => {
-    setReactFlowInstance(instance);
-
-    // Double requestAnimationFrame ensures DOM is fully painted
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setIsReactFlowReady(true);
-        document.body.setAttribute('data-reactflow-ready', 'true');
-        console.log('[Phase 34] ReactFlow initialized and ready');
-      });
-    });
-  }, []);
 
   return (
     <div className="h-screen max-h-screen flex gap-6 overflow-hidden">
@@ -1268,7 +1235,7 @@ export default function WorkflowBuilder() {
             {/* ReactFlow 캔버스를 absolute로 전체 공간 활용 */}
             <div className="absolute inset-0">
               <ReactFlow
-                onInit={handleReactFlowInit}
+                onInit={setReactFlowInstance}
                 nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChange}

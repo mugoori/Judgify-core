@@ -64,19 +64,17 @@ export class WorkflowGenerator {
     const startTime = Date.now();
     const { mode, llmConfig } = options;
 
-    // Validate LLM config for LLM/hybrid modes
-    if ((mode === 'llm' || mode === 'hybrid') && !this.llmProvider) {
+    // Validate LLM config for LLM mode only
+    // Hybrid mode can work without LLM (Pattern-only fallback)
+    if (mode === 'llm' && !this.llmProvider) {
       throw new Error(
-        'LLM provider is required for "llm" or "hybrid" mode. Please provide an LLM provider in the constructor.'
+        'LLM provider is required for "llm" mode. Use "pattern" or "hybrid" mode without an LLM provider.'
       );
     }
 
-    if (
-      (mode === 'llm' || mode === 'hybrid') &&
-      (!llmConfig || !llmConfig.apiKey)
-    ) {
+    if (mode === 'llm' && (!llmConfig || !llmConfig.apiKey)) {
       throw new Error(
-        'LLM configuration (apiKey) is required for "llm" or "hybrid" mode.'
+        'LLM configuration (apiKey) is required for "llm" mode. Use "pattern" or "hybrid" mode without an API key.'
       );
     }
 
@@ -341,7 +339,13 @@ export class WorkflowGenerator {
       },
     };
 
-    const response = await this.llmProvider.generateWorkflow(request, llmConfig);
+    // FORCE MODEL FIX: Override model name to correct version (Phase 25)
+    const fixedConfig = {
+      ...llmConfig,
+      model: 'claude-3-5-sonnet-20241022',
+    };
+
+    const response = await this.llmProvider.generateWorkflow(request, fixedConfig);
 
     return {
       nodes: response.nodes,

@@ -1,0 +1,214 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - link "메인 콘텐츠로 건너뛰기" [ref=e3] [cursor=pointer]:
+      - /url: "#main-content"
+    - generic [ref=e4]:
+      - complementary "메인 네비게이션" [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]:
+            - generic [ref=e9]: J
+            - generic [ref=e10]: Judgify
+          - button "사이드바 닫기" [ref=e11] [cursor=pointer]:
+            - img [ref=e12]
+        - navigation "주요 메뉴" [ref=e14]:
+          - link "AI 채팅" [ref=e15] [cursor=pointer]:
+            - /url: "#/"
+            - generic [ref=e16]:
+              - img [ref=e17]
+              - generic [ref=e19]: AI 채팅
+          - link "대시보드" [ref=e20] [cursor=pointer]:
+            - /url: "#/dashboard"
+            - generic [ref=e21]:
+              - img [ref=e22]
+              - generic [ref=e27]: 대시보드
+          - link "워크플로우" [ref=e28] [cursor=pointer]:
+            - /url: "#/workflow"
+            - generic [ref=e29]:
+              - img [ref=e30]
+              - generic [ref=e34]: 워크플로우
+          - link "BI 인사이트" [ref=e35] [cursor=pointer]:
+            - /url: "#/bi"
+            - generic [ref=e36]:
+              - img [ref=e37]
+              - generic [ref=e39]: BI 인사이트
+          - link "설정" [ref=e40] [cursor=pointer]:
+            - /url: "#/settings"
+            - generic [ref=e41]:
+              - img [ref=e42]
+              - generic [ref=e45]: 설정
+        - generic [ref=e46]:
+          - paragraph [ref=e47]: Judgify Desktop v1.0.0
+          - paragraph [ref=e48]: Tauri + Rust + React
+      - generic [ref=e49]:
+        - banner [ref=e50]:
+          - heading "Judgify Desktop" [level=2] [ref=e52]
+          - generic [ref=e53]:
+            - button [ref=e54] [cursor=pointer]:
+              - img [ref=e55]
+            - button [ref=e58] [cursor=pointer]:
+              - img [ref=e59]
+        - main [ref=e61]:
+          - generic [ref=e63]:
+            - generic [ref=e64]:
+              - generic [ref=e65]:
+                - generic [ref=e66]:
+                  - heading "워크플로우 정보" [level=3] [ref=e67]
+                  - paragraph [ref=e68]: 워크플로우 기본 정보를 입력하세요.
+                - generic [ref=e69]:
+                  - button "새로 만들기" [ref=e70] [cursor=pointer]:
+                    - img [ref=e71]
+                    - text: 새로 만들기
+                  - generic [ref=e76]:
+                    - text: 워크플로우 이름
+                    - textbox "워크플로우 이름" [ref=e77]:
+                      - /placeholder: "예: 품질 검사 워크플로우"
+                      - text: 새 워크플로우
+                  - generic [ref=e78]:
+                    - text: Rule 표현식 (선택)
+                    - textbox "Rule 표현식 (선택)" [ref=e79]:
+                      - /placeholder: "예: temperature > 90 && vibration < 50"
+                  - generic [ref=e80]:
+                    - button "저장" [ref=e81] [cursor=pointer]:
+                      - img [ref=e82]
+                      - text: 저장
+                    - button "실행" [ref=e86] [cursor=pointer]:
+                      - img [ref=e87]
+                      - text: 실행
+              - generic [ref=e89]:
+                - generic [ref=e90]:
+                  - heading "노드 추가" [level=3] [ref=e91]
+                  - paragraph [ref=e92]: 워크플로우에 노드를 추가하세요.
+                - generic [ref=e93]:
+                  - button "데이터 입력" [ref=e94] [cursor=pointer]:
+                    - img [ref=e95]
+                    - text: 데이터 입력
+                  - button "판단 로직" [ref=e98] [cursor=pointer]:
+                    - img [ref=e99]
+                    - text: 판단 로직
+                  - button "외부 연동" [ref=e101] [cursor=pointer]:
+                    - img [ref=e102]
+                    - text: 외부 연동
+                  - button "결과 출력" [ref=e104] [cursor=pointer]:
+                    - img [ref=e105]
+                    - text: 결과 출력
+                  - generic [ref=e108]:
+                    - paragraph [ref=e109]: 고급 노드 (v2)
+                    - button "데이터 소스" [ref=e110] [cursor=pointer]:
+                      - img [ref=e111]
+                      - text: 데이터 소스
+                    - button "Rule 판단" [ref=e115] [cursor=pointer]:
+                      - img [ref=e116]
+                      - text: Rule 판단
+                    - button "AI 판단" [ref=e121] [cursor=pointer]:
+                      - img [ref=e122]
+                      - text: AI 판단
+                    - button "작업 실행" [ref=e125] [cursor=pointer]:
+                      - img [ref=e126]
+                      - text: 작업 실행
+                    - button "알림" [ref=e128] [cursor=pointer]:
+                      - img [ref=e129]
+                      - text: 알림
+                    - button "데이터 집계" [ref=e132] [cursor=pointer]:
+                      - img [ref=e133]
+                      - text: 데이터 집계
+              - generic [ref=e134]:
+                - generic [ref=e135]:
+                  - generic [ref=e136]:
+                    - heading "AI 워크플로우 생성" [level=3] [ref=e137]:
+                      - img [ref=e138]
+                      - generic [ref=e141]: AI 워크플로우 생성
+                    - button "닫기" [ref=e142] [cursor=pointer]:
+                      - img [ref=e143]
+                      - text: 닫기
+                  - paragraph [ref=e145]: 자연어로 워크플로우를 설명하면 AI가 자동으로 생성합니다.
+                - generic [ref=e146]:
+                  - generic [ref=e147]:
+                    - generic [ref=e148]: 생성 모드
+                    - radiogroup [ref=e150]:
+                      - generic [ref=e151]:
+                        - radio "Pattern 모드" [ref=e152] [cursor=pointer]
+                        - generic [ref=e153] [cursor=pointer]:
+                          - generic [ref=e154]: Pattern 모드
+                          - img [ref=e155]
+                      - generic [ref=e158]:
+                        - radio "LLM 모드" [checked] [ref=e159] [cursor=pointer]:
+                          - img [ref=e161]
+                        - generic [ref=e163] [cursor=pointer]:
+                          - generic [ref=e164]: LLM 모드
+                          - img [ref=e165]
+                      - generic [ref=e168]:
+                        - radio "Hybrid 모드 (권장)" [ref=e169] [cursor=pointer]
+                        - generic [ref=e170] [cursor=pointer]:
+                          - generic [ref=e171]: Hybrid 모드 (권장)
+                          - img [ref=e172]
+                  - generic [ref=e175]:
+                    - generic [ref=e176]:
+                      - text: Claude API Key
+                      - img [ref=e177]
+                    - textbox "Claude API Key" [ref=e180]:
+                      - /placeholder: sk-ant-...
+                      - text: invalid-api-key-12345
+                  - generic [ref=e181]:
+                    - generic [ref=e182]: 샘플 시나리오
+                    - generic [ref=e183]:
+                      - button "온도가 90도 이상이면 알림 보내기" [ref=e184] [cursor=pointer]
+                      - button "재고가 10개 미만이면 주문 생성" [ref=e185] [cursor=pointer]
+                      - button "고객 피드백이 부정적이면 매니저에게 전달" [ref=e186] [cursor=pointer]
+                  - generic [ref=e187]:
+                    - text: 워크플로우 설명
+                    - textbox "워크플로우 설명" [ref=e188]:
+                      - /placeholder: "예: 온도가 90도 이상이면 알림 보내기"
+                      - text: 재고가 부족하면 알림
+                  - button "AI로 생성" [ref=e189] [cursor=pointer]:
+                    - img [ref=e190]
+                    - text: AI로 생성
+              - generic [ref=e192]:
+                - generic [ref=e195]:
+                  - heading "저장된 워크플로우" [level=3] [ref=e196]
+                  - paragraph [ref=e197]: 기존 워크플로우를 불러오거나 삭제하세요.
+                - generic [ref=e200]:
+                  - img [ref=e202]
+                  - heading "저장된 워크플로우 없음" [level=3] [ref=e206]
+                  - paragraph [ref=e207]: 저장 버튼을 눌러 현재 워크플로우를 저장하세요.
+            - generic [ref=e208]:
+              - generic [ref=e210]:
+                - generic [ref=e211]:
+                  - heading "워크플로우 캔버스" [level=3] [ref=e212]
+                  - paragraph [ref=e213]: 노드를 드래그하여 연결하고 워크플로우를 구성하세요.
+                - button "시뮬레이션" [ref=e214] [cursor=pointer]:
+                  - img [ref=e215]
+                  - text: 시뮬레이션
+              - generic [ref=e225]:
+                - generic [ref=e228]:
+                  - button "확대" [ref=e229] [cursor=pointer]:
+                    - img [ref=e230]
+                  - button "축소" [ref=e233] [cursor=pointer]:
+                    - img [ref=e234]
+                  - button "전체 보기" [ref=e237] [cursor=pointer]:
+                    - img [ref=e238]
+                  - button "초기화" [ref=e243] [cursor=pointer]:
+                    - img [ref=e244]
+                - generic [ref=e248]:
+                  - generic [ref=e250]:
+                    - generic:
+                      - img
+                      - button "시작" [ref=e251]: 시작
+                  - img [ref=e253]
+                  - img "React Flow mini map" [ref=e256]
+                  - link "React Flow attribution" [ref=e259] [cursor=pointer]:
+                    - /url: https://reactflow.dev
+                    - text: React Flow
+    - region "Notifications (F8)":
+      - list [ref=e262]:
+        - listitem [ref=e263]:
+          - generic [ref=e264]:
+            - generic [ref=e265]: 생성 실패
+            - generic [ref=e266]: API 키가 유효하지 않습니다. 확인 후 다시 시도해주세요.
+          - button "API 키 재입력" [ref=e267] [cursor=pointer]
+          - button [ref=e268] [cursor=pointer]:
+            - img [ref=e269]
+  - status [ref=e273]: Notification 생성 실패API 키가 유효하지 않습니다. 확인 후 다시 시도해주세요.API 키 재입력
+```

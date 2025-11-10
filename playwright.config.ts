@@ -1,4 +1,22 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+
+/**
+ * Load environment variables from .env file
+ * This makes ANTHROPIC_API_KEY available to all tests via process.env
+ */
+const dotenvResult = dotenv.config({ path: 'c:\\dev\\Judgify-core\\.env', debug: true });
+if (dotenvResult.error) {
+  console.error('[dotenv] Failed to load .env file:', dotenvResult.error);
+} else if (dotenvResult.parsed) {
+  console.log('[dotenv] Successfully loaded', Object.keys(dotenvResult.parsed).length, 'variables');
+  // Log ANTHROPIC_API_KEY status (masked)
+  if (dotenvResult.parsed.ANTHROPIC_API_KEY) {
+    console.log('[dotenv] ✓ ANTHROPIC_API_KEY found');
+  } else {
+    console.log('[dotenv] ✗ ANTHROPIC_API_KEY not found in .env');
+  }
+}
 
 /**
  * Playwright E2E Test Configuration for Judgify Desktop App
@@ -71,10 +89,10 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run tauri:dev',
+    command: 'npm run dev',  // Only Vite server - Playwright doesn't need Tauri window
     url: 'http://localhost:1420',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000, // 2 minutes to start Tauri app
+    timeout: 60 * 1000, // 1 minute (Vite starts faster than Tauri)
     stdout: 'pipe',
     stderr: 'pipe',
   },

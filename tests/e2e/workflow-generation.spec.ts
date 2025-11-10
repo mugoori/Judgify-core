@@ -75,12 +75,14 @@ test.describe('Workflow Generation E2E', () => {
     const workflowNameInput = page.locator('input[value*="온도"]').or(page.locator('input[value*="경고"]'));
     await expect(workflowNameInput).toBeVisible({ timeout: 2000 });
 
-    // Phase 34: Wait for ReactFlow to render completely using data-reactflow-ready attribute
-    console.log('[Test 1] Waiting for ReactFlow rendering to complete...');
+    // Phase 35: Wait for ReactFlow to render nodes by polling DOM directly
+    // This is more reliable than attribute-based detection
+    console.log('[Test 1] Waiting for ReactFlow nodes to render (expected: >= 1)...');
     await page.waitForFunction(() => {
-      return document.body.getAttribute('data-reactflow-ready') === 'true';
+      const nodes = document.querySelectorAll('.react-flow__node');
+      return nodes.length >= 1;
     }, { timeout: 10000 });
-    console.log('[Test 1] ReactFlow rendering complete!');
+    console.log('[Test 1] ReactFlow nodes detected!');
 
     // Verify nodes created on canvas
     // NOTE: Pattern matching may create 1-5 nodes depending on regex matching
@@ -172,12 +174,13 @@ test.describe('Workflow Generation E2E', () => {
     await expect(page.locator('text=모드: llm')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('text=LLM 사용: 예')).toBeVisible({ timeout: 5000 });
 
-    // Phase 34: Wait for ReactFlow to render completely
-    console.log('[Test 2] Waiting for ReactFlow rendering to complete...');
-    await page.waitForFunction(() => {
-      return document.body.getAttribute('data-reactflow-ready') === 'true';
-    }, { timeout: 10000 });
-    console.log('[Test 2] ReactFlow rendering complete!');
+    // Phase 35: Wait for ReactFlow to render complex workflow nodes (4+)
+    console.log('[Test 2] Waiting for ReactFlow nodes to render (expected: >= 4)...');
+    await page.waitForFunction((expectedCount) => {
+      const nodes = document.querySelectorAll('.react-flow__node');
+      return nodes.length >= expectedCount;
+    }, 4, { timeout: 10000 });
+    console.log('[Test 2] ReactFlow nodes detected!');
 
     // Verify nodes created
     const nodes = page.locator('.react-flow__node');
@@ -334,12 +337,13 @@ test.describe('Workflow Generation E2E', () => {
     await expect(page.locator('text=워크플로우 생성 완료')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=LLM 사용: 예')).toBeVisible({ timeout: 5000 });
 
-    // Phase 34: Wait for ReactFlow to render completely
-    console.log('[Test 4] Waiting for ReactFlow rendering to complete...');
-    await page.waitForFunction(() => {
-      return document.body.getAttribute('data-reactflow-ready') === 'true';
-    }, { timeout: 10000 });
-    console.log('[Test 4] ReactFlow rendering complete!');
+    // Phase 35: Wait for ReactFlow to render complex workflow nodes (4+)
+    console.log('[Test 4] Waiting for ReactFlow nodes to render (expected: >= 4)...');
+    await page.waitForFunction((expectedCount) => {
+      const nodes = document.querySelectorAll('.react-flow__node');
+      return nodes.length >= expectedCount;
+    }, 4, { timeout: 10000 });
+    console.log('[Test 4] ReactFlow nodes detected!');
 
     // Verify nodes created (6 nodes from our mock response)
     const nodes = page.locator('.react-flow__node');
@@ -377,12 +381,13 @@ test.describe('Workflow Generation E2E', () => {
     // Verify success (no API key error)
     await expect(page.locator('p:has-text("LLM 사용: 아니오")')).toBeVisible();
 
-    // Phase 34: Wait for ReactFlow to render completely
-    console.log('[Test 5] Waiting for ReactFlow rendering to complete...');
+    // Phase 35: Wait for ReactFlow to render nodes
+    console.log('[Test 5] Waiting for ReactFlow nodes to render (expected: >= 1)...');
     await page.waitForFunction(() => {
-      return document.body.getAttribute('data-reactflow-ready') === 'true';
+      const nodes = document.querySelectorAll('.react-flow__node');
+      return nodes.length >= 1;
     }, { timeout: 10000 });
-    console.log('[Test 5] ReactFlow rendering complete!');
+    console.log('[Test 5] ReactFlow nodes detected!');
 
     // Verify nodes created
     const nodes = page.locator('.react-flow__node');

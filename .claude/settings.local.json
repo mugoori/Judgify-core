@@ -132,7 +132,18 @@
       "Bash(git for-each-ref:*)",
       "Bash(gh pr merge:*)",
       "Bash(gh issue create:*)",
-      "Bash(gh issue close:*)"
+      "Bash(gh issue close:*)",
+      "Bash(pkill:*)",
+      "Bash(set CLAUDE_API_KEY=%CLAUDE_API_KEY%)",
+      "Bash(ping:*)",
+      "Bash(nul)",
+      "Bash(set CLAUDE_API_KEY=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)",
+      "Bash(start http://localhost:9323)",
+      "Bash(c:devJudgify-coresrc-taurisrccommandsworkflow.rs)",
+      "Bash(set ANTHROPIC_API_KEY=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)",
+      "Bash(start:*)",
+      "Bash(jq:*)",
+      "Bash(cloc:*)"
     ],
     "deny": [],
     "additionalDirectories": [

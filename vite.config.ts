@@ -10,6 +10,7 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    // Phase 32: Proxy removed - using Tauri backend for API calls
   },
 
   // to make use of `TAURI_DEBUG` and other env variables
