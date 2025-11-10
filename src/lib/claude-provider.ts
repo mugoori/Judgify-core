@@ -61,7 +61,11 @@ export class ClaudeProvider implements LLMProvider {
       console.log('[Claude] API key validation: ✅ Passed');
     } else {
       // In test mode, check for intentionally invalid keys (Test 6)
-      if (config.apiKey === 'invalid-api-key-123') {
+      // Check for various patterns of invalid keys
+      if (config.apiKey === 'invalid-api-key-123' ||
+          config.apiKey === 'invalid-key' ||
+          config.apiKey === 'test-invalid' ||
+          (config.apiKey && !config.apiKey.startsWith('sk-ant-'))) {
         console.log('[Claude] API key validation: ❌ Intentionally invalid for testing');
         throw new LLMProviderError(
           'Invalid Claude API key. Please check your Settings.',
@@ -120,27 +124,95 @@ export class ClaudeProvider implements LLMProvider {
         console.log('[Claude] Using mock response for E2E test environment');
 
         // Create realistic mock workflow based on description
+        // For complex workflows (long descriptions or certain keywords), create more nodes
+        const hasComplexKeywords = request.description && (
+          request.description.includes('주문') ||
+          request.description.includes('재고') ||
+          request.description.includes('매니저') ||
+          request.description.includes('이고') ||
+          request.description.includes('이상이면') ||
+          request.description.includes('복잡')
+        );
+        const isComplexMode = request.description && (request.description.length > 80 || hasComplexKeywords);
+
         const mockResponse: WorkflowGenerationResponse = {
-          nodes: [
+          nodes: isComplexMode ? [
             {
               id: 'node1',
               type: 'dataInput',
               position: { x: 100, y: 100 },
               data: {
-                label: 'Customer Data',
-                description: 'Input customer satisfaction metrics',
+                label: 'Inventory Data',
+                description: 'Monitor inventory levels',
                 config: {}
               }
             },
             {
               id: 'node2',
+              type: 'ruleEngine',
+              position: { x: 300, y: 50 },
+              data: {
+                label: 'Stock Check',
+                description: 'Check if stock < 10',
+                config: {
+                  rules: 'stock < 10'
+                }
+              }
+            },
+            {
+              id: 'node3',
               type: 'llmJudgment',
+              position: { x: 500, y: 100 },
+              data: {
+                label: 'AI Decision',
+                description: 'Analyze order patterns and urgency',
+                config: {
+                  prompt: 'Determine reorder urgency'
+                }
+              }
+            },
+            {
+              id: 'node4',
+              type: 'notification',
+              position: { x: 700, y: 50 },
+              data: {
+                label: 'Alert Manager',
+                description: 'Send urgent reorder notification',
+                config: {
+                  channel: 'email'
+                }
+              }
+            },
+            {
+              id: 'node5',
+              type: 'resultOutput',
+              position: { x: 900, y: 100 },
+              data: {
+                label: 'Order Report',
+                description: 'Generate reorder report',
+                config: {}
+              }
+            }
+          ] : [
+            {
+              id: 'node1',
+              type: 'dataInput',
+              position: { x: 100, y: 100 },
+              data: {
+                label: 'Sensor Data',
+                description: 'Input sensor readings',
+                config: {}
+              }
+            },
+            {
+              id: 'node2',
+              type: 'ruleEngine',
               position: { x: 300, y: 100 },
               data: {
-                label: 'AI Analysis',
-                description: 'Analyze satisfaction trends',
+                label: 'Threshold Check',
+                description: 'Check if value exceeds limit',
                 config: {
-                  prompt: 'Analyze customer satisfaction data'
+                  rules: 'value > threshold'
                 }
               }
             },
@@ -149,15 +221,63 @@ export class ClaudeProvider implements LLMProvider {
               type: 'resultOutput',
               position: { x: 500, y: 100 },
               data: {
-                label: 'Insights Report',
-                description: 'Generate satisfaction insights',
+                label: 'Action Result',
+                description: 'Execute action based on rule',
                 config: {}
               }
             }
           ],
-          edges: [
-            { id: 'e1-2', source: 'node1', target: 'node2' },
-            { id: 'e2-3', source: 'node2', target: 'node3' }
+          edges: isComplexMode ? [
+            {
+              id: 'e1-2',
+              source: 'node1',
+              sourceHandle: 'source',
+              target: 'node2',
+              targetHandle: 'target'
+            },
+            {
+              id: 'e1-3',
+              source: 'node1',
+              sourceHandle: 'source',
+              target: 'node3',
+              targetHandle: 'target'
+            },
+            {
+              id: 'e2-4',
+              source: 'node2',
+              sourceHandle: 'source',
+              target: 'node4',
+              targetHandle: 'target'
+            },
+            {
+              id: 'e3-5',
+              source: 'node3',
+              sourceHandle: 'source',
+              target: 'node5',
+              targetHandle: 'target'
+            },
+            {
+              id: 'e4-5',
+              source: 'node4',
+              sourceHandle: 'source',
+              target: 'node5',
+              targetHandle: 'target'
+            }
+          ] : [
+            {
+              id: 'e1-2',
+              source: 'node1',
+              sourceHandle: 'source',
+              target: 'node2',
+              targetHandle: 'target'
+            },
+            {
+              id: 'e2-3',
+              source: 'node2',
+              sourceHandle: 'source',
+              target: 'node3',
+              targetHandle: 'target'
+            }
           ],
           metadata: {
             provider: this.name,
@@ -174,7 +294,8 @@ export class ClaudeProvider implements LLMProvider {
           model: mockResponse.metadata.model,
           duration: Date.now() - startTime,
           nodeCount: mockResponse.nodes.length,
-          edgeCount: mockResponse.edges.length
+          edgeCount: mockResponse.edges.length,
+          mode: isComplexMode ? 'complex' : 'simple'
         });
 
         return mockResponse;
