@@ -607,16 +607,31 @@ export default function WorkflowBuilder() {
   }, [setNodes, toast]);
 
   // Handle simulation step change
-  const handleSimulationStepChange = useCallback((_stepIndex: number, nodeId: string) => {
-    // Highlight the current node in the canvas
+  const handleSimulationStepChange = useCallback((stepIndex: number, nodeId: string, stepStatus?: string) => {
+    // Highlight the current node in the canvas and set simulation status
     setNodes((nds) =>
-      nds.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          highlighted: node.id === nodeId,
-        },
-      }))
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          // 현재 실행 중인 노드
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              highlighted: true,
+              simulationStatus: stepStatus || 'running',
+            },
+          };
+        } else {
+          // 다른 노드들은 highlighted 해제 (simulationStatus는 유지)
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              highlighted: false,
+            },
+          };
+        }
+      })
     );
   }, [setNodes]);
 

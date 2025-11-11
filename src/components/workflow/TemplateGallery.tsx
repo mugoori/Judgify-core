@@ -4,13 +4,13 @@
  */
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog.tsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs.tsx';
 import {
   ALL_TEMPLATES,
   getTemplatesByCategory,
@@ -61,7 +61,7 @@ const categoryColors: Record<string, string> = {
   automation: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
 };
 
-export default function TemplateGallery({ open, onOpenChange, onSelectTemplate }: TemplateGalleryProps) {
+function TemplateGallery({ open, onOpenChange, onSelectTemplate }: TemplateGalleryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -228,3 +228,6 @@ export default function TemplateGallery({ open, onOpenChange, onSelectTemplate }
     </Dialog>
   );
 }
+
+export { TemplateGallery };
+export default TemplateGallery;

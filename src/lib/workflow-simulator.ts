@@ -157,8 +157,9 @@ export class WorkflowSimulator {
     this.state.currentStepIndex = this.state.steps.length - 1;
 
     try {
-      // 노드 타입별 실행 로직
+      // 노드 타입별 실행 로직 (10가지 노드 타입 지원)
       switch (node.data.type) {
+        // 기본 노드 (4가지)
         case 'input':
           await this.executeInputNode(node, step);
           break;
@@ -171,6 +172,30 @@ export class WorkflowSimulator {
         case 'output':
           await this.executeOutputNode(node, step);
           break;
+
+        // 고급 노드 (6가지 추가)
+        case 'dataInput':
+          await this.executeDataInputNode(node, step);
+          break;
+        case 'ruleEngine':
+          await this.executeRuleEngineNode(node, step);
+          break;
+        case 'llmJudgment':
+          await this.executeLLMJudgmentNode(node, step);
+          break;
+        case 'apiCall':
+          await this.executeApiCallNode(node, step);
+          break;
+        case 'dataTransform':
+          await this.executeDataTransformNode(node, step);
+          break;
+        case 'notification':
+          await this.executeNotificationNode(node, step);
+          break;
+        case 'resultOutput':
+          await this.executeResultOutputNode(node, step);
+          break;
+
         default:
           throw new Error(`지원하지 않는 노드 타입: ${node.data.type}`);
       }
@@ -297,5 +322,180 @@ export class WorkflowSimulator {
    */
   setStepDelay(delayMs: number): void {
     this.stepDelay = delayMs;
+  }
+
+  /**
+   * ==================== 고급 노드 실행 함수 (6가지) ====================
+   */
+
+  /**
+   * DataInput 노드 실행 - 외부 데이터 소스로부터 데이터 입력
+   */
+  private async executeDataInputNode(node: Node, step: SimulationStep): Promise<void> {
+    const dataSource = node.data.config?.dataSource || 'default';
+
+    // 시뮬레이션: 외부 데이터 소스에서 데이터 로드
+    step.output = {
+      dataSource,
+      data: {
+        timestamp: new Date().toISOString(),
+        records: [
+          { id: 1, value: Math.random() * 100 },
+          { id: 2, value: Math.random() * 100 },
+        ],
+      },
+    };
+
+    // globalData에 저장
+    this.state.globalData.inputData = step.output.data;
+  }
+
+  /**
+   * RuleEngine 노드 실행 - 비즈니스 규칙 평가
+   */
+  private async executeRuleEngineNode(node: Node, step: SimulationStep): Promise<void> {
+    const rules = node.data.config?.rules || '';
+
+    if (!rules) {
+      throw new Error('Rule Engine 노드에 규칙이 설정되지 않았습니다.');
+    }
+
+    // 간단한 규칙 평가
+    const ruleResult = this.evaluateSimpleRule(rules, this.state.globalData);
+
+    step.output = {
+      rules,
+      result: ruleResult,
+      message: ruleResult ? '규칙 충족' : '규칙 불충족',
+    };
+
+    // globalData에 결과 저장
+    this.state.globalData.ruleResult = ruleResult;
+  }
+
+  /**
+   * LLM Judgment 노드 실행 - AI 판단
+   */
+  private async executeLLMJudgmentNode(node: Node, step: SimulationStep): Promise<void> {
+    const prompt = node.data.config?.prompt || '판단을 내려주세요';
+
+    // 시뮬레이션: LLM 응답 (실제로는 OpenAI API 호출)
+    const mockLLMResponse = {
+      judgment: Math.random() > 0.5 ? 'approved' : 'rejected',
+      confidence: Math.random() * 0.3 + 0.7, // 0.7 ~ 1.0
+      reasoning: '데이터 분석 결과 기준을 충족합니다.',
+    };
+
+    step.output = {
+      prompt,
+      llmResponse: mockLLMResponse,
+    };
+
+    // globalData에 저장
+    this.state.globalData.llmJudgment = mockLLMResponse.judgment;
+    this.state.globalData.llmConfidence = mockLLMResponse.confidence;
+  }
+
+  /**
+   * API Call 노드 실행 - 외부 API 호출
+   */
+  private async executeApiCallNode(node: Node, step: SimulationStep): Promise<void> {
+    const endpoint = node.data.config?.endpoint || '/api/default';
+    const method = node.data.config?.method || 'GET';
+
+    // 시뮬레이션: API 응답
+    const mockApiResponse = {
+      status: 200,
+      data: {
+        success: true,
+        message: `${method} ${endpoint} 호출 성공`,
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    step.output = {
+      endpoint,
+      method,
+      response: mockApiResponse,
+    };
+
+    // globalData에 저장
+    this.state.globalData.apiResponse = mockApiResponse.data;
+  }
+
+  /**
+   * DataTransform 노드 실행 - 데이터 변환
+   */
+  private async executeDataTransformNode(node: Node, step: SimulationStep): Promise<void> {
+    const transformType = node.data.config?.transformType || 'map';
+
+    // 시뮬레이션: 데이터 변환
+    let transformedData: any;
+    const inputData = this.state.globalData.inputData || {};
+
+    switch (transformType) {
+      case 'map':
+        transformedData = { ...inputData, transformed: true };
+        break;
+      case 'filter':
+        transformedData = { filtered: true, count: 0 };
+        break;
+      case 'aggregate':
+        transformedData = { sum: 0, avg: 0, count: 0 };
+        break;
+      default:
+        transformedData = inputData;
+    }
+
+    step.output = {
+      transformType,
+      inputData,
+      transformedData,
+    };
+
+    // globalData에 저장
+    this.state.globalData.transformedData = transformedData;
+  }
+
+  /**
+   * Notification 노드 실행 - 알림 전송
+   */
+  private async executeNotificationNode(node: Node, step: SimulationStep): Promise<void> {
+    const channel = node.data.config?.channel || 'email';
+    const message = node.data.config?.message || '알림 메시지';
+
+    // 시뮬레이션: 알림 전송
+    const notificationResult = {
+      channel,
+      message,
+      sentAt: new Date().toISOString(),
+      status: 'sent',
+    };
+
+    step.output = notificationResult;
+
+    // globalData에 저장
+    this.state.globalData.lastNotification = notificationResult;
+  }
+
+  /**
+   * ResultOutput 노드 실행 - 최종 결과 출력
+   */
+  private async executeResultOutputNode(node: Node, step: SimulationStep): Promise<void> {
+    const outputFormat = node.data.config?.format || 'json';
+
+    // 최종 결과 생성
+    const finalResult = {
+      format: outputFormat,
+      workflowResult: {
+        ...this.state.globalData,
+        completedAt: new Date().toISOString(),
+      },
+    };
+
+    step.output = finalResult;
+
+    // 워크플로우 종료
+    this.state.isRunning = false;
   }
 }

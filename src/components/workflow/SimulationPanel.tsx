@@ -1,11 +1,15 @@
 /**
- * Workflow Simulation Panel
+ * Workflow Simulation Panel - Floating Version (Week 6 Task 3)
  *
  * 워크플로우 Step-by-step 시뮬레이션 UI
+ * - 드래그 가능한 Floating Panel
+ * - 크기 조절 가능
+ * - 캔버스와 동시 표시
  */
 
 import { useState, useEffect } from 'react';
 import { Node, Edge } from 'reactflow';
+import { Rnd } from 'react-rnd';
 import {
   Play,
   Pause,
@@ -17,11 +21,15 @@ import {
   Clock,
   AlertCircle,
   Loader2,
+  Edit3,
+  Save,
+  GripVertical,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
   WorkflowSimulator,
@@ -33,7 +41,7 @@ interface SimulationPanelProps {
   nodes: Node[];
   edges: Edge[];
   initialData: Record<string, any>;
-  onStepChange?: (stepIndex: number, nodeId: string) => void;
+  onStepChange?: (stepIndex: number, nodeId: string, stepStatus?: string) => void;
   onClose: () => void;
 }
 
@@ -47,6 +55,11 @@ export function SimulationPanel({
   const [simulator] = useState(() => new WorkflowSimulator(nodes, edges, initialData));
   const [state, setState] = useState<SimulationState>(simulator.getState());
   const [autoPlay, setAutoPlay] = useState(false);
+
+  // 테스트 데이터 편집 상태
+  const [editableData, setEditableData] = useState(JSON.stringify(initialData, null, 2));
+  const [isEditingData, setIsEditingData] = useState(false);
+  const [dataEditError, setDataEditError] = useState<string | null>(null);
 
   // 자동 재생
   useEffect(() => {
@@ -64,7 +77,7 @@ export function SimulationPanel({
   useEffect(() => {
     if (state.currentStepIndex >= 0 && state.steps[state.currentStepIndex]) {
       const currentStep = state.steps[state.currentStepIndex];
-      onStepChange?.(state.currentStepIndex, currentStep.nodeId);
+      onStepChange?.(state.currentStepIndex, currentStep.nodeId, currentStep.status);
     }
   }, [state.currentStepIndex, state.steps, onStepChange]);
 
@@ -99,6 +112,31 @@ export function SimulationPanel({
     setAutoPlay(false);
     const newState = simulator.reset();
     setState(newState);
+  };
+
+  // 테스트 데이터 편집 핸들러
+  const handleEditData = () => {
+    setIsEditingData(true);
+    setDataEditError(null);
+  };
+
+  const handleSaveData = () => {
+    try {
+      const parsedData = JSON.parse(editableData);
+      // 새로운 데이터로 시뮬레이터 재초기화
+      const newSimulator = new WorkflowSimulator(nodes, edges, parsedData);
+      setState(newSimulator.getState());
+      setIsEditingData(false);
+      setDataEditError(null);
+    } catch (error) {
+      setDataEditError('잘못된 JSON 형식입니다. 올바른 JSON을 입력하세요.');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditableData(JSON.stringify(initialData, null, 2));
+    setIsEditingData(false);
+    setDataEditError(null);
   };
 
   const getStatusIcon = (status: NodeStatus) => {
@@ -139,17 +177,90 @@ export function SimulationPanel({
   const currentStep = state.steps[state.currentStepIndex];
 
   return (
-    <Card className="w-96 h-full border-r shadow-lg">
-      <CardHeader className="border-b">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">시뮬레이션</CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            닫기
-          </Button>
-        </div>
-      </CardHeader>
+    <Rnd
+      default={{
+        x: Math.max(20, window.innerWidth - 450), // 화면 내부 보장 (최소 20px)
+        y: 80, // 상단에서 80px 아래
+        width: 400,
+        height: 700,
+      }}
+      minWidth={350}
+      minHeight={500}
+      maxWidth={600}
+      maxHeight={900}
+      bounds="window"
+      enableResizing={{
+        bottom: true,
+        bottomLeft: true,
+        bottomRight: true,
+        left: true,
+        right: true,
+        top: true,
+        topLeft: true,
+        topRight: true,
+      }}
+      dragHandleClassName="simulation-drag-handle"
+      style={{ zIndex: 1000 }}
+    >
+      <Card className="w-full h-full border shadow-2xl flex flex-col overflow-hidden">
+        <CardHeader className="border-b flex-shrink-0 simulation-drag-handle cursor-move">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <GripVertical className="w-4 h-4 text-muted-foreground" />
+              <CardTitle className="text-lg">시뮬레이션</CardTitle>
+            </div>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              닫기
+            </Button>
+          </div>
+        </CardHeader>
 
-      <CardContent className="p-4 space-y-4">
+        <CardContent className="p-4 space-y-4 flex-1 overflow-y-auto">
+        {/* 테스트 데이터 편집 */}
+        <Card className="bg-muted/30">
+          <CardHeader className="p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">테스트 데이터</span>
+              {!isEditingData ? (
+                <Button onClick={handleEditData} size="sm" variant="outline" data-testid="simulation-edit-button">
+                  <Edit3 className="w-3 h-3 mr-2" />
+                  편집
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button onClick={handleSaveData} size="sm" variant="default" data-testid="simulation-save-button">
+                    <Save className="w-3 h-3 mr-2" />
+                    저장
+                  </Button>
+                  <Button onClick={handleCancelEdit} size="sm" variant="outline" data-testid="simulation-cancel-button">
+                    취소
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="p-3">
+            {isEditingData ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={editableData}
+                  onChange={(e) => setEditableData(e.target.value)}
+                  className="font-mono text-xs min-h-[120px]"
+                  placeholder="JSON 형식으로 테스트 데이터 입력"
+                  data-testid="simulation-test-data-textarea"
+                />
+                {dataEditError && (
+                  <p className="text-xs text-red-600">{dataEditError}</p>
+                )}
+              </div>
+            ) : (
+              <pre className="text-xs bg-background p-2 rounded border overflow-auto max-h-32">
+                {JSON.stringify(initialData, null, 2)}
+              </pre>
+            )}
+          </CardContent>
+        </Card>
+
         {/* 컨트롤 버튼 */}
         <div className="flex gap-2">
           {!state.isRunning ? (
@@ -312,5 +423,6 @@ export function SimulationPanel({
         </div>
       </CardContent>
     </Card>
-  );
+  </Rnd>
+);
 }

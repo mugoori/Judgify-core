@@ -1,7 +1,7 @@
 {
   "config": {
-    "configFile": "c:\\dev\\Judgify-core\\playwright.config.ts",
-    "rootDir": "c:/dev/Judgify-core/tests/e2e",
+    "configFile": "C:\\dev\\Judgify-core\\playwright.config.ts",
+    "rootDir": "C:/dev/Judgify-core/tests/e2e",
     "forbidOnly": false,
     "fullyParallel": true,
     "globalSetup": null,
@@ -11,7 +11,7 @@
     "grepInvert": null,
     "maxFailures": 0,
     "metadata": {
-      "actualWorkers": 8
+      "actualWorkers": 5
     },
     "preserveOutput": "always",
     "reporter": [
@@ -39,15 +39,15 @@
     "quiet": false,
     "projects": [
       {
-        "outputDir": "c:/dev/Judgify-core/test-results",
+        "outputDir": "C:/dev/Judgify-core/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 8
+          "actualWorkers": 5
         },
         "id": "chromium",
         "name": "chromium",
-        "testDir": "c:/dev/Judgify-core/tests/e2e",
+        "testDir": "C:/dev/Judgify-core/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -71,21 +71,21 @@
   },
   "suites": [
     {
-      "title": "workflow-generation.spec.ts",
-      "file": "workflow-generation.spec.ts",
+      "title": "workflow-simulation.spec.ts",
+      "file": "workflow-simulation.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "Workflow Generation E2E",
-          "file": "workflow-generation.spec.ts",
-          "line": 18,
+          "title": "Workflow Simulation E2E",
+          "file": "workflow-simulation.spec.ts",
+          "line": 16,
           "column": 6,
           "specs": [
             {
-              "title": "1. Pattern 모드 - 간단한 워크플로우 생성",
-              "ok": true,
+              "title": "1. 시뮬레이션 패널 열기/닫기",
+              "ok": false,
               "tags": [],
               "tests": [
                 {
@@ -98,9 +98,28 @@
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2259,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 20008,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).not.\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('heading', { name: '시뮬레이션' })\nExpected: not visible\nReceived: visible\nTimeout:  3000ms\n\nCall log:\n\u001b[2m  - Expect \"not toBeVisible\" with timeout 3000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('heading', { name: '시뮬레이션' })\u001b[22m\n\u001b[2m    7 × locator resolved to <h3 class=\"font-semibold tracking-tight text-lg\">시뮬레이션</h3>\u001b[22m\n\u001b[2m      - unexpected value \"visible\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).not.\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('heading', { name: '시뮬레이션' })\nExpected: not visible\nReceived: visible\nTimeout:  3000ms\n\nCall log:\n\u001b[2m  - Expect \"not toBeVisible\" with timeout 3000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('heading', { name: '시뮬레이션' })\u001b[22m\n\u001b[2m    7 × locator resolved to <h3 class=\"font-semibold tracking-tight text-lg\">시뮬레이션</h3>\u001b[22m\n\u001b[2m      - unexpected value \"visible\"\u001b[22m\n\n    at C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts:86:68",
+                        "location": {
+                          "file": "C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts",
+                          "column": 68,
+                          "line": 86
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 84 |\u001b[39m\n \u001b[90m 85 |\u001b[39m     \u001b[90m// Verify panel closed (check heading is not visible)\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 86 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'heading'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m'시뮬레이션'\u001b[39m }))\u001b[33m.\u001b[39mnot\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m3000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                                                    \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 87 |\u001b[39m\n \u001b[90m 88 |\u001b[39m     console\u001b[33m.\u001b[39mlog(\u001b[32m'[Test 1] Simulation panel open/close test passed'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 89 |\u001b[39m   })\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts",
+                            "column": 68,
+                            "line": 86
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).not.\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('heading', { name: '시뮬레이션' })\nExpected: not visible\nReceived: visible\nTimeout:  3000ms\n\nCall log:\n\u001b[2m  - Expect \"not toBeVisible\" with timeout 3000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('heading', { name: '시뮬레이션' })\u001b[22m\n\u001b[2m    7 × locator resolved to <h3 class=\"font-semibold tracking-tight text-lg\">시뮬레이션</h3>\u001b[22m\n\u001b[2m      - unexpected value \"visible\"\u001b[22m\n\n\n  84 |\n  85 |     // Verify panel closed (check heading is not visible)\n> 86 |     await expect(page.getByRole('heading', { name: '시뮬레이션' })).not.toBeVisible({ timeout: 3000 });\n     |                                                                    ^\n  87 |\n  88 |     console.log('[Test 1] Simulation panel open/close test passed');\n  89 |   });\n    at C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts:86:68"
+                        }
+                      ],
                       "stdout": [
                         {
                           "text": "[BROWSER debug] [vite] connecting...\n"
@@ -110,6 +129,9 @@
                         },
                         {
                           "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
                         },
                         {
                           "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
@@ -122,6 +144,9 @@
                         },
                         {
                           "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getAllWorkflows called\n"
                         },
                         {
                           "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 온도 > 80 이면 경고...}\n"
@@ -148,33 +173,60 @@
                           "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[Test 1] Waiting for ReactFlow nodes to render (expected: >= 1)...\n"
+                          "text": "[Setup] Workflow generated successfully\n"
                         },
                         {
-                          "text": "[Test 1] ReactFlow nodes detected!\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "Pattern mode generated 1 node(s)\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-10T02:51:10.128Z",
+                      "startTime": "2025-11-11T00:26:21.971Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workflow-Simulation-E2E-1-시뮬레이션-패널-열기-닫기-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workflow-Simulation-E2E-1-시뮬레이션-패널-열기-닫기-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workflow-Simulation-E2E-1-시뮬레이션-패널-열기-닫기-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts",
+                        "column": 68,
+                        "line": 86
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
-              "id": "8c7ea8dad2de7b0e131c-f19632e228692695af13",
-              "file": "workflow-generation.spec.ts",
-              "line": 43,
+              "id": "281d0ead3137b2f6f8fe-82865effc36e0667ab57",
+              "file": "workflow-simulation.spec.ts",
+              "line": 65,
               "column": 3
             },
             {
-              "title": "2. LLM 모드 - 복잡한 워크플로우 생성 (Mocked)",
-              "ok": false,
+              "title": "2. 테스트 데이터 편집 기능",
+              "ok": true,
               "tags": [],
               "tests": [
                 {
@@ -187,28 +239,9 @@
                     {
                       "workerIndex": 1,
                       "parallelIndex": 1,
-                      "status": "failed",
-                      "duration": 13069,
-                      "error": {
-                        "message": "TimeoutError: page.waitForFunction: Timeout 10000ms exceeded.",
-                        "stack": "TimeoutError: page.waitForFunction: Timeout 10000ms exceeded.\n    at c:\\dev\\Judgify-core\\tests\\e2e\\workflow-generation.spec.ts:179:16",
-                        "location": {
-                          "file": "c:\\dev\\Judgify-core\\tests\\e2e\\workflow-generation.spec.ts",
-                          "column": 16,
-                          "line": 179
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 177 |\u001b[39m     \u001b[90m// Phase 35: Wait for ReactFlow to render complex workflow nodes (4+)\u001b[39m\n \u001b[90m 178 |\u001b[39m     console\u001b[33m.\u001b[39mlog(\u001b[32m'[Test 2] Waiting for ReactFlow nodes to render (expected: >= 4)...'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 179 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForFunction((expectedCount) \u001b[33m=>\u001b[39m {\n \u001b[90m     |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 180 |\u001b[39m       \u001b[36mconst\u001b[39m nodes \u001b[33m=\u001b[39m document\u001b[33m.\u001b[39mquerySelectorAll(\u001b[32m'.react-flow__node'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 181 |\u001b[39m       \u001b[36mreturn\u001b[39m nodes\u001b[33m.\u001b[39mlength \u001b[33m>=\u001b[39m expectedCount\u001b[33m;\u001b[39m\n \u001b[90m 182 |\u001b[39m     }\u001b[33m,\u001b[39m \u001b[35m4\u001b[39m\u001b[33m,\u001b[39m { timeout\u001b[33m:\u001b[39m \u001b[35m10000\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "c:\\dev\\Judgify-core\\tests\\e2e\\workflow-generation.spec.ts",
-                            "column": 16,
-                            "line": 179
-                          },
-                          "message": "TimeoutError: page.waitForFunction: Timeout 10000ms exceeded.\n\n  177 |     // Phase 35: Wait for ReactFlow to render complex workflow nodes (4+)\n  178 |     console.log('[Test 2] Waiting for ReactFlow nodes to render (expected: >= 4)...');\n> 179 |     await page.waitForFunction((expectedCount) => {\n      |                ^\n  180 |       const nodes = document.querySelectorAll('.react-flow__node');\n  181 |       return nodes.length >= expectedCount;\n  182 |     }, 4, { timeout: 10000 });\n    at c:\\dev\\Judgify-core\\tests\\e2e\\workflow-generation.spec.ts:179:16"
-                        }
-                      ],
+                      "status": "passed",
+                      "duration": 17892,
+                      "errors": [],
                       "stdout": [
                         {
                           "text": "[BROWSER debug] [vite] connecting...\n"
@@ -218,6 +251,9 @@
                         },
                         {
                           "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
                         },
                         {
                           "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
@@ -232,194 +268,71 @@
                           "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
                         },
                         {
-                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: llm, hasLLM: true, hasApiKey: true, description: 재고가 10개 미만이고 주문이 시간당 50개 이상이면 긴급 발주 알림을 보내고 매니저에게 ...}\n"
+                          "text": "[BROWSER warning] [Mock API] getAllWorkflows called\n"
                         },
                         {
-                          "text": "[BROWSER log] [Claude] Environment: Browser/Test\n"
+                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 온도 > 80 이면 경고...}\n"
                         },
                         {
-                          "text": "[BROWSER log] [Claude] API key validation: ⏭️ Skipped (mock mode)\n"
+                          "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
                         },
                         {
-                          "text": "[BROWSER log] [Claude] Starting LLM call: {mode: Test mock, hasApiKey: true, model: claude-3-5-sonnet-20241022, maxTokens: 4096}\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[BROWSER log] [Claude] Using mock response for E2E test environment\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[BROWSER log] [Claude] Mock response generated: {model: claude-3-5-sonnet-20241022, duration: 106, nodeCount: 5, edgeCount: 5, mode: complex}\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 5, metadata: Object}\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
+                          "text": "[Setup] Workflow generated successfully\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
+                          "text": "[Test 2] Current test data: {\n  \"temperature\": 95,\n  \"vibration\": 45,\n  \"status\": \"normal\",\n  \"count\": 10,\n  \"pressure\": 100\n}\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[Test 2] Waiting for ReactFlow nodes to render (expected: >= 4)...\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-2. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e1-3. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e2-4. Help: https://reactflow.dev/error#008\n"
+                          "text": "[Test 2] Test data edit test passed\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-10T02:51:10.162Z",
+                      "startTime": "2025-11-11T00:26:21.971Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "c:\\dev\\Judgify-core\\test-results\\workflow-generation-Workfl-a2ba9-M-모드---복잡한-워크플로우-생성-Mocked--chromium\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "c:\\dev\\Judgify-core\\test-results\\workflow-generation-Workfl-a2ba9-M-모드---복잡한-워크플로우-생성-Mocked--chromium\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "c:\\dev\\Judgify-core\\test-results\\workflow-generation-Workfl-a2ba9-M-모드---복잡한-워크플로우-생성-Mocked--chromium\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "c:\\dev\\Judgify-core\\tests\\e2e\\workflow-generation.spec.ts",
-                        "column": 16,
-                        "line": 179
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 }
               ],
-              "id": "8c7ea8dad2de7b0e131c-7a306c68f4b8bb7fbb0e",
-              "file": "workflow-generation.spec.ts",
-              "line": 105,
+              "id": "281d0ead3137b2f6f8fe-03c634082e00100cdc29",
+              "file": "workflow-simulation.spec.ts",
+              "line": 91,
               "column": 3
             },
             {
-              "title": "3. Hybrid 모드 - Pattern 성공 케이스",
+              "title": "3. 단계별 실행 및 상태 변경",
               "ok": true,
               "tags": [],
               "tests": [
@@ -434,7 +347,7 @@
                       "workerIndex": 2,
                       "parallelIndex": 2,
                       "status": "passed",
-                      "duration": 2442,
+                      "duration": 19125,
                       "errors": [],
                       "stdout": [
                         {
@@ -447,6 +360,9 @@
                           "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
                         },
                         {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
+                        },
+                        {
                           "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
                         },
                         {
@@ -459,7 +375,10 @@
                           "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
                         },
                         {
-                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: hybrid, hasLLM: true, hasApiKey: true, description: 진동 >= 50 이면 점검 필요...}\n"
+                          "text": "[BROWSER warning] [Mock API] getAllWorkflows called\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 온도 > 80 이면 경고...}\n"
                         },
                         {
                           "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
@@ -483,15 +402,27 @@
                           "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[Test 3] Waiting for ReactFlow rendering to complete...\n"
+                          "text": "[Setup] Workflow generated successfully\n"
                         },
                         {
-                          "text": "[Test 3] ReactFlow rendering complete!\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[Test 3] Step-by-step execution test passed\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-10T02:51:10.155Z",
+                      "startTime": "2025-11-11T00:26:21.970Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -499,14 +430,14 @@
                   "status": "expected"
                 }
               ],
-              "id": "8c7ea8dad2de7b0e131c-ab241c6ec121cbdf71c9",
-              "file": "workflow-generation.spec.ts",
-              "line": 193,
+              "id": "281d0ead3137b2f6f8fe-52b0944869d90e634de8",
+              "file": "workflow-simulation.spec.ts",
+              "line": 141,
               "column": 3
             },
             {
-              "title": "4. Hybrid 모드 - LLM 보완 케이스 (Mocked)",
-              "ok": false,
+              "title": "4. 캔버스 노드 애니메이션 확인",
+              "ok": true,
               "tags": [],
               "tests": [
                 {
@@ -519,28 +450,9 @@
                     {
                       "workerIndex": 3,
                       "parallelIndex": 3,
-                      "status": "failed",
-                      "duration": 7800,
-                      "error": {
-                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('text=LLM 사용: 예')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('text=LLM 사용: 예')\u001b[22m\n",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('text=LLM 사용: 예')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('text=LLM 사용: 예')\u001b[22m\n\n    at c:\\dev\\Judgify-core\\tests\\e2e\\workflow-generation.spec.ts:338:50",
-                        "location": {
-                          "file": "c:\\dev\\Judgify-core\\tests\\e2e\\workflow-generation.spec.ts",
-                          "column": 50,
-                          "line": 338
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 336 |\u001b[39m     \u001b[90m// Verify success toast with LLM usage\u001b[39m\n \u001b[90m 337 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m'text=워크플로우 생성 완료'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m10000\u001b[39m })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 338 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m'text=LLM 사용: 예'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m5000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                                  \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 339 |\u001b[39m\n \u001b[90m 340 |\u001b[39m     \u001b[90m// Phase 35: Wait for ReactFlow to render complex workflow nodes (4+)\u001b[39m\n \u001b[90m 341 |\u001b[39m     console\u001b[33m.\u001b[39mlog(\u001b[32m'[Test 4] Waiting for ReactFlow nodes to render (expected: >= 4)...'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "c:\\dev\\Judgify-core\\tests\\e2e\\workflow-generation.spec.ts",
-                            "column": 50,
-                            "line": 338
-                          },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('text=LLM 사용: 예')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('text=LLM 사용: 예')\u001b[22m\n\n\n  336 |     // Verify success toast with LLM usage\n  337 |     await expect(page.locator('text=워크플로우 생성 완료')).toBeVisible({ timeout: 10000 });\n> 338 |     await expect(page.locator('text=LLM 사용: 예')).toBeVisible({ timeout: 5000 });\n      |                                                  ^\n  339 |\n  340 |     // Phase 35: Wait for ReactFlow to render complex workflow nodes (4+)\n  341 |     console.log('[Test 4] Waiting for ReactFlow nodes to render (expected: >= 4)...');\n    at c:\\dev\\Judgify-core\\tests\\e2e\\workflow-generation.spec.ts:338:50"
-                        }
-                      ],
+                      "status": "passed",
+                      "duration": 17892,
+                      "errors": [],
                       "stdout": [
                         {
                           "text": "[BROWSER debug] [vite] connecting...\n"
@@ -550,6 +462,9 @@
                         },
                         {
                           "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
                         },
                         {
                           "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
@@ -564,7 +479,10 @@
                           "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
                         },
                         {
-                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: hybrid, hasLLM: true, hasApiKey: true, description: 고객 만족도가 4.0 미만이고 배송이 3일 이상 지연되었으며 주문 금액이 10만원 이상이면...}\n"
+                          "text": "[BROWSER warning] [Mock API] getAllWorkflows called\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 온도 > 80 이면 경고...}\n"
                         },
                         {
                           "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
@@ -588,7 +506,7 @@
                           "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                          "text": "[Setup] Workflow generated successfully\n"
                         },
                         {
                           "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
@@ -598,46 +516,31 @@
                         },
                         {
                           "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[Test 4] Canvas node animation test passed\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-10T02:51:10.152Z",
+                      "startTime": "2025-11-11T00:26:21.968Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "c:\\dev\\Judgify-core\\test-results\\workflow-generation-Workfl-35c12-rid-모드---LLM-보완-케이스-Mocked--chromium\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "c:\\dev\\Judgify-core\\test-results\\workflow-generation-Workfl-35c12-rid-모드---LLM-보완-케이스-Mocked--chromium\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "c:\\dev\\Judgify-core\\test-results\\workflow-generation-Workfl-35c12-rid-모드---LLM-보완-케이스-Mocked--chromium\\error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "c:\\dev\\Judgify-core\\tests\\e2e\\workflow-generation.spec.ts",
-                        "column": 50,
-                        "line": 338
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 }
               ],
-              "id": "8c7ea8dad2de7b0e131c-24b734d3f25a9b1845c4",
-              "file": "workflow-generation.spec.ts",
-              "line": 233,
+              "id": "281d0ead3137b2f6f8fe-e79f7ee504f058fefbb6",
+              "file": "workflow-simulation.spec.ts",
+              "line": 182,
               "column": 3
             },
             {
-              "title": "5. API 키 없이 Pattern 모드 정상 작동",
+              "title": "5. 전체 워크플로우 시뮬레이션 완료",
               "ok": true,
               "tags": [],
               "tests": [
@@ -652,7 +555,7 @@
                       "workerIndex": 4,
                       "parallelIndex": 4,
                       "status": "passed",
-                      "duration": 2438,
+                      "duration": 30050,
                       "errors": [],
                       "stdout": [
                         {
@@ -663,6 +566,9 @@
                         },
                         {
                           "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
                         },
                         {
                           "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
@@ -677,7 +583,10 @@
                           "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
                         },
                         {
-                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 습도가 70% 이상이면 제습기 가동...}\n"
+                          "text": "[BROWSER warning] [Mock API] getAllWorkflows called\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 온도 > 80 이면 경고...}\n"
                         },
                         {
                           "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
@@ -701,15 +610,54 @@
                           "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
-                          "text": "[Test 5] Waiting for ReactFlow nodes to render (expected: >= 1)...\n"
+                          "text": "[Setup] Workflow generated successfully\n"
                         },
                         {
-                          "text": "[Test 5] ReactFlow nodes detected!\n"
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
+                        },
+                        {
+                          "text": "[Test 5] Full workflow simulation test passed\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-10T02:51:10.163Z",
+                      "startTime": "2025-11-11T00:26:21.986Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -717,216 +665,9 @@
                   "status": "expected"
                 }
               ],
-              "id": "8c7ea8dad2de7b0e131c-8473385d7eb5ce8db346",
-              "file": "workflow-generation.spec.ts",
-              "line": 356,
-              "column": 3
-            },
-            {
-              "title": "6. 잘못된 API 키 에러 처리",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 5,
-                      "parallelIndex": 5,
-                      "status": "passed",
-                      "duration": 2766,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[BROWSER debug] [vite] connecting...\n"
-                        },
-                        {
-                          "text": "[BROWSER debug] [vite] connected.\n"
-                        },
-                        {
-                          "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n"
-                        },
-                        {
-                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
-                        },
-                        {
-                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
-                        },
-                        {
-                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: llm, hasLLM: true, hasApiKey: true, description: 재고가 부족하면 알림...}\n"
-                        },
-                        {
-                          "text": "[BROWSER log] [Claude] Environment: Browser/Test\n"
-                        },
-                        {
-                          "text": "[BROWSER log] [Claude] API key validation: ❌ Intentionally invalid for testing\n"
-                        },
-                        {
-                          "text": "[BROWSER error] [AI Gen] CAUGHT ERROR: {message: Invalid Claude API key. Please check your Settings., stack: LLMProviderError: Invalid Claude API key. Please c…/.vite/deps/chunk-NXESFFTV.js?v=25b5fbcf:7066:15), fullError: LLMProviderError: Invalid Claude API key. Please check your Settings.\n    at ClaudeProvider.generat…}\n"
-                        },
-                        {
-                          "text": "[BROWSER error] Workflow generation error: LLMProviderError: Invalid Claude API key. Please check your Settings.\n    at ClaudeProvider.generateWorkflow (http://localhost:1420/@fs/C:/dev/Judgify-core/src/lib/claude-provider.ts:36:15)\n    at WorkflowGenerator.generateWithLLM (http://localhost:1420/@fs/C:/dev/Judgify-core/src/lib/workflow-generator.ts?t=1762742776674:251:45)\n    at WorkflowGenerator.generate (http://localhost:1420/@fs/C:/dev/Judgify-core/src/lib/workflow-generator.ts?t=1762742776674:31:29)\n    at handleGenerateAIWorkflow (http://localhost:1420/@fs/C:/dev/Judgify-core/src/pages/WorkflowBuilder.tsx?t=1762742979365:339:38)\n    at HTMLUnknownElement.callCallback2 (http://localhost:1420/node_modules/.vite/deps/chunk-NXESFFTV.js?v=25b5fbcf:3680:22)\n    at Object.invokeGuardedCallbackDev (http://localhost:1420/node_modules/.vite/deps/chunk-NXESFFTV.js?v=25b5fbcf:3705:24)\n    at invokeGuardedCallback (http://localhost:1420/node_modules/.vite/deps/chunk-NXESFFTV.js?v=25b5fbcf:3739:39)\n    at invokeGuardedCallbackAndCatchFirstError (http://localhost:1420/node_modules/.vite/deps/chunk-NXESFFTV.js?v=25b5fbcf:3742:33)\n    at executeDispatch (http://localhost:1420/node_modules/.vite/deps/chunk-NXESFFTV.js?v=25b5fbcf:7046:11)\n    at processDispatchQueueItemsInOrder (http://localhost:1420/node_modules/.vite/deps/chunk-NXESFFTV.js?v=25b5fbcf:7066:15)\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-11-10T02:51:10.160Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "8c7ea8dad2de7b0e131c-c33ff30bde1f97e468da",
-              "file": "workflow-generation.spec.ts",
-              "line": 399,
-              "column": 3
-            },
-            {
-              "title": "7. 샘플 시나리오 버튼 동작",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 6,
-                      "parallelIndex": 6,
-                      "status": "passed",
-                      "duration": 2240,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[BROWSER debug] [vite] connecting...\n"
-                        },
-                        {
-                          "text": "[BROWSER debug] [vite] connected.\n"
-                        },
-                        {
-                          "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n"
-                        },
-                        {
-                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
-                        },
-                        {
-                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-11-10T02:51:10.193Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "8c7ea8dad2de7b0e131c-5039e289b4bd7c321da8",
-              "file": "workflow-generation.spec.ts",
-              "line": 445,
-              "column": 3
-            },
-            {
-              "title": "8. 생성 중 상태 표시",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 7,
-                      "parallelIndex": 7,
-                      "status": "passed",
-                      "duration": 2302,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[BROWSER debug] [vite] connecting...\n"
-                        },
-                        {
-                          "text": "[BROWSER debug] [vite] connected.\n"
-                        },
-                        {
-                          "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n"
-                        },
-                        {
-                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
-                        },
-                        {
-                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
-                        },
-                        {
-                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 압력이 100 이상이면 밸브 잠금...}\n"
-                        },
-                        {
-                          "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 3, edgeCount: 2, metadata: Object}\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-action. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-action. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-action. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-action. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-action. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-action. Help: https://reactflow.dev/error#008\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-11-10T02:51:10.149Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "8c7ea8dad2de7b0e131c-9e90987f3dee28243e7b",
-              "file": "workflow-generation.spec.ts",
-              "line": 467,
+              "id": "281d0ead3137b2f6f8fe-09f1b38da04063ff2988",
+              "file": "workflow-simulation.spec.ts",
+              "line": 222,
               "column": 3
             }
           ]
@@ -936,11 +677,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-11-10T02:51:09.460Z",
-    "duration": 13946.659,
-    "expected": 6,
+    "startTime": "2025-11-11T00:26:17.324Z",
+    "duration": 34974.829,
+    "expected": 4,
     "skipped": 0,
-    "unexpected": 2,
+    "unexpected": 1,
     "flaky": 0
   }
 }

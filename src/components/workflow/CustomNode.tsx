@@ -100,6 +100,7 @@ interface CustomNodeData {
   rule?: string; // v1 DECISION 노드의 조건식
   error?: string;
   highlighted?: boolean;
+  simulationStatus?: 'running' | 'success' | 'error' | 'pending'; // 시뮬레이션 상태
 
   // v2 확장 필드
   ruleExpression?: string; // RULE_JUDGMENT 노드의 AST 기반 표현식
@@ -220,6 +221,14 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
     }
   };
 
+  // 시뮬레이션 상태별 스타일
+  const simulationStyles = {
+    running: 'ring-4 ring-blue-400 ring-opacity-70 animate-pulse shadow-[0_0_20px_rgba(59,130,246,0.5)]',
+    success: 'ring-4 ring-green-400 ring-opacity-70 shadow-[0_0_15px_rgba(34,197,94,0.4)]',
+    error: 'ring-4 ring-red-400 ring-opacity-70 shadow-[0_0_15px_rgba(239,68,68,0.4)]',
+    pending: '',
+  };
+
   return (
     <div
       className={cn(
@@ -229,7 +238,8 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
           ? 'shadow-[0_0_0_3px_rgba(59,124,245,0.4),0_0_20px_rgba(59,124,245,0.15)] scale-[1.02]'
           : 'shadow-lg hover:shadow-xl',
         data.error && 'border-red-500 bg-red-50',
-        data.highlighted && 'ring-4 ring-yellow-400 ring-opacity-60 animate-pulse'
+        data.highlighted && 'ring-4 ring-yellow-400 ring-opacity-60 animate-pulse',
+        data.simulationStatus && simulationStyles[data.simulationStatus]
       )}
       style={{ minWidth: '200px' }}
     >

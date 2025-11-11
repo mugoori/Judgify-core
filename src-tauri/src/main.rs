@@ -61,6 +61,7 @@ fn main() {
             // workflow::validate_workflow,
             // workflow::validate_rule_expression,
             workflow::generate_workflow_with_llm,  // Phase 32: LLM workflow generation
+            workflow::simulate_workflow_step,      // Week 5 Task 4: Step-by-step simulation
 
             // System Commands
             system::get_system_status,
