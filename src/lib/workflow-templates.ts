@@ -58,9 +58,9 @@ export const qualityCheckTemplate: WorkflowTemplate = {
     },
   ],
   edges: [
-    { id: 'e1', source: 'input-1', target: 'decision-1', animated: true },
-    { id: 'e2', source: 'decision-1', target: 'action-1', label: '불량' },
-    { id: 'e3', source: 'decision-1', target: 'action-2', label: '정상' },
+    { id: 'e1', source: 'input-1', sourceHandle: 'source', target: 'decision-1', targetHandle: 'target', animated: true },
+    { id: 'e2', source: 'decision-1', sourceHandle: 'true', target: 'action-1', targetHandle: 'target', label: '불량' },
+    { id: 'e3', source: 'decision-1', sourceHandle: 'false', target: 'action-2', targetHandle: 'target', label: '정상' },
   ],
 };
 
@@ -111,10 +111,10 @@ export const apiIntegrationTemplate: WorkflowTemplate = {
     },
   ],
   edges: [
-    { id: 'e1', source: 'input-1', target: 'action-1', animated: true },
-    { id: 'e2', source: 'action-1', target: 'decision-1', animated: true },
-    { id: 'e3', source: 'decision-1', target: 'action-2', label: '성공' },
-    { id: 'e4', source: 'decision-1', target: 'action-3', label: '실패' },
+    { id: 'e1', source: 'input-1', sourceHandle: 'source', target: 'action-1', targetHandle: 'target', animated: true },
+    { id: 'e2', source: 'action-1', sourceHandle: 'source', target: 'decision-1', targetHandle: 'target', animated: true },
+    { id: 'e3', source: 'decision-1', sourceHandle: 'false', target: 'action-2', targetHandle: 'target', label: '성공' },
+    { id: 'e4', source: 'decision-1', sourceHandle: 'false', target: 'action-3', targetHandle: 'target', label: '실패' },
   ],
 };
 
@@ -154,9 +154,9 @@ export const dataTransformTemplate: WorkflowTemplate = {
     },
   ],
   edges: [
-    { id: 'e1', source: 'input-1', target: 'action-1', animated: true },
-    { id: 'e2', source: 'action-1', target: 'action-2', animated: true },
-    { id: 'e3', source: 'action-2', target: 'action-3', animated: true },
+    { id: 'e1', source: 'input-1', sourceHandle: 'source', target: 'action-1', targetHandle: 'target', animated: true },
+    { id: 'e2', source: 'action-1', sourceHandle: 'source', target: 'action-2', targetHandle: 'target', animated: true },
+    { id: 'e3', source: 'action-2', sourceHandle: 'source', target: 'action-3', targetHandle: 'target', animated: true },
   ],
 };
 
@@ -201,9 +201,9 @@ export const emailSendTemplate: WorkflowTemplate = {
     },
   ],
   edges: [
-    { id: 'e1', source: 'input-1', target: 'decision-1', animated: true },
-    { id: 'e2', source: 'decision-1', target: 'action-1', label: '긴급' },
-    { id: 'e3', source: 'decision-1', target: 'action-2', label: '일반' },
+    { id: 'e1', source: 'input-1', sourceHandle: 'source', target: 'decision-1', targetHandle: 'target', animated: true },
+    { id: 'e2', source: 'decision-1', sourceHandle: 'true', target: 'action-1', targetHandle: 'target', label: '긴급' },
+    { id: 'e3', source: 'decision-1', sourceHandle: 'false', target: 'action-2', targetHandle: 'target', label: '일반' },
   ],
 };
 
@@ -248,9 +248,9 @@ export const fileUploadTemplate: WorkflowTemplate = {
     },
   ],
   edges: [
-    { id: 'e1', source: 'input-1', target: 'decision-1', animated: true },
-    { id: 'e2', source: 'decision-1', target: 'action-1', label: '유효' },
-    { id: 'e3', source: 'decision-1', target: 'action-2', label: '무효' },
+    { id: 'e1', source: 'input-1', sourceHandle: 'source', target: 'decision-1', targetHandle: 'target', animated: true },
+    { id: 'e2', source: 'decision-1', sourceHandle: 'true', target: 'action-1', targetHandle: 'target', label: '유효' },
+    { id: 'e3', source: 'decision-1', sourceHandle: 'false', target: 'action-2', targetHandle: 'target', label: '무효' },
   ],
 };
 
@@ -290,9 +290,9 @@ export const schedulingTemplate: WorkflowTemplate = {
     },
   ],
   edges: [
-    { id: 'e1', source: 'input-1', target: 'action-1', animated: true },
-    { id: 'e2', source: 'action-1', target: 'action-2', animated: true },
-    { id: 'e3', source: 'action-2', target: 'action-3', animated: true },
+    { id: 'e1', source: 'input-1', sourceHandle: 'source', target: 'action-1', targetHandle: 'target', animated: true },
+    { id: 'e2', source: 'action-1', sourceHandle: 'source', target: 'action-2', targetHandle: 'target', animated: true },
+    { id: 'e3', source: 'action-2', sourceHandle: 'source', target: 'action-3', targetHandle: 'target', animated: true },
   ],
 };
 
@@ -332,9 +332,9 @@ export const loopProcessingTemplate: WorkflowTemplate = {
     },
   ],
   edges: [
-    { id: 'e1', source: 'input-1', target: 'action-1', animated: true },
-    { id: 'e2', source: 'action-1', target: 'action-2', animated: true },
-    { id: 'e3', source: 'action-2', target: 'action-3', animated: true },
+    { id: 'e1', source: 'input-1', sourceHandle: 'source', target: 'action-1', targetHandle: 'target', animated: true },
+    { id: 'e2', source: 'action-1', sourceHandle: 'source', target: 'action-2', targetHandle: 'target', animated: true },
+    { id: 'e3', source: 'action-2', sourceHandle: 'source', target: 'action-3', targetHandle: 'target', animated: true },
   ],
 };
 
@@ -396,11 +396,11 @@ export const conditionalBranchingTemplate: WorkflowTemplate = {
     },
   ],
   edges: [
-    { id: 'e1', source: 'input-1', target: 'decision-1', animated: true },
-    { id: 'e2', source: 'decision-1', target: 'action-1', label: '> 100' },
-    { id: 'e3', source: 'decision-1', target: 'decision-2', label: '≤ 100' },
-    { id: 'e4', source: 'decision-2', target: 'action-2', label: '> 50' },
-    { id: 'e5', source: 'decision-2', target: 'action-3', label: '≤ 50' },
+    { id: 'e1', source: 'input-1', sourceHandle: 'source', target: 'decision-1', targetHandle: 'target', animated: true },
+    { id: 'e2', source: 'decision-1', sourceHandle: 'true', target: 'action-1', targetHandle: 'target', label: '> 100' },
+    { id: 'e3', source: 'decision-1', sourceHandle: 'false', target: 'decision-2', targetHandle: 'target', label: '≤ 100' },
+    { id: 'e4', source: 'decision-2', sourceHandle: 'true', target: 'action-2', targetHandle: 'target', label: '> 50' },
+    { id: 'e5', source: 'decision-2', sourceHandle: 'false', target: 'action-3', targetHandle: 'target', label: '≤ 50' },
   ],
 };
 
@@ -451,10 +451,10 @@ export const webhookReceiverTemplate: WorkflowTemplate = {
     },
   ],
   edges: [
-    { id: 'e1', source: 'input-1', target: 'action-1', animated: true },
-    { id: 'e2', source: 'action-1', target: 'decision-1', animated: true },
-    { id: 'e3', source: 'decision-1', target: 'action-2', label: '유효' },
-    { id: 'e4', source: 'decision-1', target: 'action-3', label: '무효' },
+    { id: 'e1', source: 'input-1', sourceHandle: 'source', target: 'action-1', targetHandle: 'target', animated: true },
+    { id: 'e2', source: 'action-1', sourceHandle: 'source', target: 'decision-1', targetHandle: 'target', animated: true },
+    { id: 'e3', source: 'decision-1', sourceHandle: 'true', target: 'action-2', targetHandle: 'target', label: '유효' },
+    { id: 'e4', source: 'decision-1', sourceHandle: 'false', target: 'action-3', targetHandle: 'target', label: '무효' },
   ],
 };
 
@@ -510,11 +510,11 @@ export const approvalWorkflowTemplate: WorkflowTemplate = {
     },
   ],
   edges: [
-    { id: 'e1', source: 'input-1', target: 'decision-1', animated: true },
-    { id: 'e2', source: 'decision-1', target: 'decision-2', label: '승인' },
-    { id: 'e3', source: 'decision-1', target: 'action-2', label: '반려' },
-    { id: 'e4', source: 'decision-2', target: 'action-1', label: '승인' },
-    { id: 'e5', source: 'decision-2', target: 'action-2', label: '반려' },
+    { id: 'e1', source: 'input-1', sourceHandle: 'source', target: 'decision-1', targetHandle: 'target', animated: true },
+    { id: 'e2', source: 'decision-1', sourceHandle: 'true', target: 'decision-2', targetHandle: 'target', label: '승인' },
+    { id: 'e3', source: 'decision-1', sourceHandle: 'false', target: 'action-2', targetHandle: 'target', label: '반려' },
+    { id: 'e4', source: 'decision-2', sourceHandle: 'true', target: 'action-1', targetHandle: 'target', label: '승인' },
+    { id: 'e5', source: 'decision-2', sourceHandle: 'false', target: 'action-2', targetHandle: 'target', label: '반려' },
   ],
 };
 
