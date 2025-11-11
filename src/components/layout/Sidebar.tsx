@@ -69,10 +69,10 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
             >
               <img
                 src="/triflow-logo.png"
-                alt="TriFlow Logo"
+                alt="TriFlow AI Logo"
                 className="w-8 h-8 rounded-lg object-contain"
               />
-              <span className="font-bold text-lg">TriFlow</span>
+              <span className="font-bold text-lg">TriFlow AI</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -140,7 +140,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
             transition={{ duration: 0.2 }}
             className="p-4 border-t text-xs text-muted-foreground"
           >
-            <p>TriFlow Desktop v1.0.0</p>
+            <p>TriFlow AI Desktop v1.0.0</p>
             <p className="mt-1">Tauri + Rust + React</p>
           </motion.div>
         )}
