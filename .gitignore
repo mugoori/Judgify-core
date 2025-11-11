@@ -52,6 +52,10 @@ lighthouse/*.html
 # Rust build artifacts (Tauri)
 src-tauri/target/
 
+# Tauri Signing Keys (Private keys, NEVER commit!)
+.tauri-keys/
+*.key
+
 # Chat Service Database (SQLite)
 src-tauri/chat_service.db
 
