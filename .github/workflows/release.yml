@@ -13,7 +13,7 @@ on:
 
 env:
   TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-  TAURI_KEY_PASSWORD: ""
+  TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
 
 permissions:
   contents: write
@@ -99,6 +99,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Clean Rust cache
+        run: |
+          if (Test-Path "src-tauri/target") { Remove-Item -Recurse -Force "src-tauri/target" }
+        shell: powershell
+
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
@@ -111,6 +116,7 @@ jobs:
           releaseBody: 'See the release notes above.'
           releaseDraft: false
           prerelease: false
+          projectPath: .
           args: --target ${{ matrix.rust_target }}
 
   generate-update-manifest:
