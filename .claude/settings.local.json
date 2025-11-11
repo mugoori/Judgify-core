@@ -145,7 +145,8 @@
       "Bash(jq:*)",
       "Bash(cloc:*)",
       "Bash(copy:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(set:*)"
     ],
     "deny": [],
     "additionalDirectories": [

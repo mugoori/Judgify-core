@@ -36,11 +36,17 @@ import {
   SimulationState,
   NodeStatus,
 } from '@/lib/workflow-simulator';
+import { SimulationHistoryButton } from './SimulationHistoryButton';
+import {
+  historyStorage,
+  type SimulationHistory,
+} from '@/lib/simulation-history-storage';
 
 interface SimulationPanelProps {
   nodes: Node[];
   edges: Edge[];
   initialData: Record<string, any>;
+  workflowName?: string;
   onStepChange?: (stepIndex: number, nodeId: string, stepStatus?: string) => void;
   onClose: () => void;
 }
@@ -49,6 +55,7 @@ export function SimulationPanel({
   nodes,
   edges,
   initialData,
+  workflowName = 'Untitled Workflow',
   onStepChange,
   onClose,
 }: SimulationPanelProps) {
@@ -113,6 +120,58 @@ export function SimulationPanel({
     const newState = simulator.reset();
     setState(newState);
   };
+
+  // 히스토리 로드
+  const handleLoadHistory = (history: SimulationHistory) => {
+    // 히스토리의 초기 데이터로 시뮬레이터 재초기화
+    const newSimulator = new TauriWorkflowSimulator(nodes, edges, history.initial_data);
+    setState(newSimulator.getState());
+    setEditableData(JSON.stringify(history.initial_data, null, 2));
+    setIsEditingData(false);
+    setDataEditError(null);
+    console.log('[SimulationPanel] Loaded history:', history.id);
+  };
+
+  // 시뮬레이션 완료시 히스토리 저장
+  useEffect(() => {
+    const saveHistory = async () => {
+      // 시뮬레이션이 완료되었고 (isRunning === false)
+      // 단계가 1개 이상 있을 때만 저장
+      if (!state.isRunning && state.steps.length > 0) {
+        const lastStep = state.steps[state.steps.length - 1];
+
+        // 이미 저장된 히스토리인지 확인 (중복 저장 방지)
+        const sessionKey = `sim_saved_${JSON.stringify(state.globalData)}`;
+        if (sessionStorage.getItem(sessionKey)) {
+          return;
+        }
+
+        // 히스토리 생성 및 저장
+        const history: SimulationHistory = {
+          id: crypto.randomUUID(),
+          workflow_id: `wf-${Date.now()}`,
+          workflow_name: workflowName,
+          timestamp: Date.now(),
+          initial_data: initialData,
+          steps: state.steps,
+          final_state: state,
+          duration_ms: state.steps.reduce((sum, step) => sum + (step.executionTimeMs || 0), 0),
+          status: lastStep.status === 'error' ? 'error' :
+                  state.steps.some(s => s.status === 'error') ? 'partial' : 'success',
+        };
+
+        try {
+          await historyStorage.saveHistory(history);
+          sessionStorage.setItem(sessionKey, 'true');
+          console.log('[SimulationPanel] History saved:', history.id);
+        } catch (error) {
+          console.error('[SimulationPanel] Failed to save history:', error);
+        }
+      }
+    };
+
+    saveHistory();
+  }, [state.isRunning, state.steps, state.globalData, initialData, workflowName]);
 
   // 테스트 데이터 편집 핸들러
   const handleEditData = () => {
@@ -209,9 +268,12 @@ export function SimulationPanel({
               <GripVertical className="w-4 h-4 text-muted-foreground" />
               <CardTitle className="text-lg">시뮬레이션</CardTitle>
             </div>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              닫기
-            </Button>
+            <div className="flex items-center gap-2">
+              <SimulationHistoryButton onLoadHistory={handleLoadHistory} />
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                닫기
+              </Button>
+            </div>
           </div>
         </CardHeader>
 

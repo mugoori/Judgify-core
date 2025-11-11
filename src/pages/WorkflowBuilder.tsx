@@ -1456,6 +1456,8 @@ export default function WorkflowBuilder() {
           edges={edges}
           initialData={simulationInitialData}
           onStepChange={handleSimulationStepChange}
+          workflowName={workflowName}
+          onStepChange={handleSimulationStepChange}
           onClose={() => setShowSimulationPanel(false)}
         />
       )}
