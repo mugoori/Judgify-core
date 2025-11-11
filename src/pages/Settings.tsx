@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { getSystemStatus, getDataDirectory, exportDatabase } from '@/lib/tauri-api-wrapper';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -25,7 +25,10 @@ import {
   Zap,
   DollarSign,
   HelpCircle,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/tauri';
 import { save } from '@tauri-apps/api/dialog';
 import {
   Tooltip,
@@ -41,6 +44,13 @@ interface MCPSettings {
   cache_ttl_minutes: number;
 }
 
+interface UpdateInfo {
+  available: boolean;
+  current_version: string;
+  latest_version?: string;
+  release_notes?: string;
+}
+
 export default function Settings() {
   const [claudeKey, setClaudeKey] = useState('');
   const [mcpSettings, setMcpSettings] = useState<MCPSettings>({
@@ -49,6 +59,7 @@ export default function Settings() {
     daily_token_limit: 100000,
     cache_ttl_minutes: 30,
   });
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
 
   const { data: status } = useQuery({
     queryKey: ['system-status'],
@@ -59,6 +70,34 @@ export default function Settings() {
   const { data: dataDir } = useQuery({
     queryKey: ['data-directory'],
     queryFn: getDataDirectory,
+  });
+
+  // Auto Update - 업데이트 체크
+  const checkUpdateMutation = useMutation({
+    mutationFn: async () => {
+      return await invoke<UpdateInfo>('check_for_updates');
+    },
+    onSuccess: (data) => {
+      setUpdateInfo(data);
+    },
+    onError: (error) => {
+      console.error('업데이트 체크 실패:', error);
+      alert('업데이트 확인 실패: ' + error);
+    },
+  });
+
+  // Auto Update - 업데이트 설치
+  const installUpdateMutation = useMutation({
+    mutationFn: async () => {
+      return await invoke<void>('install_update');
+    },
+    onSuccess: () => {
+      alert('업데이트가 다운로드되었습니다. 앱을 재시작하면 적용됩니다.');
+    },
+    onError: (error) => {
+      console.error('업데이트 설치 실패:', error);
+      alert('업데이트 설치 실패: ' + error);
+    },
   });
 
   useEffect(() => {
@@ -188,6 +227,75 @@ export default function Settings() {
               </span>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Auto Update */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="w-5 h-5" />
+            자동 업데이트
+          </CardTitle>
+          <CardDescription>최신 버전 확인 및 업데이트</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Current Version */}
+          <div className="p-3 rounded-lg bg-muted space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">현재 버전</span>
+              <span className="font-mono font-semibold">{status?.version || 'N/A'}</span>
+            </div>
+            {updateInfo && (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">최신 버전</span>
+                  <span className="font-mono font-semibold">
+                    {updateInfo.latest_version || 'N/A'}
+                  </span>
+                </div>
+                {updateInfo.available && (
+                  <div className="mt-2 p-2 rounded bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="font-medium">새로운 업데이트가 있습니다!</span>
+                    </div>
+                    {updateInfo.release_notes && (
+                      <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                        {updateInfo.release_notes}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Update Actions */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => checkUpdateMutation.mutate()}
+              disabled={checkUpdateMutation.isPending}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${checkUpdateMutation.isPending ? 'animate-spin' : ''}`} />
+              {checkUpdateMutation.isPending ? '확인 중...' : '업데이트 확인'}
+            </Button>
+
+            {updateInfo?.available && (
+              <Button
+                onClick={() => installUpdateMutation.mutate()}
+                disabled={installUpdateMutation.isPending}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {installUpdateMutation.isPending ? '다운로드 중...' : '업데이트 설치'}
+              </Button>
+            )}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            업데이트는 GitHub Releases에서 자동으로 확인됩니다. 설치 후 앱을 재시작하세요.
+          </p>
         </CardContent>
       </Card>
 

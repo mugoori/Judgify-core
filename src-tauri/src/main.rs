@@ -7,6 +7,7 @@ mod engines;
 mod services;
 mod database;
 mod utils;
+mod tray;
 
 use commands::*;
 
@@ -35,6 +36,12 @@ fn main() {
     }
 
     tauri::Builder::default()
+        .system_tray(tray::create_tray())
+        .on_system_tray_event(tray::handle_tray_event)
+        .on_window_event(|event| {
+            // 창 닫기 요청시 트레이로 최소화 (백그라운드 실행)
+            tray::handle_window_close(event.window(), event.event());
+        })
         .invoke_handler(tauri::generate_handler![
             // Judgment Service Commands
             judgment::execute_judgment,
@@ -70,6 +77,11 @@ fn main() {
             system::get_data_directory,
             system::export_database,
             system::get_token_metrics,
+
+            // Update Commands
+            update::check_for_updates,
+            update::install_update,
+            update::get_app_version,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

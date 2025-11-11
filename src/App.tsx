@@ -1,5 +1,5 @@
-import { useState, lazy, Suspense } from 'react'
-import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { useState, lazy, Suspense, useEffect } from 'react'
+import { HashRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './components/theme-provider'
 
@@ -65,6 +65,25 @@ const pageTransition = {
 // Wrapper component to use useLocation hook
 function AnimatedRoutes() {
   const location = useLocation()
+  const navigate = useNavigate()
+
+  // System Tray "설정" 메뉴 클릭 이벤트 리스너
+  useEffect(() => {
+    const listenForTrayEvents = async () => {
+      const { listen } = await import('@tauri-apps/api/event')
+      const unlisten = await listen('navigate-to-settings', () => {
+        navigate('/settings')
+      })
+      return unlisten
+    }
+
+    let unlisten: (() => void) | null = null
+    listenForTrayEvents().then((fn) => { unlisten = fn })
+
+    return () => {
+      if (unlisten) unlisten()
+    }
+  }, [navigate])
 
   return (
     <AnimatePresence mode="wait">
