@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use crate::engines::rule_engine::RuleEngine;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkflowGenerationRequest {
@@ -228,15 +229,17 @@ pub async fn simulate_workflow_step(
 
     // Execute node logic based on type
     let (status, output, error) = match node_type.as_str() {
+        // v1 노드 타입 (기존)
         "data-input" | "input" => {
             // Input node: return initial data
             ("success".to_string(), Some(request.global_data.clone()), None)
         }
         "condition" | "decision" => {
-            // Decision node: evaluate rule
+            // Decision node: evaluate rule using RuleEngine
             let rule = current_node["data"]["rule"].as_str();
             if let Some(rule_expr) = rule {
-                match evaluate_simple_rule(rule_expr, &request.global_data) {
+                let engine = RuleEngine::new();
+                match engine.evaluate(rule_expr, &request.global_data) {
                     Ok(result) => (
                         "success".to_string(),
                         Some(json!({
@@ -297,6 +300,133 @@ pub async fn simulate_workflow_step(
                 None,
             )
         }
+
+        // v2 신규 노드 타입 (Week 6 Task 5)
+        "data_input" => {
+            // Data Input node: v2 enhanced input with source metadata
+            (
+                "success".to_string(),
+                Some(json!({
+                    "data": request.global_data,
+                    "source": "workflow_input",
+                    "timestamp": chrono::Utc::now().to_rfc3339()
+                })),
+                None,
+            )
+        }
+        "rule_judgment" | "rule-judgment" => {
+            // Rule Judgment node: Advanced rule evaluation with RuleEngine
+            let rule = current_node["data"]["rule"].as_str();
+            if let Some(rule_expr) = rule {
+                let engine = RuleEngine::new();
+                match engine.evaluate(rule_expr, &request.global_data) {
+                    Ok(result) => (
+                        "success".to_string(),
+                        Some(json!({
+                            "judgment": result,
+                            "rule": rule_expr,
+                            "method": "rule_engine",
+                            "confidence": 1.0,
+                            "context": request.global_data
+                        })),
+                        None,
+                    ),
+                    Err(e) => ("error".to_string(), None, Some(e)),
+                }
+            } else {
+                ("error".to_string(), None, Some("No rule defined".to_string()))
+            }
+        }
+        "llm_judgment" | "llm-judgment" => {
+            // LLM Judgment node: AI-based judgment (simplified for now)
+            let prompt = current_node["data"]["prompt"]
+                .as_str()
+                .unwrap_or("Evaluate the given data");
+
+            // TODO: Integrate with Claude API (Week 6 Task 5 Phase 3)
+            // For now, return a mock result
+            (
+                "success".to_string(),
+                Some(json!({
+                    "judgment": true,
+                    "prompt": prompt,
+                    "method": "llm_mock",
+                    "confidence": 0.85,
+                    "explanation": "Mock LLM judgment - integration pending",
+                    "context": request.global_data
+                })),
+                None,
+            )
+        }
+        "action_execution" | "action-execution" => {
+            // Action Execution node: Enhanced action with detailed tracking
+            let action = current_node["data"]["action"]
+                .as_str()
+                .unwrap_or("default_action");
+            let params = &current_node["data"]["params"];
+
+            (
+                "success".to_string(),
+                Some(json!({
+                    "action": action,
+                    "params": params,
+                    "executed": true,
+                    "executedAt": chrono::Utc::now().to_rfc3339(),
+                    "result": format!("Action '{}' executed successfully", action)
+                })),
+                None,
+            )
+        }
+        "data_aggregation" | "data-aggregation" => {
+            // Data Aggregation node: Statistical aggregation
+            let field = current_node["data"]["field"]
+                .as_str()
+                .unwrap_or("value");
+            let aggregation_type = current_node["data"]["aggregation_type"]
+                .as_str()
+                .unwrap_or("avg");
+
+            // Extract values from global data
+            let values: Vec<f64> = if let Some(array) = request.global_data.as_array() {
+                array
+                    .iter()
+                    .filter_map(|item| item[field].as_f64())
+                    .collect()
+            } else if let Some(val) = request.global_data[field].as_f64() {
+                vec![val]
+            } else {
+                vec![]
+            };
+
+            if values.is_empty() {
+                (
+                    "error".to_string(),
+                    None,
+                    Some(format!("No numeric values found for field '{}'", field)),
+                )
+            } else {
+                let result = match aggregation_type {
+                    "sum" => values.iter().sum::<f64>(),
+                    "avg" | "mean" => values.iter().sum::<f64>() / values.len() as f64,
+                    "count" => values.len() as f64,
+                    "min" => values.iter().cloned().fold(f64::INFINITY, f64::min),
+                    "max" => values.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
+                    _ => values.iter().sum::<f64>() / values.len() as f64, // default to avg
+                };
+
+                (
+                    "success".to_string(),
+                    Some(json!({
+                        "aggregation_type": aggregation_type,
+                        "field": field,
+                        "result": result,
+                        "count": values.len(),
+                        "values": values
+                    })),
+                    None,
+                )
+            }
+        }
         _ => {
             // Unknown node type
             (
@@ -332,25 +462,7 @@ pub async fn simulate_workflow_step(
     })
 }
 
-/// Simple rule evaluator (unsafe eval - for prototype only!)
-/// Production should use AST-based safe evaluation
-fn evaluate_simple_rule(rule: &str, data: &serde_json::Value) -> Result<bool, String> {
-    // For prototype: simple string-based evaluation
-    // Production: Use AST parser from algorithms/rule_engine.rs
-
-    // Example: "temperature > 80 && vibration < 50"
-    // For now, return a mock result
-    println!("⚠️  [Simulation] Mock rule evaluation: {}", rule);
-
-    // Mock evaluation: check if data has required fields
-    if rule.contains("temperature") && !data["temperature"].is_null() {
-        let temp = data["temperature"].as_f64().unwrap_or(0.0);
-        return Ok(temp > 80.0); // Simple mock logic
-    }
-
-    // Default: return true
-    Ok(true)
-}
+// NOTE: evaluate_simple_rule() 제거됨 - RuleEngine으로 대체됨 (AST 기반 안전한 평가)
 
 #[cfg(test)]
 mod tests {
@@ -403,13 +515,167 @@ mod tests {
     }
 
     #[test]
-    fn test_evaluate_simple_rule() {
+    fn test_rule_engine_integration() {
+        use crate::engines::rule_engine::RuleEngine;
+
+        let engine = RuleEngine::new();
         let data = json!({"temperature": 90});
-        let result = evaluate_simple_rule("temperature > 80", &data).unwrap();
+        let result = engine.evaluate("temperature > 80", &data).unwrap();
         assert_eq!(result, true);
 
         let data2 = json!({"temperature": 70});
-        let result2 = evaluate_simple_rule("temperature > 80", &data2).unwrap();
+        let result2 = engine.evaluate("temperature > 80", &data2).unwrap();
         assert_eq!(result2, false);
+    }
+
+    #[test]
+    fn test_rule_judgment_node() {
+        let request = SimulationStepRequest {
+            workflow_id: "test-workflow".to_string(),
+            nodes: vec![json!({
+                "id": "rule-node-1",
+                "type": "rule_judgment",
+                "data": {
+                    "label": "Rule Judgment Node",
+                    "rule": "temperature > 80 && vibration < 50"
+                }
+            })],
+            edges: vec![],
+            current_node_id: "rule-node-1".to_string(),
+            global_data: json!({"temperature": 90, "vibration": 45}),
+        };
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let result = runtime.block_on(simulate_workflow_step(request)).unwrap();
+
+        assert_eq!(result.status, "success");
+        assert_eq!(result.node_type, "rule_judgment");
+        assert!(result.output.is_some());
+
+        let output = result.output.unwrap();
+        assert_eq!(output["judgment"], true);
+        assert_eq!(output["method"], "rule_engine");
+        assert_eq!(output["confidence"], 1.0);
+    }
+
+    #[test]
+    fn test_data_aggregation_node() {
+        let request = SimulationStepRequest {
+            workflow_id: "test-workflow".to_string(),
+            nodes: vec![json!({
+                "id": "agg-node-1",
+                "type": "data_aggregation",
+                "data": {
+                    "label": "Data Aggregation Node",
+                    "field": "value",
+                    "aggregation_type": "avg"
+                }
+            })],
+            edges: vec![],
+            current_node_id: "agg-node-1".to_string(),
+            global_data: json!([
+                {"value": 10.0},
+                {"value": 20.0},
+                {"value": 30.0}
+            ]),
+        };
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let result = runtime.block_on(simulate_workflow_step(request)).unwrap();
+
+        assert_eq!(result.status, "success");
+        assert_eq!(result.node_type, "data_aggregation");
+        assert!(result.output.is_some());
+
+        let output = result.output.unwrap();
+        assert_eq!(output["result"], 20.0); // (10 + 20 + 30) / 3
+        assert_eq!(output["count"], 3);
+    }
+
+    #[test]
+    fn test_llm_judgment_node() {
+        let request = SimulationStepRequest {
+            workflow_id: "test-workflow".to_string(),
+            nodes: vec![json!({
+                "id": "llm-node-1",
+                "type": "llm_judgment",
+                "data": {
+                    "label": "LLM Judgment Node",
+                    "prompt": "Evaluate if the temperature is dangerous"
+                }
+            })],
+            edges: vec![],
+            current_node_id: "llm-node-1".to_string(),
+            global_data: json!({"temperature": 95}),
+        };
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let result = runtime.block_on(simulate_workflow_step(request)).unwrap();
+
+        assert_eq!(result.status, "success");
+        assert_eq!(result.node_type, "llm_judgment");
+        assert!(result.output.is_some());
+
+        let output = result.output.unwrap();
+        assert_eq!(output["method"], "llm_mock"); // Mock implementation
+        assert!(output["confidence"].as_f64().unwrap() > 0.0);
+    }
+
+    #[test]
+    fn test_action_execution_node() {
+        let request = SimulationStepRequest {
+            workflow_id: "test-workflow".to_string(),
+            nodes: vec![json!({
+                "id": "action-node-1",
+                "type": "action_execution",
+                "data": {
+                    "label": "Action Execution Node",
+                    "action": "send_alert",
+                    "params": {"recipient": "admin@example.com"}
+                }
+            })],
+            edges: vec![],
+            current_node_id: "action-node-1".to_string(),
+            global_data: json!({"temperature": 100}),
+        };
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let result = runtime.block_on(simulate_workflow_step(request)).unwrap();
+
+        assert_eq!(result.status, "success");
+        assert_eq!(result.node_type, "action_execution");
+        assert!(result.output.is_some());
+
+        let output = result.output.unwrap();
+        assert_eq!(output["action"], "send_alert");
+        assert_eq!(output["executed"], true);
+    }
+
+    #[test]
+    fn test_data_input_node() {
+        let request = SimulationStepRequest {
+            workflow_id: "test-workflow".to_string(),
+            nodes: vec![json!({
+                "id": "data-input-node-1",
+                "type": "data_input",
+                "data": {
+                    "label": "Data Input Node"
+                }
+            })],
+            edges: vec![],
+            current_node_id: "data-input-node-1".to_string(),
+            global_data: json!({"sensor_id": "S001", "value": 42}),
+        };
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let result = runtime.block_on(simulate_workflow_step(request)).unwrap();
+
+        assert_eq!(result.status, "success");
+        assert_eq!(result.node_type, "data_input");
+        assert!(result.output.is_some());
+
+        let output = result.output.unwrap();
+        assert_eq!(output["source"], "workflow_input");
+        assert!(output["timestamp"].is_string());
     }
 }

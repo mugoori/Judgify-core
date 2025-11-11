@@ -3,6 +3,7 @@
 
 mod algorithms;
 mod commands;
+mod engines;
 mod services;
 mod database;
 mod utils;
