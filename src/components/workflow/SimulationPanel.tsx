@@ -31,8 +31,8 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { TauriWorkflowSimulator } from '@/lib/workflow-simulator-tauri';
 import {
-  WorkflowSimulator,
   SimulationState,
   NodeStatus,
 } from '@/lib/workflow-simulator';
@@ -52,7 +52,7 @@ export function SimulationPanel({
   onStepChange,
   onClose,
 }: SimulationPanelProps) {
-  const [simulator] = useState(() => new WorkflowSimulator(nodes, edges, initialData));
+  const [simulator] = useState(() => new TauriWorkflowSimulator(nodes, edges, initialData));
   const [state, setState] = useState<SimulationState>(simulator.getState());
   const [autoPlay, setAutoPlay] = useState(false);
 
@@ -124,7 +124,7 @@ export function SimulationPanel({
     try {
       const parsedData = JSON.parse(editableData);
       // 새로운 데이터로 시뮬레이터 재초기화
-      const newSimulator = new WorkflowSimulator(nodes, edges, parsedData);
+      const newSimulator = new TauriWorkflowSimulator(nodes, edges, parsedData);
       setState(newSimulator.getState());
       setIsEditingData(false);
       setDataEditError(null);

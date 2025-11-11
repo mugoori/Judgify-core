@@ -272,7 +272,12 @@ export default function WorkflowBuilder() {
     setWorkflowName('새 워크플로우');
     setRuleExpression('');
     setNodes(initialNodes);
-    setEdges(initialEdges);
+
+    // Edge 추가를 다음 렌더 사이클로 지연 (Node Handle 렌더링 완료 보장)
+    requestAnimationFrame(() => {
+      setEdges(initialEdges);
+    });
+
     setExecutionResult(null);
   }, [setNodes, setEdges]);
 
@@ -419,7 +424,7 @@ export default function WorkflowBuilder() {
         type: 'custom',
         data: {
           label: node.label,
-          ...(node.config || {}),  // API response config를 data로 변환
+          ...(node.data || node.config || {}),  // WorkflowGenerator는 node.data 사용
         },
         position: node.position || { x: 100 + index * 250, y: 100 },
         draggable: true,
@@ -436,7 +441,11 @@ export default function WorkflowBuilder() {
       // 워크플로우 적용
       setWorkflowName(result.name);
       setNodes(flowNodes);
-      setEdges(result.edges);
+
+      // Edge 추가를 다음 렌더 사이클로 지연 (Node Handle 렌더링 완료 보장)
+      requestAnimationFrame(() => {
+        setEdges(result.edges);
+      });
 
       // 패널 닫고 초기화
       setShowAIPanel(false);
@@ -642,7 +651,11 @@ export default function WorkflowBuilder() {
     // Apply template to canvas
     setWorkflowName(template.name);
     setNodes(templateNodes);
-    setEdges(templateEdges);
+
+    // Edge 추가를 다음 렌더 사이클로 지연 (Node Handle 렌더링 완료 보장)
+    requestAnimationFrame(() => {
+      setEdges(templateEdges);
+    });
 
     // Close gallery
     setShowTemplateGallery(false);

@@ -125,7 +125,7 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
   // 입력 핸들 표시 여부 (INPUT, DATA_INPUT 제외)
   const showInputHandle = ![NodeType.INPUT, NodeType.DATA_INPUT].includes(nodeType);
 
-  // 출력 핸들 표시 여부 (OUTPUT 제외)
+  // 출력 핸들 표시 여부 (모든 노드는 OUTPUT으로 연결 가능해야 함)
   const showOutputHandle = nodeType !== NodeType.OUTPUT;
 
   // 분기 핸들 표시 여부 (DECISION, RULE_JUDGMENT, LLM_JUDGMENT)
@@ -260,6 +260,7 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
           type="target"
           position={Position.Top}
           id="target"
+          isConnectable={true}
           className="w-3 h-3 border-2 border-white bg-primary"
         />
       )}
@@ -296,6 +297,7 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
           type="source"
           position={Position.Bottom}
           id="source"
+          isConnectable={true}
           className="w-3 h-3 border-2 border-white bg-primary"
         />
       )}
@@ -307,6 +309,7 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
             type="source"
             position={Position.Right}
             id="true"
+            isConnectable={true}
             className="w-3 h-3 border-2 border-white bg-green-500"
             style={{ top: '50%' }}
           />
@@ -314,6 +317,7 @@ const CustomNode = React.memo(({ data, selected }: NodeProps<CustomNodeData>) =>
             type="source"
             position={Position.Left}
             id="false"
+            isConnectable={true}
             className="w-3 h-3 border-2 border-white bg-red-500"
             style={{ top: '50%' }}
           />

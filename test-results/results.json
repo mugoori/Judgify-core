@@ -99,7 +99,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 20008,
+                      "duration": 20798,
                       "error": {
                         "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).not.\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('heading', { name: '시뮬레이션' })\nExpected: not visible\nReceived: visible\nTimeout:  3000ms\n\nCall log:\n\u001b[2m  - Expect \"not toBeVisible\" with timeout 3000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('heading', { name: '시뮬레이션' })\u001b[22m\n\u001b[2m    7 × locator resolved to <h3 class=\"font-semibold tracking-tight text-lg\">시뮬레이션</h3>\u001b[22m\n\u001b[2m      - unexpected value \"visible\"\u001b[22m\n",
                         "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).not.\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('heading', { name: '시뮬레이션' })\nExpected: not visible\nReceived: visible\nTimeout:  3000ms\n\nCall log:\n\u001b[2m  - Expect \"not toBeVisible\" with timeout 3000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('heading', { name: '시뮬레이션' })\u001b[22m\n\u001b[2m    7 × locator resolved to <h3 class=\"font-semibold tracking-tight text-lg\">시뮬레이션</h3>\u001b[22m\n\u001b[2m      - unexpected value \"visible\"\u001b[22m\n\n    at C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts:86:68",
@@ -155,42 +155,12 @@
                           "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
                           "text": "[Setup] Workflow generated successfully\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-11T00:26:21.971Z",
+                      "startTime": "2025-11-11T01:52:09.092Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -240,7 +210,7 @@
                       "workerIndex": 1,
                       "parallelIndex": 1,
                       "status": "passed",
-                      "duration": 17892,
+                      "duration": 18689,
                       "errors": [],
                       "stdout": [
                         {
@@ -277,37 +247,7 @@
                           "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
                           "text": "[Setup] Workflow generated successfully\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
                           "text": "[Test 2] Current test data: {\n  \"temperature\": 95,\n  \"vibration\": 45,\n  \"status\": \"normal\",\n  \"count\": 10,\n  \"pressure\": 100\n}\n"
@@ -318,7 +258,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-11T00:26:21.971Z",
+                      "startTime": "2025-11-11T01:52:09.096Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -347,7 +287,7 @@
                       "workerIndex": 2,
                       "parallelIndex": 2,
                       "status": "passed",
-                      "duration": 19125,
+                      "duration": 19802,
                       "errors": [],
                       "stdout": [
                         {
@@ -384,37 +324,7 @@
                           "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
                           "text": "[Setup] Workflow generated successfully\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
                           "text": "[Test 3] Step-by-step execution test passed\n"
@@ -422,7 +332,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-11T00:26:21.970Z",
+                      "startTime": "2025-11-11T01:52:09.104Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -451,7 +361,7 @@
                       "workerIndex": 3,
                       "parallelIndex": 3,
                       "status": "passed",
-                      "duration": 17892,
+                      "duration": 18683,
                       "errors": [],
                       "stdout": [
                         {
@@ -488,37 +398,7 @@
                           "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
                           "text": "[Setup] Workflow generated successfully\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
                           "text": "[Test 4] Canvas node animation test passed\n"
@@ -526,7 +406,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-11T00:26:21.968Z",
+                      "startTime": "2025-11-11T01:52:09.100Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -541,7 +421,7 @@
             },
             {
               "title": "5. 전체 워크플로우 시뮬레이션 완료",
-              "ok": true,
+              "ok": false,
               "tags": [],
               "tests": [
                 {
@@ -554,9 +434,25 @@
                     {
                       "workerIndex": 4,
                       "parallelIndex": 4,
-                      "status": "passed",
-                      "duration": 30050,
-                      "errors": [],
+                      "status": "timedOut",
+                      "duration": 30140,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts",
+                            "column": 16,
+                            "line": 244
+                          },
+                          "message": "Error: page.waitForTimeout: Test timeout of 30000ms exceeded.\n\n  242 |     // Wait for auto-execution to complete (1.5s per step)\n  243 |     // Pattern workflow typically has 3-5 nodes\n> 244 |     await page.waitForTimeout(8000);\n      |                ^\n  245 |\n  246 |     // Verify execution history shows multiple steps\n  247 |     await expect(page.locator('text=실행 이력')).toBeVisible();\n    at C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts:244:16"
+                        }
+                      ],
                       "stdout": [
                         {
                           "text": "[BROWSER debug] [vite] connecting...\n"
@@ -592,77 +488,39 @@
                           "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
                           "text": "[Setup] Workflow generated successfully\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
                         },
                         {
                           "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
                         },
                         {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[BROWSER warning] [React Flow]: Couldn't create edge for target handle id: \"target\", edge id: e-input-decision. Help: https://reactflow.dev/error#008\n"
-                        },
-                        {
-                          "text": "[Test 5] Full workflow simulation test passed\n"
+                          "text": "[BROWSER error] Rule 평가 실패: ReferenceError: 온도 is not defined\n    at eval (eval at evaluateSimpleRule (http://localhost:1420/src/lib/workflow-simulator.ts:215:14), <anonymous>:1:1)\n    at WorkflowSimulator.evaluateSimpleRule (http://localhost:1420/src/lib/workflow-simulator.ts:215:14)\n    at WorkflowSimulator.executeDecisionNode (http://localhost:1420/src/lib/workflow-simulator.ts:171:25)\n    at WorkflowSimulator.executeNode (http://localhost:1420/src/lib/workflow-simulator.ts:114:22)\n    at WorkflowSimulator.stepForward (http://localhost:1420/src/lib/workflow-simulator.ts:41:20)\n    at http://localhost:1420/src/components/workflow/SimulationPanel.tsx:61:40\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-11T00:26:21.986Z",
+                      "startTime": "2025-11-11T01:52:09.089Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workfl-76e5d-ion-E2E-5-전체-워크플로우-시뮬레이션-완료-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workfl-76e5d-ion-E2E-5-전체-워크플로우-시뮬레이션-완료-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workfl-76e5d-ion-E2E-5-전체-워크플로우-시뮬레이션-완료-chromium\\error-context.md"
+                        }
+                      ]
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "281d0ead3137b2f6f8fe-09f1b38da04063ff2988",
@@ -677,11 +535,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-11-11T00:26:17.324Z",
-    "duration": 34974.829,
-    "expected": 4,
+    "startTime": "2025-11-11T01:52:04.498Z",
+    "duration": 34996.388999999996,
+    "expected": 3,
     "skipped": 0,
-    "unexpected": 1,
+    "unexpected": 2,
     "flaky": 0
   }
 }

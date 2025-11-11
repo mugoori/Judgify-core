@@ -195,7 +195,7 @@
               - generic [ref=e272]:
                 - img [ref=e273]
                 - heading "시뮬레이션" [level=3] [ref=e280]
-              - button "닫기" [active] [ref=e281] [cursor=pointer]
+              - button "닫기" [ref=e281] [cursor=pointer]
             - generic [ref=e282]:
               - generic [ref=e283]:
                 - generic [ref=e285]:
@@ -205,32 +205,53 @@
                     - text: 편집
                 - generic [ref=e291]: "{ \"temperature\": 95, \"vibration\": 45, \"status\": \"normal\", \"count\": 10, \"pressure\": 100 }"
               - generic [ref=e292]:
-                - button "시작" [ref=e293] [cursor=pointer]:
+                - button "일시정지" [active] [ref=e293] [cursor=pointer]:
                   - img [ref=e294]
-                  - text: 시작
-                - button [disabled]:
-                  - img
-                - button [disabled]:
-                  - img
-                - button [ref=e296] [cursor=pointer]:
-                  - img [ref=e297]
-              - generic [ref=e301]: "단계: 0 / 0"
-              - generic [ref=e302]:
-                - paragraph [ref=e303]: 실행 이력
-                - paragraph [ref=e308]: 시뮬레이션을 시작하세요
-              - generic [ref=e309]:
-                - paragraph [ref=e310]: 전역 데이터
-                - generic [ref=e311]: "{ \"temperature\": 95, \"vibration\": 45, \"status\": \"normal\", \"count\": 10, \"pressure\": 100 }"
+                  - text: 일시정지
+                - button [ref=e297] [cursor=pointer]:
+                  - img [ref=e298]
+                - button [ref=e300] [cursor=pointer]:
+                  - img [ref=e301]
+                - button [ref=e303] [cursor=pointer]:
+                  - img [ref=e304]
+              - generic [ref=e307]:
+                - generic [ref=e308]: "단계: 2 / 2"
+                - generic [ref=e309]: 0ms
+              - generic [ref=e310]:
+                - generic [ref=e311]:
+                  - generic [ref=e312]:
+                    - generic [ref=e313]:
+                      - img [ref=e314]
+                      - generic [ref=e317]: 판단 로직
+                    - generic [ref=e318]: 성공
+                  - paragraph [ref=e319]: decision 노드
+                - generic [ref=e320]:
+                  - generic [ref=e321]:
+                    - paragraph [ref=e322]: "입력:"
+                    - generic [ref=e323]: "{ \"temperature\": 95, \"vibration\": 45, \"status\": \"normal\", \"count\": 10, \"pressure\": 100 }"
+                  - generic [ref=e324]:
+                    - paragraph [ref=e325]: "출력:"
+                    - generic [ref=e326]: "{ \"decision\": false, \"rule\": \"온도 > 80\", \"context\": { \"temperature\": 95, \"vibration\": 45, \"status\": \"normal\", \"count\": 10, \"pressure\": 100 } }"
+              - generic [ref=e327]:
+                - paragraph [ref=e328]: 실행 이력
+                - generic [ref=e332]:
+                  - generic [ref=e333] [cursor=pointer]:
+                    - generic [ref=e334]:
+                      - generic [ref=e335]:
+                        - img [ref=e336]
+                        - generic [ref=e339]: 데이터 입력
+                      - text: "0"
+                    - paragraph [ref=e340]: input
+                  - generic [ref=e341] [cursor=pointer]:
+                    - generic [ref=e342]:
+                      - generic [ref=e343]:
+                        - img [ref=e344]
+                        - generic [ref=e347]: 판단 로직
+                      - text: "0"
+                    - paragraph [ref=e348]: decision
+              - generic [ref=e349]:
+                - paragraph [ref=e350]: 전역 데이터
+                - generic [ref=e351]: "{ \"temperature\": 95, \"vibration\": 45, \"status\": \"normal\", \"count\": 10, \"pressure\": 100, \"lastDecision\": false }"
   - region "Notifications (F8)":
-    - list [ref=e321]:
-      - listitem [ref=e322]:
-        - generic [ref=e323]:
-          - generic [ref=e324]: ✨ 워크플로우 생성 완료
-          - generic [ref=e326]:
-            - paragraph [ref=e327]: "• 이름: 온도 모니터링"
-            - paragraph [ref=e328]: "• 모드: pattern"
-            - paragraph [ref=e329]: "• LLM 사용: 아니오"
-            - paragraph [ref=e330]: "• 생성 시간: 9ms"
-        - button [ref=e331] [cursor=pointer]:
-          - img [ref=e332]
+    - list
 ```
