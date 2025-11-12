@@ -121,7 +121,7 @@ jobs:
           args: --target ${{ matrix.rust_target }}
 
   generate-update-manifest:
-    needs: build-tauri
+    needs: [create-release, build-tauri]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
