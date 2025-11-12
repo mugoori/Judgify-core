@@ -9,6 +9,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[bin]]
+name = "triflow-ai"
+path = "src/main.rs"
+
 [lib]
 name = "judgify_desktop"
 path = "src/lib.rs"
