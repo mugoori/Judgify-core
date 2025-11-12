@@ -148,8 +148,8 @@ jobs:
             });
 
             const assets = release.assets;
-            const msiAsset = assets.find(a => a.name.endsWith('.msi'));
-            const sigAsset = assets.find(a => a.name.endsWith('.msi.sig'));
+            const msiAsset = assets.find(a => a.name.endsWith('.msi.zip'));
+            const sigAsset = assets.find(a => a.name.endsWith('.msi.zip.sig'));
 
             if (!msiAsset || !sigAsset) {
               core.setFailed('MSI or signature file not found');
