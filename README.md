@@ -1,4 +1,4 @@
-# Judgify-core Ver2.0 Final 🚀
+# TriFlow AI
 
 [![Test & Coverage](https://github.com/mugoori/Judgify-core/actions/workflows/test.yml/badge.svg)](https://github.com/mugoori/Judgify-core/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/mugoori/Judgify-core/branch/main/graph/badge.svg)](https://codecov.io/gh/mugoori/Judgify-core)
