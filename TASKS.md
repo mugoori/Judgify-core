@@ -1,7 +1,7 @@
 # Judgify-core 작업 진행 현황 (TASKS.md)
 
 **생성일**: 2025-11-04
-**최종 업데이트**: 2025-11-11
+**최종 업데이트**: 2025-11-13
 **관리 원칙**: 모든 `/init` 작업 시작 전 이 문서를 먼저 확인 및 업데이트
 
 ---
@@ -11,6 +11,7 @@
 | 구분 | 진행률 | 상태 | 최근 업데이트 |
 |------|-------|------|--------------|
 | **Desktop App (Phase 0)** | 71.7% | 🟢 완료 | 2025-11-04 |
+| **API 키 테스트 (Phase 0.5)** | 100% (2/2) | ✅ 완료 | 2025-11-13 |
 | **Performance Engineer (Phase 1)** | 100% (8/8) | ✅ 완료 | 2025-11-04 |
 | **Test Automation (Phase 2)** | 100% (8/8) | ✅ 완료 | 2025-11-06 |
 | **Week 5: Visual Workflow Builder** | 100% (8/8) | ✅ 완료 | 2025-11-11 |
@@ -62,6 +63,81 @@ SQLite 백업 (영구 저장)
 - [CLAUDE.md Section 17](CLAUDE.md#17-desktop-app-실전-구현-현황) (구 버전, 이제 TASKS.md로 통합)
 - [cache_service.rs](src-tauri/src/services/cache_service.rs)
 - [ChatInterface.tsx](src/pages/ChatInterface.tsx)
+
+---
+
+## 🔑 Phase 0.5: API 키 테스트 기능 (2025-11-13)
+
+**목표**: Claude API 키 유효성 즉시 테스트 기능 추가 + 에러 메시지 수정
+**진행률**: 100% (2/2 작업 완료)
+**완료일**: 2025-11-13
+
+### ✅ Task 0.5.1: Claude API 키 테스트 기능 구현
+
+**설명**: Settings 페이지에서 Claude API 키 유효성을 즉시 테스트할 수 있는 기능 추가
+
+**구현 내용**:
+1. **Rust 백엔드**: `test_claude_api()` 명령 추가
+   - ChatService 활용하여 간단한 의도 분석 테스트 실행
+   - 성공시: "Claude API 키가 올바르게 설정되었습니다." 반환
+   - 실패시: "Claude API 키가 유효하지 않습니다: {error}" 반환
+
+2. **TypeScript API**: Tauri IPC를 통한 함수 노출
+   - `testClaudeApi()` 함수 추가
+   - 타입 안전성 보장 (Promise<string>)
+
+3. **Settings UI**: React Query Mutation 기반 테스트 버튼
+   - Key 아이콘 포함 버튼 (테스트 중 애니메이션)
+   - 성공/실패시 즉시 alert 표시
+   - Claude 설정 미완료시 버튼 비활성화
+
+**파일 변경**:
+- [src-tauri/src/commands/chat.rs](src-tauri/src/commands/chat.rs) (285-306줄)
+  ```rust
+  #[tauri::command]
+  pub async fn test_claude_api() -> Result<String, String>
+  ```
+- [src-tauri/src/main.rs](src-tauri/src/main.rs) (62줄)
+  ```rust
+  chat::test_claude_api,
+  ```
+- [src/lib/tauri-api.ts](src/lib/tauri-api.ts) (79-80줄)
+  ```typescript
+  export async function testClaudeApi(): Promise<string>
+  ```
+- [src/lib/tauri-api-wrapper.ts](src/lib/tauri-api-wrapper.ts) (76줄)
+  ```typescript
+  export { testClaudeApi }
+  ```
+- [src/pages/Settings.tsx](src/pages/Settings.tsx)
+  - 103-114줄: useMutation 훅 정의
+  - 345-352줄: UI 버튼 컴포넌트
+
+**성능**: 즉각 응답 (< 1초, Claude API 네트워크 속도 의존)
+
+**Git Commit**: (추가 예정)
+
+### ✅ Task 0.5.2: 에러 메시지 수정 (OpenAI → Claude)
+
+**설명**: 잘못 표시되던 "OpenAI API" 메시지를 정확한 "Claude API"로 수정
+
+**수정 내용**:
+1. **Rust 테스트 코드**: chat_service.rs의 4개 test assertion
+   - Line 1021: `assert!(result.contains("Claude API"))` (OpenAI → Claude)
+   - Line 1105: `assert!(result.contains("Claude API"))` (OpenAI → Claude)
+   - Line 1176: `assert!(result.contains("Claude API"))` (OpenAI → Claude)
+   - Line 1207: `assert!(result.contains("Claude API"))` (OpenAI → Claude)
+
+2. **Frontend 에러 메시지**: ChatInterface.tsx
+   - Line 340: `alert('❌ Claude API 호출 실패...')` (OpenAI → Claude)
+
+**파일 변경**:
+- [src-tauri/src/services/chat_service.rs](src-tauri/src/services/chat_service.rs) (1021, 1105, 1176, 1207줄)
+- [src/pages/ChatInterface.tsx](src/pages/ChatInterface.tsx) (340줄)
+
+**효과**: 사용자 혼란 방지, 정확한 에러 진단 가능
+
+**Git Commit**: (추가 예정)
 
 ---
 

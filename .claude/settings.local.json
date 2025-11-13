@@ -146,7 +146,13 @@
       "Bash(cloc:*)",
       "Bash(copy:*)",
       "Bash(xargs:*)",
-      "Bash(set:*)"
+      "Bash(set:*)",
+      "Bash(gh repo edit:*)",
+      "Bash($env:PYTHONIOENCODING=\"utf-8\")",
+      "Bash(if [ -f .env ])",
+      "Bash(then grep \"ANTHROPIC_API_KEY\" .env)",
+      "Bash(else echo \".env 파일 없음\")",
+      "Bash(then echo \"ANTHROPIC_API_KEY 길이:\")"
     ],
     "deny": [],
     "additionalDirectories": [

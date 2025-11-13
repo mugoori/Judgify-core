@@ -281,3 +281,26 @@ pub async fn get_chat_history(session_id: String) -> Result<Vec<ChatMessage>, St
         })
         .collect())
 }
+
+/// Claude API 키 유효성 테스트
+#[tauri::command]
+pub async fn test_claude_api() -> Result<String, String> {
+    println!("🔑 [IPC] test_claude_api called!");
+    let service = ChatService::new().map_err(|e| e.to_string())?;
+
+    // 간단한 메시지로 API 테스트
+    let result = service
+        .analyze_intent("안녕하세요")
+        .await;
+
+    match result {
+        Ok(_) => {
+            println!("✅ Claude API 테스트 성공!");
+            Ok("Claude API 키가 올바르게 설정되었습니다.".to_string())
+        }
+        Err(e) => {
+            println!("❌ Claude API 테스트 실패: {}", e);
+            Err(format!("Claude API 키가 유효하지 않습니다: {}", e))
+        }
+    }
+}

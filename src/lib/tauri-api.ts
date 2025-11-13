@@ -76,6 +76,9 @@ export const sendChatMessage = (request: ChatMessageRequest): Promise<ChatMessag
 export const getChatHistory = (sessionId: string): Promise<any[]> =>
   invoke('get_chat_history', { sessionId });
 
+export const testClaudeApi = (): Promise<string> =>
+  invoke('test_claude_api');
+
 // Workflow API
 export interface CreateWorkflowRequest {
   name: string;

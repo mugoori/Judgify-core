@@ -59,6 +59,7 @@ fn main() {
             // Chat Service Commands
             chat::send_chat_message,
             chat::get_chat_history,
+            chat::test_claude_api,
 
             // Workflow Service Commands
             // workflow::create_workflow,

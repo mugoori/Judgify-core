@@ -1018,7 +1018,7 @@ mod tests {
             }
             Err(e) => {
                 println!("⚠️ Expected error in test environment: {}", e);
-                assert!(e.to_string().contains("OpenAI") || e.to_string().contains("API"));
+                assert!(e.to_string().contains("Claude") || e.to_string().contains("API"));
             }
         }
     }
@@ -1102,7 +1102,7 @@ mod tests {
                 println!("⚠️ BI routing 테스트 실패 (예상됨): {}", e);
                 // API 키가 없거나 데이터베이스가 없는 경우 실패 예상
                 assert!(
-                    e.to_string().contains("OpenAI") ||
+                    e.to_string().contains("Claude") ||
                     e.to_string().contains("database") ||
                     e.to_string().contains("API")
                 );
@@ -1173,7 +1173,7 @@ mod tests {
             }
             Err(e) => {
                 println!("⚠️ Judgment params extraction 테스트 실패: {}", e);
-                assert!(e.to_string().contains("OpenAI") || e.to_string().contains("API"));
+                assert!(e.to_string().contains("Claude") || e.to_string().contains("API"));
             }
         }
     }
@@ -1204,7 +1204,7 @@ mod tests {
             }
             Err(e) => {
                 println!("⚠️ Workflow params extraction 테스트 실패: {}", e);
-                assert!(e.to_string().contains("OpenAI") || e.to_string().contains("API"));
+                assert!(e.to_string().contains("Claude") || e.to_string().contains("API"));
             }
         }
     }

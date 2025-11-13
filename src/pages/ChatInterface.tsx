@@ -337,7 +337,7 @@ export default function ChatInterface() {
         ...prev,
         {
           role: 'assistant',
-          content: `❌ 오류가 발생했습니다: ${error.message}\n\n설정 페이지에서 OpenAI API 키가 올바르게 설정되었는지 확인해주세요.`,
+          content: `❌ 오류가 발생했습니다: ${error.message}\n\n설정 페이지에서 Claude API 키가 올바르게 설정되었는지 확인해주세요.`,
         },
       ]);
     },
