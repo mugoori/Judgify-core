@@ -7,7 +7,7 @@
     "withGlobalTauri": false
   },
   "package": {
-    "productName": "TriFlow AI",
+    "productName": "TriFlow-AI",
     "version": "0.1.8"
   },
   "tauri": {
@@ -60,7 +60,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "TriFlow AI Platform",
+        "title": "TriFlow-AI Platform",
         "width": 1400,
         "height": 900,
         "minWidth": 1200,
@@ -71,7 +71,7 @@
       "iconPath": "icons/tray-icon.png",
       "iconAsTemplate": true,
       "menuOnLeftClick": false,
-      "title": "TriFlow AI"
+      "title": "TriFlow-AI"
     }
   }
 }
