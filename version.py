@@ -5,10 +5,10 @@ Judgify-core 버전 관리 (Single Source of Truth)
 버전 변경시 이 파일만 수정하고, scripts/bump_version.py를 실행하세요.
 """
 
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 __stage__ = "beta"  # alpha → beta → rc → stable
 __release_date__ = "2025-11-13"
-__description__ = "Auto-Update 완전 수정 (현대적 GitHub Actions)"
+__description__ = "서명 파일 다운로드 수정 (fetch API 사용)"
 
 # 9개 마이크로서비스 구현 상태 추적
 MICROSERVICES_STATUS = {
