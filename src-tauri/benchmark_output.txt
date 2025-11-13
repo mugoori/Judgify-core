@@ -1,0 +1,701 @@
+   Compiling judgify-desktop v0.1.0 (C:\dev\Judgify-core\src-tauri)
+warning: unused import: `black_box`
+ --> benches\training_sample_benchmark.rs:7:17
+  |
+7 | use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+  |                 ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `json`
+ --> src\algorithms\llm_pattern_discoverer.rs:6:18
+  |
+6 | use serde_json::{json, Value};
+  |                  ^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `chrono::Utc`
+ --> src\services\bi_service.rs:7:5
+  |
+7 | use chrono::Utc;
+  |     ^^^^^^^^^^^
+
+warning: unused variable: `time_range`
+   --> src\services\bi_service.rs:289:66
+    |
+289 |     fn get_judgment_executions(&self, workflow_id: Option<&str>, time_range: Option<&str>) -> anyhow::Result<Vec<JudgmentExecution>> {
+    |                                                                  ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_time_range`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `analysis`
+   --> src\services\bi_service.rs:909:34
+    |
+909 |     fn find_similar_cases(&self, analysis: &RequestAnalysis, limit: usize) -> anyhow::Result<Vec<SimilarCase>> {
+    |                                  ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_analysis`
+
+warning: fields `judgment_result` and `judgment_id` are never read
+  --> src\algorithms\mod.rs:44:9
+   |
+36 | pub struct FeedbackData {
+   |            ------------ fields in this struct
+...
+44 |     pub judgment_result: bool,
+   |         ^^^^^^^^^^^^^^^
+...
+47 |     pub judgment_id: String,
+   |         ^^^^^^^^^^^
+   |
+   = note: `FeedbackData` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: struct `AlgorithmResult` is never constructed
+  --> src\algorithms\mod.rs:52:12
+   |
+52 | pub struct AlgorithmResult {
+   |            ^^^^^^^^^^^^^^^
+
+warning: methods `is_confident` and `support_ratio` are never used
+  --> src\algorithms\mod.rs:72:12
+   |
+58 | impl ExtractedRule {
+   | ------------------ methods in this implementation
+...
+72 |     pub fn is_confident(&self, threshold: f64) -> bool {
+   |            ^^^^^^^^^^^^
+...
+77 |     pub fn support_ratio(&self) -> f64 {
+   |            ^^^^^^^^^^^^^
+
+warning: method `combine_conditions` is never used
+   --> src\algorithms\frequency_analyzer.rs:142:12
+    |
+ 28 | impl FrequencyAnalyzer {
+    | ---------------------- method in this implementation
+...
+142 |     pub fn combine_conditions(&self, conditions: Vec<String>) -> String {
+    |            ^^^^^^^^^^^^^^^^^^
+
+warning: field `analysis` is never read
+  --> src\algorithms\llm_pattern_discoverer.rs:75:5
+   |
+73 | struct LLMRuleResponse {
+   |        --------------- field in this struct
+74 |     rules: Vec<LLMRule>,
+75 |     analysis: String,
+   |     ^^^^^^^^
+   |
+   = note: `LLMRuleResponse` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `reasoning` is never read
+  --> src\algorithms\llm_pattern_discoverer.rs:82:5
+   |
+79 | struct LLMRule {
+   |        ------- field in this struct
+...
+82 |     reasoning: String,
+   |     ^^^^^^^^^
+   |
+   = note: `LLMRule` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `with_model` is never used
+  --> src\algorithms\llm_pattern_discoverer.rs:94:12
+   |
+85 | impl LLMPatternDiscoverer {
+   | ------------------------- method in this implementation
+...
+94 |     pub fn with_model(mut self, model: String) -> Self {
+   |            ^^^^^^^^^^
+
+warning: methods `with_weights`, `with_agreement_bonus`, and `integrate_two` are never used
+   --> src\algorithms\rule_integrator.rs:40:12
+    |
+ 35 | impl RuleIntegrator {
+    | ------------------- methods in this implementation
+...
+ 40 |     pub fn with_weights(mut self, weights: HashMap<String, f64>) -> Self {
+    |            ^^^^^^^^^^^^
+...
+ 45 |     pub fn with_agreement_bonus(mut self, bonus: f64) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^
+...
+172 |     pub fn integrate_two(
+    |            ^^^^^^^^^^^^^
+
+warning: field `expression` is never read
+  --> src\services\rule_engine.rs:11:5
+   |
+10 | struct CachedRule {
+   |        ---------- field in this struct
+11 |     expression: String,
+   |     ^^^^^^^^^^
+   |
+   = note: `CachedRule` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: field `content_type` is never read
+  --> src\services\llm_engine.rs:21:5
+   |
+19 | struct ClaudeContent {
+   |        ------------- field in this struct
+20 |     #[serde(rename = "type")]
+21 |     content_type: String,
+   |     ^^^^^^^^^^^^
+
+warning: field `db` is never read
+  --> src\services\llm_engine.rs:28:5
+   |
+25 | pub struct LLMEngine {
+   |            --------- field in this struct
+...
+28 |     db: Database,
+   |     ^^
+
+warning: methods `evaluate` and `get_few_shot_samples` are never used
+   --> src\services\llm_engine.rs:53:18
+    |
+ 31 | impl LLMEngine {
+    | -------------- methods in this implementation
+...
+ 53 |     pub async fn evaluate(&self, input: &JudgmentInput) -> anyhow::Result<JudgmentResult> {
+    |                  ^^^^^^^^
+...
+141 |     fn get_few_shot_samples(&self, workflow_id: &str, limit: u32) -> anyhow::Result<Vec<crate::database::TrainingSample>> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `DashboardConfig` is never constructed
+   --> src\services\bi_service.rs:189:12
+    |
+189 | pub struct DashboardConfig {
+    |            ^^^^^^^^^^^^^^^
+
+warning: struct `RealTimeConfig` is never constructed
+   --> src\services\bi_service.rs:218:12
+    |
+218 | pub struct RealTimeConfig {
+    |            ^^^^^^^^^^^^^^
+
+warning: field `db` is never read
+   --> src\services\bi_service.rs:256:5
+    |
+252 | pub struct BiService {
+    |            --------- field in this struct
+...
+256 |     db: Database,
+    |     ^^
+
+warning: field `reasoning` is never read
+  --> src\services\chat_service.rs:54:5
+   |
+51 | struct IntentAnalysisResponse {
+   |        ---------------------- field in this struct
+...
+54 |     reasoning: Option<String>,
+   |     ^^^^^^^^^
+   |
+   = note: `IntentAnalysisResponse` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `app_handle` is never read
+  --> src\services\chat_service.rs:84:5
+   |
+80 | pub struct ChatService {
+   |            ----------- field in this struct
+...
+84 |     app_handle: Option<AppHandle>,
+   |     ^^^^^^^^^^
+
+warning: associated items `with_app_handle` and `emit_event` are never used
+   --> src\services\chat_service.rs:110:12
+    |
+ 88 | impl ChatService {
+    | ---------------- associated items in this implementation
+...
+110 |     pub fn with_app_handle(app_handle: Option<AppHandle>) -> Result<Self> {
+    |            ^^^^^^^^^^^^^^^
+...
+482 |     fn emit_event(&self, event_name: &str, payload: &impl Serialize) -> Result<()> {
+    |        ^^^^^^^^^^
+
+warning: fields `total_cached_messages` and `estimated_memory_bytes` are never read
+  --> src\services\cache_service.rs:76:9
+   |
+46 | pub struct PerformanceMetrics {
+   |            ------------------ fields in this struct
+...
+76 |     pub total_cached_messages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+77 |     /// 현재 캐시 메모리 사용량 (바이트 추정치)
+78 |     pub estimated_memory_bytes: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `PerformanceMetrics` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: methods `clear`, `stats`, `get_performance_metrics`, `print_performance_summary`, and `hit_rate` are never used
+   --> src\services\cache_service.rs:269:12
+    |
+145 | impl CacheService {
+    | ----------------- methods in this implementation
+...
+269 |     pub fn clear(&self) {
+    |            ^^^^^
+...
+279 |     pub fn stats(&self) -> (usize, usize, CacheStats) {
+    |            ^^^^^
+...
+289 |     pub fn get_performance_metrics(&self) -> PerformanceMetrics {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+312 |     pub fn print_performance_summary(&self) {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+344 |     pub fn hit_rate(&self) -> f64 {
+    |            ^^^^^^^^
+
+warning: struct `ChatCompletionRequest` is never constructed
+ --> src\utils\openai.rs:6:12
+  |
+6 | pub struct ChatCompletionRequest {
+  |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `ChatMessage` is never constructed
+  --> src\utils\openai.rs:16:12
+   |
+16 | pub struct ChatMessage {
+   |            ^^^^^^^^^^^
+
+warning: struct `ChatCompletionResponse` is never constructed
+  --> src\utils\openai.rs:22:12
+   |
+22 | pub struct ChatCompletionResponse {
+   |            ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `ChatChoice` is never constructed
+  --> src\utils\openai.rs:28:12
+   |
+28 | pub struct ChatChoice {
+   |            ^^^^^^^^^^
+
+warning: struct `Usage` is never constructed
+  --> src\utils\openai.rs:34:12
+   |
+34 | pub struct Usage {
+   |            ^^^^^
+
+warning: struct `OpenAIClient` is never constructed
+  --> src\utils\openai.rs:40:12
+   |
+40 | pub struct OpenAIClient {
+   |            ^^^^^^^^^^^^
+
+warning: associated items `new`, `chat_completion`, and `create_embedding` are never used
+  --> src\utils\openai.rs:46:12
+   |
+45 | impl OpenAIClient {
+   | ----------------- associated items in this implementation
+46 |     pub fn new() -> anyhow::Result<Self> {
+   |            ^^^
+...
+56 |     pub async fn chat_completion(
+   |                  ^^^^^^^^^^^^^^^
+...
+76 |     pub async fn create_embedding(&self, text: &str) -> anyhow::Result<Vec<f32>> {
+   |                  ^^^^^^^^^^^^^^^^
+
+warning: struct `EmbeddingGenerator` is never constructed
+ --> src\utils\embeddings.rs:3:12
+  |
+3 | pub struct EmbeddingGenerator {
+  |            ^^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `generate`, `cosine_similarity`, and `find_most_similar` are never used
+  --> src\utils\embeddings.rs:8:12
+   |
+ 7 | impl EmbeddingGenerator {
+   | ----------------------- associated items in this implementation
+ 8 |     pub fn new() -> anyhow::Result<Self> {
+   |            ^^^
+...
+14 |     pub async fn generate(&self, text: &str) -> anyhow::Result<Vec<f32>> {
+   |                  ^^^^^^^^
+...
+18 |     pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+   |            ^^^^^^^^^^^^^^^^^
+...
+34 |     pub fn find_most_similar(
+   |            ^^^^^^^^^^^^^^^^^
+
+warning: struct `ClaudeClient` is never constructed
+ --> src\utils\claude.rs:6:12
+  |
+6 | pub struct ClaudeClient {
+  |            ^^^^^^^^^^^^
+
+warning: associated items `new` and `create_message` are never used
+  --> src\utils\claude.rs:12:12
+   |
+11 | impl ClaudeClient {
+   | ----------------- associated items in this implementation
+12 |     pub fn new(api_key: String) -> Self {
+   |            ^^^
+...
+20 |     pub async fn create_message(
+   |                  ^^^^^^^^^^^^^^
+
+warning: struct `ClaudeRequest` is never constructed
+  --> src\utils\claude.rs:64:8
+   |
+64 | struct ClaudeRequest {
+   |        ^^^^^^^^^^^^^
+
+warning: struct `Message` is never constructed
+  --> src\utils\claude.rs:73:12
+   |
+73 | pub struct Message {
+   |            ^^^^^^^
+
+warning: struct `ClaudeResponse` is never constructed
+  --> src\utils\claude.rs:79:8
+   |
+79 | struct ClaudeResponse {
+   |        ^^^^^^^^^^^^^^
+
+warning: struct `ContentBlock` is never constructed
+  --> src\utils\claude.rs:84:8
+   |
+84 | struct ContentBlock {
+   |        ^^^^^^^^^^^^
+
+warning: unused variable: `service`
+    --> src\services\bi_service.rs:2095:13
+     |
+2095 |         let service = BiService::new().unwrap();
+     |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_service`
+
+warning: methods `with_weights` and `with_agreement_bonus` are never used
+  --> src\algorithms\rule_integrator.rs:40:12
+   |
+35 | impl RuleIntegrator {
+   | ------------------- methods in this implementation
+...
+40 |     pub fn with_weights(mut self, weights: HashMap<String, f64>) -> Self {
+   |            ^^^^^^^^^^^^
+...
+45 |     pub fn with_agreement_bonus(mut self, bonus: f64) -> Self {
+   |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: method `clear` is never used
+   --> src\services\cache_service.rs:269:12
+    |
+145 | impl CacheService {
+    | ----------------- method in this implementation
+...
+269 |     pub fn clear(&self) {
+    |            ^^^^^
+
+warning: field `http_client` is never read
+ --> src\utils\claude.rs:8:5
+  |
+6 | pub struct ClaudeClient {
+  |            ------------ field in this struct
+7 |     api_key: String,
+8 |     http_client: Client,
+  |     ^^^^^^^^^^^
+
+warning: method `create_message` is never used
+  --> src\utils\claude.rs:20:18
+   |
+11 | impl ClaudeClient {
+   | ----------------- method in this implementation
+...
+20 |     pub async fn create_message(
+   |                  ^^^^^^^^^^^^^^
+
+warning: `judgify-desktop` (bench "training_sample_benchmark") generated 1 warning (run `cargo fix --bench "training_sample_benchmark"` to apply 1 suggestion)
+warning: `judgify-desktop` (bin "judgify-desktop") generated 39 warnings (run `cargo fix --bin "judgify-desktop"` to apply 2 suggestions)
+warning: `judgify-desktop` (bin "judgify-desktop" test) generated 37 warnings (32 duplicates)
+warning: unused import: `black_box`
+ --> benches\complex_query_benchmark.rs:7:17
+  |
+7 | use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+  |                 ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `black_box`
+ --> benches\feedback_benchmark.rs:7:17
+  |
+7 | use criterion::{black_box, criterion_group, criterion_main, Criterion};
+  |                 ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused variable: `i`
+   --> benches\feedback_benchmark.rs:173:9
+    |
+173 |     for i in 0..100 {
+    |         ^ help: if this is intentional, prefix it with an underscore: `_i`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `judgify-desktop` (bench "feedback_benchmark") generated 2 warnings (run `cargo fix --bench "feedback_benchmark"` to apply 1 suggestion)
+warning: `judgify-desktop` (bench "complex_query_benchmark") generated 1 warning (run `cargo fix --bench "complex_query_benchmark"` to apply 1 suggestion)
+    Finished `bench` profile [optimized] target(s) in 23.35s
+     Running unittests src\bin\check_env.rs (target\release\deps\check_env-4e021de05b6143e2.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\release\deps\judgify_desktop-0321b75c60d3cb0c.exe)
+
+running 82 tests
+test algorithms::frequency_analyzer::tests::test_calculate_threshold ... ignored
+test algorithms::frequency_analyzer::tests::test_combine_conditions ... ignored
+test algorithms::frequency_analyzer::tests::test_empty_feedback ... ignored
+test algorithms::frequency_analyzer::tests::test_extract_conditions_boolean ... ignored
+test algorithms::frequency_analyzer::tests::test_extract_conditions_numeric ... ignored
+test algorithms::frequency_analyzer::tests::test_extract_conditions_string ... ignored
+test algorithms::frequency_analyzer::tests::test_extract_rules_with_threshold ... ignored
+test algorithms::frequency_analyzer::tests::test_no_positive_feedback ... ignored
+test algorithms::llm_pattern_discoverer::tests::test_calculate_averages ... ignored
+test algorithms::llm_pattern_discoverer::tests::test_calculate_std_dev ... ignored
+test algorithms::llm_pattern_discoverer::tests::test_create_prompt ... ignored
+test algorithms::llm_pattern_discoverer::tests::test_parse_llm_response ... ignored
+test algorithms::rule_integrator::tests::test_agreement_bonus ... ignored
+test algorithms::rule_integrator::tests::test_calculate_weighted_confidence ... ignored
+test algorithms::rule_integrator::tests::test_empty_rules ... ignored
+test algorithms::rule_integrator::tests::test_group_by_expression ... ignored
+test algorithms::rule_integrator::tests::test_integrate_rules ... ignored
+test algorithms::rule_integrator::tests::test_integrate_two ... ignored
+test algorithms::rule_integrator::tests::test_min_confidence_filter ... ignored
+test algorithms::rule_integrator::tests::test_normalize_expression ... ignored
+test algorithms::tests::test_extracted_rule_creation ... ignored
+test algorithms::tests::test_support_ratio ... ignored
+test services::bi_service::tests::test_aggregate_data_execution_time ... ignored
+test services::bi_service::tests::test_aggregate_data_success_rate ... ignored
+test services::bi_service::tests::test_analyze_user_request_simple ... ignored
+test services::bi_service::tests::test_assemble_components_with_real_data ... ignored
+test services::bi_service::tests::test_build_rag_context ... ignored
+test services::bi_service::tests::test_build_recommendation_prompt ... ignored
+test services::bi_service::tests::test_chart_type_preference ... ignored
+test services::bi_service::tests::test_complexity_calculation ... ignored
+test services::bi_service::tests::test_component_assembly ... ignored
+test services::bi_service::tests::test_component_registry ... ignored
+test services::bi_service::tests::test_component_selection ... ignored
+test services::bi_service::tests::test_emit_event_without_app_handle ... ignored
+test services::bi_service::tests::test_find_similar_cases ... ignored
+test services::bi_service::tests::test_generate_insight_integration ... ignored
+test services::bi_service::tests::test_generate_insight_stream_events ... ignored
+test services::bi_service::tests::test_generate_insight_with_aggregation ... ignored
+test services::bi_service::tests::test_generate_insight_with_component_assembly ... ignored
+test services::bi_service::tests::test_generate_insight_with_rag ... ignored
+test services::bi_service::tests::test_generate_time_series ... ignored
+test services::bi_service::tests::test_get_judgment_executions ... ignored
+test services::bi_service::tests::test_intent_classification ... ignored
+test services::bi_service::tests::test_jsx_generation ... ignored
+test services::bi_service::tests::test_load_domain_knowledge ... ignored
+test services::bi_service::tests::test_metric_extraction ... ignored
+test services::bi_service::tests::test_preferred_chart_override ... ignored
+test services::bi_service::tests::test_react_code_generation ... ignored
+test services::bi_service::tests::test_similar_cases_success_rate ... ignored
+test services::bi_service::tests::test_status_classification ... ignored
+test services::bi_service::tests::test_stream_progress_stages ... ignored
+test services::bi_service::tests::test_template_based_analysis ... ignored
+test services::bi_service::tests::test_trend_detection ... ignored
+test services::bi_service::tests::test_with_app_handle_constructor ... ignored
+test services::cache_service::tests::test_cache_basic_operations ... ignored
+test services::cache_service::tests::test_cache_invalidation ... ignored
+test services::cache_service::tests::test_cache_message_limit ... ignored
+test services::cache_service::tests::test_cache_stats ... ignored
+test services::cache_service::tests::test_performance_instrumentation ... ignored
+test services::chat_service::tests::test_analyze_intent ... ignored
+test services::chat_service::tests::test_chat_service_new ... ignored
+test services::chat_service::tests::test_create_session ... ignored
+test services::chat_service::tests::test_extract_bi_params ... ignored
+test services::chat_service::tests::test_extract_judgment_params ... ignored
+test services::chat_service::tests::test_extract_workflow_params ... ignored
+test services::chat_service::tests::test_get_history_with_multiple_messages ... ignored
+test services::chat_service::tests::test_route_to_bi_success ... ignored
+test services::chat_service::tests::test_route_to_judgment_success ... ignored
+test services::chat_service::tests::test_route_to_workflow_list ... ignored
+test services::chat_service::tests::test_save_and_get_message ... ignored
+test services::judgment_engine::tests::test_combine_results ... ignored
+test services::judgment_engine::tests::test_few_shot_confidence_boost ... ignored
+test services::judgment_engine::tests::test_few_shot_method_naming ... ignored
+test services::judgment_engine::tests::test_few_shot_sample_quality_filter ... ignored
+test services::judgment_engine::tests::test_get_history ... ignored
+test services::judgment_engine::tests::test_integration_learning_judgment ... ignored
+test services::judgment_engine::tests::test_judge_with_few_shot_basic ... ignored
+test services::judgment_engine::tests::test_rule_save_after_extraction ... ignored
+test services::learning_service::tests::test_save_extracted_rule_success ... ignored
+test services::learning_service::tests::test_save_extracted_rule_version_increment ... ignored
+test services::learning_service::tests::test_save_extracted_rule_workflow_not_found ... ignored
+test utils::claude::tests::test_claude_client_creation ... ignored
+
+test result: ok. 0 passed; 0 failed; 82 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running benches\complex_query_benchmark.rs (target\release\deps\complex_query_benchmark-ff2ab7a319583e2d.exe)
+Gnuplot not found, using plotters backend
+Benchmarking complex_join_query/last_7_days
+Benchmarking complex_join_query/last_7_days: Warming up for 3.0000 s
+Benchmarking complex_join_query/last_7_days: Collecting 100 samples in estimated 5.5870 s (30k iterations)
+Benchmarking complex_join_query/last_7_days: Analyzing
+complex_join_query/last_7_days
+                        time:   [179.18 µs 179.86 µs 180.57 µs]
+Found 6 outliers among 100 measurements (6.00%)
+  2 (2.00%) low mild
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+Benchmarking complex_join_query/last_14_days
+Benchmarking complex_join_query/last_14_days: Warming up for 3.0000 s
+Benchmarking complex_join_query/last_14_days: Collecting 100 samples in estimated 6.2422 s (20k iterations)
+Benchmarking complex_join_query/last_14_days: Analyzing
+complex_join_query/last_14_days
+                        time:   [307.08 µs 308.43 µs 309.81 µs]
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) high mild
+  2 (2.00%) high severe
+Benchmarking complex_join_query/last_30_days
+Benchmarking complex_join_query/last_30_days: Warming up for 3.0000 s
+Benchmarking complex_join_query/last_30_days: Collecting 100 samples in estimated 5.4060 s (10k iterations)
+Benchmarking complex_join_query/last_30_days: Analyzing
+complex_join_query/last_30_days
+                        time:   [544.48 µs 551.43 µs 560.03 µs]
+Found 15 outliers among 100 measurements (15.00%)
+  4 (4.00%) high mild
+  11 (11.00%) high severe
+
+Benchmarking workflow_aggregation
+Benchmarking workflow_aggregation: Warming up for 3.0000 s
+Benchmarking workflow_aggregation: Collecting 100 samples in estimated 5.1433 s (157k iterations)
+Benchmarking workflow_aggregation: Analyzing
+workflow_aggregation    time:   [32.129 µs 32.251 µs 32.389 µs]
+Found 9 outliers among 100 measurements (9.00%)
+  1 (1.00%) low mild
+  6 (6.00%) high mild
+  2 (2.00%) high severe
+
+     Running benches\db_benchmark.rs (target\release\deps\db_benchmark-9f2ecdeff8139994.exe)
+Gnuplot not found, using plotters backend
+Benchmarking save_workflow
+Benchmarking save_workflow: Warming up for 3.0000 s
+Benchmarking save_workflow: Collecting 100 samples in estimated 5.0144 s (662k iterations)
+Benchmarking save_workflow: Analyzing
+save_workflow           time:   [13.857 µs 14.469 µs 14.968 µs]
+
+Benchmarking get_workflow
+Benchmarking get_workflow: Warming up for 3.0000 s
+Benchmarking get_workflow: Collecting 100 samples in estimated 5.0144 s (1.6M iterations)
+Benchmarking get_workflow: Analyzing
+get_workflow            time:   [3.0489 µs 3.0738 µs 3.1066 µs]
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high severe
+
+Benchmarking save_judgment
+Benchmarking save_judgment: Warming up for 3.0000 s
+Benchmarking save_judgment: Collecting 100 samples in estimated 5.0438 s (374k iterations)
+Benchmarking save_judgment: Analyzing
+save_judgment           time:   [23.167 µs 24.626 µs 25.947 µs]
+Found 18 outliers among 100 measurements (18.00%)
+  2 (2.00%) low mild
+  2 (2.00%) high mild
+  14 (14.00%) high severe
+
+     Running benches\feedback_benchmark.rs (target\release\deps\feedback_benchmark-0a71d9415e0c205d.exe)
+Gnuplot not found, using plotters backend
+Benchmarking feedback_aggregation
+Benchmarking feedback_aggregation: Warming up for 3.0000 s
+Benchmarking feedback_aggregation: Collecting 100 samples in estimated 5.2380 s (66k iterations)
+Benchmarking feedback_aggregation: Analyzing
+feedback_aggregation    time:   [76.761 µs 77.051 µs 77.368 µs]
+Found 8 outliers among 100 measurements (8.00%)
+  1 (1.00%) low mild
+  4 (4.00%) high mild
+  3 (3.00%) high severe
+
+Benchmarking get_feedbacks_by_judgment
+Benchmarking get_feedbacks_by_judgment: Warming up for 3.0000 s
+Benchmarking get_feedbacks_by_judgment: Collecting 100 samples in estimated 5.0238 s (424k iterations)
+Benchmarking get_feedbacks_by_judgment: Analyzing
+get_feedbacks_by_judgment
+                        time:   [11.730 µs 11.766 µs 11.804 µs]
+Found 7 outliers among 100 measurements (7.00%)
+  3 (3.00%) high mild
+  4 (4.00%) high severe
+
+     Running benches\judgment_benchmark.rs (target\release\deps\judgment_benchmark-c25ce77da274b1c5.exe)
+Gnuplot not found, using plotters backend
+Benchmarking judgment_history/10
+Benchmarking judgment_history/10: Warming up for 3.0000 s
+Benchmarking judgment_history/10: Collecting 100 samples in estimated 5.1254 s (15k iterations)
+Benchmarking judgment_history/10: Analyzing
+judgment_history/10     time:   [327.04 µs 327.99 µs 329.01 µs]
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+Benchmarking judgment_history/50
+Benchmarking judgment_history/50: Warming up for 3.0000 s
+Benchmarking judgment_history/50: Collecting 100 samples in estimated 6.0566 s (10k iterations)
+Benchmarking judgment_history/50: Analyzing
+judgment_history/50     time:   [600.74 µs 604.67 µs 609.18 µs]
+Benchmarking judgment_history/100
+Benchmarking judgment_history/100: Warming up for 3.0000 s
+Benchmarking judgment_history/100: Collecting 100 samples in estimated 9.9841 s (10k iterations)
+Benchmarking judgment_history/100: Analyzing
+judgment_history/100    time:   [962.80 µs 970.53 µs 982.18 µs]
+Found 12 outliers among 100 measurements (12.00%)
+  2 (2.00%) low mild
+  6 (6.00%) high mild
+  4 (4.00%) high severe
+
+Benchmarking get_single_judgment
+Benchmarking get_single_judgment: Warming up for 3.0000 s
+Benchmarking get_single_judgment: Collecting 100 samples in estimated 5.0023 s (1.5M iterations)
+Benchmarking get_single_judgment: Analyzing
+get_single_judgment     time:   [3.2505 µs 3.2638 µs 3.2776 µs]
+Found 9 outliers among 100 measurements (9.00%)
+  4 (4.00%) high mild
+  5 (5.00%) high severe
+
+     Running benches\training_sample_benchmark.rs (target\release\deps\training_sample_benchmark-bde2e839c2c925ca.exe)
+Gnuplot not found, using plotters backend
+Benchmarking training_sample_search/accuracy_gte_0.7
+Benchmarking training_sample_search/accuracy_gte_0.7: Warming up for 3.0000 s
+Benchmarking training_sample_search/accuracy_gte_0.7: Collecting 100 samples in estimated 5.2065 s (40k iterations)
+Benchmarking training_sample_search/accuracy_gte_0.7: Analyzing
+training_sample_search/accuracy_gte_0.7
+                        time:   [127.19 µs 127.48 µs 127.79 µs]
+Found 13 outliers among 100 measurements (13.00%)
+  2 (2.00%) low severe
+  4 (4.00%) low mild
+  3 (3.00%) high mild
+  4 (4.00%) high severe
+Benchmarking training_sample_search/accuracy_gte_0.8
+Benchmarking training_sample_search/accuracy_gte_0.8: Warming up for 3.0000 s
+Benchmarking training_sample_search/accuracy_gte_0.8: Collecting 100 samples in estimated 5.2030 s (50k iterations)
+Benchmarking training_sample_search/accuracy_gte_0.8: Analyzing
+training_sample_search/accuracy_gte_0.8
+                        time:   [104.18 µs 105.16 µs 106.22 µs]
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high severe
+Benchmarking training_sample_search/accuracy_gte_0.9
+Benchmarking training_sample_search/accuracy_gte_0.9: Warming up for 3.0000 s
+Benchmarking training_sample_search/accuracy_gte_0.9: Collecting 100 samples in estimated 5.0213 s (66k iterations)
+Benchmarking training_sample_search/accuracy_gte_0.9: Analyzing
+training_sample_search/accuracy_gte_0.9
+                        time:   [77.551 µs 78.529 µs 79.890 µs]
+Found 18 outliers among 100 measurements (18.00%)
+  4 (4.00%) high mild
+  14 (14.00%) high severe
+
+Benchmarking get_all_training_samples
+Benchmarking get_all_training_samples: Warming up for 3.0000 s
+Benchmarking get_all_training_samples: Collecting 100 samples in estimated 5.3660 s (35k iterations)
+Benchmarking get_all_training_samples: Analyzing
+get_all_training_samples
+                        time:   [152.29 µs 153.90 µs 155.53 µs]
+Found 12 outliers among 100 measurements (12.00%)
+  3 (3.00%) low mild
+  7 (7.00%) high mild
+  2 (2.00%) high severe
+

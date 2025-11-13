@@ -1,0 +1,545 @@
+{
+  "config": {
+    "configFile": "C:\\dev\\Judgify-core\\playwright.config.ts",
+    "rootDir": "C:/dev/Judgify-core/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 5
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "playwright-report"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ],
+      [
+        "list",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/dev/Judgify-core/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 5
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/dev/Judgify-core/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.56.1",
+    "workers": 8,
+    "webServer": {
+      "command": "npm run dev",
+      "url": "http://localhost:1420",
+      "reuseExistingServer": true,
+      "timeout": 60000,
+      "stdout": "pipe",
+      "stderr": "pipe"
+    }
+  },
+  "suites": [
+    {
+      "title": "workflow-simulation.spec.ts",
+      "file": "workflow-simulation.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Workflow Simulation E2E",
+          "file": "workflow-simulation.spec.ts",
+          "line": 16,
+          "column": 6,
+          "specs": [
+            {
+              "title": "1. 시뮬레이션 패널 열기/닫기",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 20798,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).not.\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('heading', { name: '시뮬레이션' })\nExpected: not visible\nReceived: visible\nTimeout:  3000ms\n\nCall log:\n\u001b[2m  - Expect \"not toBeVisible\" with timeout 3000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('heading', { name: '시뮬레이션' })\u001b[22m\n\u001b[2m    7 × locator resolved to <h3 class=\"font-semibold tracking-tight text-lg\">시뮬레이션</h3>\u001b[22m\n\u001b[2m      - unexpected value \"visible\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).not.\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('heading', { name: '시뮬레이션' })\nExpected: not visible\nReceived: visible\nTimeout:  3000ms\n\nCall log:\n\u001b[2m  - Expect \"not toBeVisible\" with timeout 3000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('heading', { name: '시뮬레이션' })\u001b[22m\n\u001b[2m    7 × locator resolved to <h3 class=\"font-semibold tracking-tight text-lg\">시뮬레이션</h3>\u001b[22m\n\u001b[2m      - unexpected value \"visible\"\u001b[22m\n\n    at C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts:86:68",
+                        "location": {
+                          "file": "C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts",
+                          "column": 68,
+                          "line": 86
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 84 |\u001b[39m\n \u001b[90m 85 |\u001b[39m     \u001b[90m// Verify panel closed (check heading is not visible)\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 86 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'heading'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m'시뮬레이션'\u001b[39m }))\u001b[33m.\u001b[39mnot\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m3000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                                                    \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 87 |\u001b[39m\n \u001b[90m 88 |\u001b[39m     console\u001b[33m.\u001b[39mlog(\u001b[32m'[Test 1] Simulation panel open/close test passed'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 89 |\u001b[39m   })\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts",
+                            "column": 68,
+                            "line": 86
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).not.\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('heading', { name: '시뮬레이션' })\nExpected: not visible\nReceived: visible\nTimeout:  3000ms\n\nCall log:\n\u001b[2m  - Expect \"not toBeVisible\" with timeout 3000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('heading', { name: '시뮬레이션' })\u001b[22m\n\u001b[2m    7 × locator resolved to <h3 class=\"font-semibold tracking-tight text-lg\">시뮬레이션</h3>\u001b[22m\n\u001b[2m      - unexpected value \"visible\"\u001b[22m\n\n\n  84 |\n  85 |     // Verify panel closed (check heading is not visible)\n> 86 |     await expect(page.getByRole('heading', { name: '시뮬레이션' })).not.toBeVisible({ timeout: 3000 });\n     |                                                                    ^\n  87 |\n  88 |     console.log('[Test 1] Simulation panel open/close test passed');\n  89 |   });\n    at C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts:86:68"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "[BROWSER debug] [vite] connecting...\n"
+                        },
+                        {
+                          "text": "[BROWSER debug] [vite] connected.\n"
+                        },
+                        {
+                          "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getAllWorkflows called\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 온도 > 80 이면 경고...}\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
+                        },
+                        {
+                          "text": "[Setup] Workflow generated successfully\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-11-11T01:52:09.092Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workflow-Simulation-E2E-1-시뮬레이션-패널-열기-닫기-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workflow-Simulation-E2E-1-시뮬레이션-패널-열기-닫기-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workflow-Simulation-E2E-1-시뮬레이션-패널-열기-닫기-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts",
+                        "column": 68,
+                        "line": 86
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "281d0ead3137b2f6f8fe-82865effc36e0667ab57",
+              "file": "workflow-simulation.spec.ts",
+              "line": 65,
+              "column": 3
+            },
+            {
+              "title": "2. 테스트 데이터 편집 기능",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 18689,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[BROWSER debug] [vite] connecting...\n"
+                        },
+                        {
+                          "text": "[BROWSER debug] [vite] connected.\n"
+                        },
+                        {
+                          "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getAllWorkflows called\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 온도 > 80 이면 경고...}\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
+                        },
+                        {
+                          "text": "[Setup] Workflow generated successfully\n"
+                        },
+                        {
+                          "text": "[Test 2] Current test data: {\n  \"temperature\": 95,\n  \"vibration\": 45,\n  \"status\": \"normal\",\n  \"count\": 10,\n  \"pressure\": 100\n}\n"
+                        },
+                        {
+                          "text": "[Test 2] Test data edit test passed\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-11-11T01:52:09.096Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "281d0ead3137b2f6f8fe-03c634082e00100cdc29",
+              "file": "workflow-simulation.spec.ts",
+              "line": 91,
+              "column": 3
+            },
+            {
+              "title": "3. 단계별 실행 및 상태 변경",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "passed",
+                      "duration": 19802,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[BROWSER debug] [vite] connecting...\n"
+                        },
+                        {
+                          "text": "[BROWSER debug] [vite] connected.\n"
+                        },
+                        {
+                          "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getAllWorkflows called\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 온도 > 80 이면 경고...}\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
+                        },
+                        {
+                          "text": "[Setup] Workflow generated successfully\n"
+                        },
+                        {
+                          "text": "[Test 3] Step-by-step execution test passed\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-11-11T01:52:09.104Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "281d0ead3137b2f6f8fe-52b0944869d90e634de8",
+              "file": "workflow-simulation.spec.ts",
+              "line": 141,
+              "column": 3
+            },
+            {
+              "title": "4. 캔버스 노드 애니메이션 확인",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 18683,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[BROWSER debug] [vite] connecting...\n"
+                        },
+                        {
+                          "text": "[BROWSER debug] [vite] connected.\n"
+                        },
+                        {
+                          "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getAllWorkflows called\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 온도 > 80 이면 경고...}\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
+                        },
+                        {
+                          "text": "[Setup] Workflow generated successfully\n"
+                        },
+                        {
+                          "text": "[Test 4] Canvas node animation test passed\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-11-11T01:52:09.100Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "281d0ead3137b2f6f8fe-e79f7ee504f058fefbb6",
+              "file": "workflow-simulation.spec.ts",
+              "line": 182,
+              "column": 3
+            },
+            {
+              "title": "5. 전체 워크플로우 시뮬레이션 완료",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 4,
+                      "status": "timedOut",
+                      "duration": 30140,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts",
+                            "column": 16,
+                            "line": 244
+                          },
+                          "message": "Error: page.waitForTimeout: Test timeout of 30000ms exceeded.\n\n  242 |     // Wait for auto-execution to complete (1.5s per step)\n  243 |     // Pattern workflow typically has 3-5 nodes\n> 244 |     await page.waitForTimeout(8000);\n      |                ^\n  245 |\n  246 |     // Verify execution history shows multiple steps\n  247 |     await expect(page.locator('text=실행 이력')).toBeVisible();\n    at C:\\dev\\Judgify-core\\tests\\e2e\\workflow-simulation.spec.ts:244:16"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "[BROWSER debug] [vite] connecting...\n"
+                        },
+                        {
+                          "text": "[BROWSER debug] [vite] connected.\n"
+                        },
+                        {
+                          "text": "[BROWSER info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [Phase 30] Using API key from VITE_ANTHROPIC_API_KEY\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getAllWorkflows called\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Starting generation: {mode: pattern, hasLLM: false, hasApiKey: true, description: 온도 > 80 이면 경고...}\n"
+                        },
+                        {
+                          "text": "[BROWSER log] [AI Gen] Generation successful: {nodeCount: 5, edgeCount: 4, metadata: Object}\n"
+                        },
+                        {
+                          "text": "[Setup] Workflow generated successfully\n"
+                        },
+                        {
+                          "text": "[BROWSER warning] [Mock API] getSystemStatus called\n"
+                        },
+                        {
+                          "text": "[BROWSER error] Rule 평가 실패: ReferenceError: 온도 is not defined\n    at eval (eval at evaluateSimpleRule (http://localhost:1420/src/lib/workflow-simulator.ts:215:14), <anonymous>:1:1)\n    at WorkflowSimulator.evaluateSimpleRule (http://localhost:1420/src/lib/workflow-simulator.ts:215:14)\n    at WorkflowSimulator.executeDecisionNode (http://localhost:1420/src/lib/workflow-simulator.ts:171:25)\n    at WorkflowSimulator.executeNode (http://localhost:1420/src/lib/workflow-simulator.ts:114:22)\n    at WorkflowSimulator.stepForward (http://localhost:1420/src/lib/workflow-simulator.ts:41:20)\n    at http://localhost:1420/src/components/workflow/SimulationPanel.tsx:61:40\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-11-11T01:52:09.089Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workfl-76e5d-ion-E2E-5-전체-워크플로우-시뮬레이션-완료-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workfl-76e5d-ion-E2E-5-전체-워크플로우-시뮬레이션-완료-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\dev\\Judgify-core\\test-results\\workflow-simulation-Workfl-76e5d-ion-E2E-5-전체-워크플로우-시뮬레이션-완료-chromium\\error-context.md"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "281d0ead3137b2f6f8fe-09f1b38da04063ff2988",
+              "file": "workflow-simulation.spec.ts",
+              "line": 222,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-11-11T01:52:04.498Z",
+    "duration": 34996.388999999996,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}

@@ -1,0 +1,42 @@
+[dotenv@17.2.3][DEBUG] No encoding is specified. UTF-8 is used by default
+[dotenv@17.2.3][DEBUG] "POSTGRES_URL" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "DATABASE_URL" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "GITHUB_TOKEN" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "CIRCLECI_TOKEN" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "CIRCLECI_BASE_URL" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "ANTHROPIC_API_KEY" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "CLAUDE_MODEL" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "OPENAI_API_KEY" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "OPENAI_EMBEDDING_MODEL" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "JWT_SECRET" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "JWT_EXPIRES_IN" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "REDIS_URL" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "REDIS_PASSWORD" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "NEXT_PUBLIC_API_URL" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "NEXT_PUBLIC_WS_URL" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "PROJECT_ROOT" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "NOTION_API_TOKEN" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "NOTION_URGENT_DB_ID" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "NOTION_DAILY_LOG_DB_ID" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "NOTION_WEEKLY_LOG_DB_ID" is already defined and was NOT overwritten
+[dotenv@17.2.3][DEBUG] "NOTION_TODO_DB_ID" is already defined and was NOT overwritten
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv] Successfully loaded 21 variables
+[dotenv] ✓ ANTHROPIC_API_KEY found
+[1A[2K[2m[WebServer] [22m
+[2m[WebServer] [22m> judgify-desktop@0.1.0 dev
+[2m[WebServer] [22m> vite
+[2m[WebServer] [22m
+
+[1A[2K[2m[WebServer] [22m
+[2m[WebServer] [22m  [32m[1mVITE[22m v7.1.12[39m  [2mready in [0m[1m160[22m[2m[0m ms[22m
+[2m[WebServer] [22m
+
+[1A[2K[2m[WebServer] [22m  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m1420[22m/[39m
+[2m[WebServer] [22m[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+
+Error: No tests found.
+Make sure that arguments are regular expressions matching test files.
+You may need to escape symbols like "$" or "*" and quote the arguments.
+
+[1A[2K

@@ -1,0 +1,1783 @@
+# CLAUDE.md - Ver2.0 Final 마이크로서비스 개발 가이드 🤖⚡
+
+이 문서는 **Claude Code가 Judgify-core Ver2.0 Final 마이크로서비스 기반 AI 판단 플랫폼**을 개발할 때 참조하는 **포괄적 컨텍스트 엔지니어링 가이드**입니다.
+
+Ver2.0 Final에서는 Ver1.0 Supabase 기반 아키텍처에서 **PostgreSQL + 마이크로서비스 아키텍처**로 전면 전환하여, **하이브리드 판단**, **자동학습 시스템**, **Visual Workflow Builder**, **MCP 기반 BI** 등이 핵심 기능입니다.
+
+---
+
+## 📋 0. Ver2.0 Final 문서 목적 및 범위
+
+Claude는 **마이크로서비스 아키텍처 설계자 + 하이브리드 AI 엔지니어 + 자동학습 전문가 + 풀스택 개발자**로서 다음 역할을 수행합니다:
+
+### 🎯 Claude의 핵심 역할 (Ver2.0 Final)
+1. **마이크로서비스 설계**: **9개 독립 서비스 아키텍처** 구성 (Learning Service 추가!)
+2. **하이브리드 판단 로직**: Rule Engine + LLM의 최적 조합 설계
+3. **자동학습 시스템 (ML 대체)**:
+   - 사용자 피드백 수집 (👍👎, LOG, 채팅)
+   - Few-shot 학습 관리 (10-20개 유사 예시)
+   - 자동 Rule 추출 (3개 알고리즘: 빈도 분석, 결정 트리, LLM 패턴)
+4. **Visual Workflow Builder**: n8n 스타일 드래그앤드롭 워크플로우 에디터
+5. **MCP 기반 BI**: 사전 제작 컴포넌트 조립 (React 코드 생성 대신)
+6. **Chat Interface**: Claude Desktop 수준 마스터 컨트롤러
+7. **데이터 집계 알고리즘**: LLM 할루시네이션 방지 특수 알고리즘
+8. **PostgreSQL + pgvector**: RAG + Few-shot + 자동학습 통합
+9. **DevOps 자동화**: Docker + Kubernetes 배포 전략
+10. **AI 에이전트 협업**: 18개 전문 에이전트와의 효율적 협업 관리
+
+### 📚 Ver2.0 핵심 문서 구조
+```
+핵심 가이드 (루트)
+├── CLAUDE.md           ← 이 문서 (Claude 개발 가이드)
+├── README.md          ← 프로젝트 전체 개요
+├── initial.md         ← Ver2.0 통합 요구사항
+├── prompt-guide.md    ← LLM Prompt 설계 전략
+└── system-structure.md ← 시스템 아키텍처 개요
+
+상세 설계 (docs/)
+├── architecture/       ← 시스템 아키텍처
+│   ├── system_overview.md              ← 전체 아키텍처
+│   ├── database_design.md              ← DB 스키마
+│   ├── api_specifications.md           ← API 명세 (2,555줄)
+│   ├── security_architecture.md        ← 보안 설계 (2,240줄)
+│   ├── microservices_communication.md  ← 서비스 간 통신 (1,534줄)
+│   └── data_pipeline_architecture.md   ← 데이터 파이프라인 (1,752줄)
+├── services/          ← 마이크로서비스별 설계
+│   ├── judgment_engine.md              ← 핵심 판단 서비스
+│   ├── learning_service.md             ← 자동학습 시스템 (ML 대체, 신규!)
+│   ├── workflow_editor.md              ← Visual Workflow Builder (1,669줄)
+│   ├── dashboard_service.md            ← BI + 대시보드 (1,381줄)
+│   ├── external_integration.md         ← 외부 시스템 연동 (1,852줄)
+│   └── mcp_optimization.md             ← MCP 최적화 전략 (신규!)
+├── operations/        ← 운영 관리
+│   ├── deployment_strategy.md          ← 배포 전략 (1,721줄)
+│   └── monitoring_guide.md             ← 모니터링
+└── development/       ← 개발 관리
+    ├── plan.md                         ← Windows Desktop App 개발 계획 (1,130줄)
+    ├── requirements.md                 ← 요구사항
+    └── status.md                       ← 진행 상황
+```
+
+### 📐 문서 관리 전략 (신규 추가!)
+
+Claude가 문서를 생성하거나 수정할 때 **반드시** 따라야 하는 규칙:
+
+#### 🎯 기본 원칙: **통합 문서 우선**
+
+**1. 통합 문서 유지 조건**
+```yaml
+조건:
+  - 파일 크기 < 2,500줄
+  - 동일한 주제 범위 (예: 개발 계획)
+  - 동일한 독자층 (예: 개발팀)
+  - 팀 규모 < 5명
+
+행동:
+  - 기존 문서에 섹션 추가 (예: plan.md에 섹션 14 추가)
+  - 새 파일 생성 금지
+  - 섹션 번호 순차 증가
+```
+
+**2. 별도 문서 분리 조건**
+```yaml
+조건:
+  - 파일 크기 > 2,500줄
+  - 독립적인 주제 (예: API 레퍼런스)
+  - 다른 독자층 (예: 사용자 매뉴얼)
+  - 팀 규모 > 5명
+
+행동:
+  - 새 파일 생성 고려
+  - 사용자에게 분리 여부 확인
+  - 기존 문서에서 참조 링크 추가
+```
+
+**3. 현재 프로젝트 적용 상황**
+```yaml
+docs/development/plan.md:
+  - 현재 줄 수: 1,130줄 ✅ 통합 유지
+  - 임계값: 2,500줄
+  - 전략: 섹션 추가로 확장 (현재 섹션 1~14)
+
+상태:
+  - ✅ 통합 문서 방식 유지
+  - ⏳ 2,500줄 도달시 분리 검토
+```
+
+#### 📋 Claude의 문서 작업 체크리스트
+
+새 정보 추가시:
+1. **파일 크기 확인**: `wc -l {파일명}` 실행
+2. **통합 가능 여부 판단**:
+   - < 2,500줄 → 기존 문서에 섹션 추가
+   - > 2,500줄 → 사용자에게 분리 여부 확인
+3. **섹션 번호 부여**: 순차적 증가 (14 → 15 → 16)
+4. **목차(TOC) 업데이트**: 필요시 상단 목차 추가
+5. **⚠️ 한글 작성 필수**: 모든 작업 내용, 설명, 문서는 **반드시 한글로 작성**
+   - 기술 용어는 영어 유지 가능 (예: WorkflowGenerator, MockLLMProvider)
+   - 설명, 주석, 문서화는 100% 한글
+   - Git 커밋 메시지도 한글 우선 (영문 부제 허용)
+
+#### 🚫 금지 사항
+
+```yaml
+❌ 하지 말 것:
+  - 사용자 확인 없이 새 문서 파일 생성
+  - 2,500줄 미만 파일을 임의로 분리
+  - 기존 통합 문서를 임의로 분해
+  - 중복 내용을 여러 파일에 작성
+  - ⚠️ 영어로 문서나 설명 작성 (기술 용어 제외)
+  - ⚠️ 한글 문서에 영어 문장 혼용
+
+✅ 해야 할 것:
+  - 항상 기존 문서 활용 우선
+  - 파일 크기 임계값 확인
+  - 사용자에게 전략 제안 및 확인
+  - Single Source of Truth 유지
+  - ⚠️ 모든 설명과 문서를 한글로 작성
+  - ⚠️ 기술 용어만 영어 유지 (예: React, TypeScript, API)
+```
+
+#### 💡 실전 예시
+
+**시나리오 1: GitHub Actions 가이드 추가 (2025-01-21 작업)**
+```
+판단:
+  - plan.md 크기: 1,130줄 < 2,500줄
+  - 주제: 개발 프로세스의 일부
+  - 독자: 동일 (개발팀)
+
+행동:
+  ✅ plan.md에 섹션 14 추가
+  ❌ workflows-guide.md 별도 생성 안 함
+```
+
+**시나리오 2: 미래 - API 문서 1,500줄 추가 요청**
+```
+판단:
+  - plan.md 현재: 2,300줄
+  - 추가 시: 3,800줄 > 2,500줄
+
+행동:
+  1. 사용자에게 확인 요청:
+     "plan.md가 2,500줄 임계값을 초과합니다.
+      API 문서를 별도 파일(api-reference.md)로
+      생성할까요?"
+  2. 승인시 분리, 거부시 통합 유지
+```
+
+#### 🌿 Git 브랜치 백업 전략
+
+**큰 변화 발생시 브랜치 백업 필수**:
+- 아키텍처 변경 (예: 9개 → 12개 서비스)
+- CLAUDE.md 200줄 이상 수정
+- 개발 전략 변경 (예: 에이전트 구성 변경)
+- 기술 스택 교체 (예: PostgreSQL → MongoDB)
+
+**워크플로우 (5단계)**:
+```
+1. 현재 상태 커밋 (백업)
+2. 백업 브랜치 생성 ({category}/{description})
+3. 변경 작업 수행
+4. 비교 보고서 작성 (COMPARISON_{category}_{date}.md)
+5. 사용자 선택 (채택 or 유지)
+```
+
+**실전 예시**: CLAUDE.md Phase 3 최적화 (2025-01-21)
+- 브랜치: `docs/claude-md-phase3-test`
+- 비교 보고서: [PHASE_COMPARISON.md](PHASE_COMPARISON.md)
+- 결과: Phase 3 채택 (7.3% 파일 크기 감소, 의사코드 전환)
+
+**상세 가이드**: [docs/development/git-branch-strategy.md](docs/development/git-branch-strategy.md)
+
+#### 🔒 GitHub 브랜치 보호 전략
+
+**팀 확장을 고려한 3단계 로드맵**:
+- **Phase 1 (1인)**: Self-review, 0 approvals, CI required
+- **Phase 2 (2인)**: 1 approval, CODEOWNERS, GPG 권장
+- **Phase 3 (3-5인)**: 2 approvals, GPG 필수, Linear History
+
+**핵심 보호 설정**:
+```yaml
+main 브랜치:
+  - Pull Request 필수
+  - Status Checks: Lighthouse CI + Criterion.rs
+  - Force Push/Deletion 방지
+  - (Phase 2+) CODEOWNERS 자동 리뷰어
+  - (Phase 3) GPG 서명 필수
+```
+
+**GitHub CLI 자동화 워크플로우** (Phase 1 권장):
+```bash
+# 일일 워크플로우 (3단계, 30초)
+git checkout -b feature/my-feature
+git commit -m "feat: My feature"
+git push origin feature/my-feature
+./scripts/pr-auto-merge.sh "feat: My feature"  # 자동 PR + 머지!
+```
+
+**효과**: PR 생성 + 머지 시간 90% 단축 (5분 → 30초)
+
+**Phase 1 제약사항** (중요!):
+- Personal 계정 Private 레포에서는 Branch Protection이 **강제되지 않음**
+- 자기 규율로 PR 워크플로우 습관화
+- Phase 2 (팀원 추가 시) GitHub Team 업그레이드 필수 ($8/월)
+
+**관련 문서**:
+- **브랜치 보호 전략**: [docs/guides/branch-protection-strategy.md](docs/guides/branch-protection-strategy.md)
+- **GitHub CLI 자동화**: [docs/guides/github-cli-workflow.md](docs/guides/github-cli-workflow.md) 🚀
+- **GPG 설정 가이드**: [docs/guides/gpg-setup.md](docs/guides/gpg-setup.md)
+- **Git 브랜치 전략**: [docs/development/git-branch-strategy.md](docs/development/git-branch-strategy.md)
+
+#### 🤖 Claude 자동 PR 워크플로우 (Phase 1)
+
+**핵심 원칙**: 모든 개발 작업은 **자동으로 PR 워크플로우**를 따릅니다.
+
+**Claude의 표준 작업 절차** (5단계 자동화):
+```bash
+1. 브랜치 생성: git checkout -b <type>/<description>
+2. 작업 수행: Edit/Write 도구로 파일 수정/생성
+3. 커밋: git commit -m "<conventional-commit-message>"
+4. 푸시: git push origin <branch>
+5. 자동 PR + 머지: ./scripts/pr-auto-merge.sh "<PR-title>"
+```
+
+**브랜치 명명 규칙**:
+```yaml
+feature/  : 새 기능 추가
+fix/      : 버그 수정
+docs/     : 문서 수정
+perf/     : 성능 개선
+refactor/ : 코드 리팩토링
+test/     : 테스트 추가
+chore/    : 기타 작업 (빌드, 설정)
+```
+
+**Conventional Commits 형식**:
+```
+feat: 새 기능 추가
+fix: 버그 수정
+docs: 문서 수정
+perf: 성능 개선
+refactor: 리팩토링
+test: 테스트 추가
+chore: 기타 작업
+```
+
+**사용자 요청 → Claude 자동 처리 예시**:
+
+| 사용자 요청 | 브랜치명 | 커밋 메시지 | PR 제목 |
+|------------|---------|-----------|---------|
+| "채팅 히스토리 기능 추가해줘" | `feature/chat-history` | `feat: Add chat history feature` | `feat: Add chat history feature` |
+| "README 업데이트해줘" | `docs/update-readme` | `docs: Update README` | `docs: Update README` |
+| "메모리 릭 버그 수정해줘" | `fix/memory-leak` | `fix: Fix memory leak in WebSocket` | `fix: Fix memory leak` |
+| "데이터베이스 쿼리 최적화해줘" | `perf/optimize-db-queries` | `perf: Optimize database queries` | `perf: Optimize database queries` |
+
+**Claude의 자동 작업 흐름**:
+```
+1. 사용자 요청 분석
+   └─ 작업 타입 판단 (feature/fix/docs/perf 등)
+
+2. 브랜치 생성
+   └─ "🔀 브랜치 생성: feature/chat-history" 메시지 출력
+
+3. 작업 수행
+   └─ Edit/Write 도구로 파일 수정/생성
+
+4. 커밋 메시지 자동 생성
+   └─ Conventional Commits 형식 준수
+
+5. PR 자동 생성 및 머지
+   └─ ./scripts/pr-auto-merge.sh 실행
+   └─ CI 통과 후 자동 머지
+   └─ 브랜치 자동 삭제
+
+6. 결과 보고
+   └─ "✅ PR #5 생성 완료! CI 통과 후 자동 머지됩니다." 메시지 출력
+```
+
+**예외 상황** (사용자 명시적 요청 시만):
+```yaml
+긴급 hotfix:
+  - 조건: 사용자가 "긴급" 또는 "hotfix" 명시
+  - 행동: main 브랜치에 직접 푸시
+  - 예: "긴급 보안 패치 적용해줘"
+
+PR 생략:
+  - 조건: 사용자가 "PR 생략" 명시
+  - 행동: develop 브랜치에 직접 푸시
+  - 예: "typo 수정해줘 (PR 생략)"
+
+기본값: 항상 PR 워크플로우 사용
+```
+
+**Claude의 자동 확인사항**:
+- [ ] 현재 브랜치가 main/develop인지 확인 (맞으면 새 브랜치 생성)
+- [ ] 브랜치명이 규칙에 맞는지 확인
+- [ ] 커밋 메시지가 Conventional Commits 형식인지 확인
+- [ ] PR 제목이 명확한지 확인
+- [ ] CI 통과 여부 확인 (자동 머지 조건)
+
+**효과**:
+- ✅ 사용자는 "기능 추가해줘"만 요청하면 됨
+- ✅ Claude가 브랜치 생성부터 머지까지 자동 처리
+- ✅ 일관된 PR 워크플로우 습관화 (자기 규율)
+- ✅ GitHub 이력 관리 자동화 (PR 단위 추적)
+- ✅ Phase 1 → Phase 2/3 전환시 워크플로우 변경 없음
+
+**관련 문서**:
+- **GitHub CLI 워크플로우 가이드**: [docs/guides/github-cli-workflow.md](docs/guides/github-cli-workflow.md)
+
+---
+
+#### 📅 날짜 사용 규칙 (필수!)
+
+Claude가 문서나 보고서를 작성할 때 **반드시** 따라야 하는 날짜 규칙:
+
+**1. 새 문서 작성시**
+```yaml
+규칙: <env>의 "Today's date" 확인 후 현재 날짜 사용
+
+예시:
+  - <env> Today's date: 2025-10-22
+  - 파일명: COMPARISON_code_reusability_2025-10-22.md ✅
+  - 내용: "생성일: 2025-10-22" ✅
+
+잘못된 예:
+  - 과거 예시 날짜 복사: 2025-01-21 ❌
+  - 임의 날짜: 2025-01-22 ❌
+```
+
+**2. 기존 문서 참조시**
+```yaml
+규칙: 과거 작업의 날짜는 절대 수정 금지
+
+예시:
+  - "실전 예시: CLAUDE.md Phase 3 최적화 (2025-01-21)" → 유지 ✅
+  - 과거 비교 보고서 날짜 → 유지 ✅
+
+잘못된 예:
+  - 과거 날짜를 현재 날짜로 변경 ❌
+```
+
+**3. 날짜 형식**
+```yaml
+표준 형식: YYYY-MM-DD
+
+파일명: COMPARISON_{category}_{YYYY-MM-DD}.md
+문서 내: "생성일: YYYY-MM-DD"
+참조: "작업명 (YYYY-MM-DD)"
+```
+
+#### 🔄 /init 워크플로우 규칙 (필수!)
+
+Claude가 `/init` 작업을 시작할 때 **반드시** 따라야 하는 워크플로우:
+
+**1. TASKS.md 확인 (최우선!)**
+```yaml
+필수 작업:
+  1. TASKS.md 파일 읽기 (전체 또는 관련 Phase)
+  2. 현재 진행 중인 작업 확인 (🟢 진행 중 상태)
+  3. 다음 작업 식별 (⏳ 대기 상태 → 🟢 진행 중으로 전환)
+  4. 이전 작업의 성과 데이터 검토 (성능 지표, 커밋 링크 등)
+
+이유:
+  - Single Source of Truth for task tracking
+  - 작업 중복 방지
+  - 컨텍스트 연속성 유지
+```
+
+**2. CLAUDE.md 참조 (전략 확인)**
+```yaml
+필수 섹션:
+  - Section 0: 문서 목적 및 범위
+  - Section 관련: 현재 작업과 관련된 아키텍처/전략 섹션
+  - Section 17: 작업 진행 현황 (TASKS.md 링크 확인)
+
+선택적:
+  - 특정 서비스 구현시 관련 섹션 (예: Section 2.1 하이브리드 판단)
+```
+
+**3. 작업 실행 및 업데이트**
+```yaml
+실행 중:
+  1. TASKS.md 상태 업데이트 (⏳ → 🟢)
+  2. 작업 진행 (코드 작성, 테스트 등)
+  3. 성능 지표 측정 (해당되는 경우)
+  4. ⚠️ 에러 발생시 Debug_Report.md 자동 문서화 (신규!)
+
+완료 후:
+  1. TASKS.md 상태 업데이트 (🟢 → ✅)
+  2. 실측 데이터 기록 (성능, 커버리지 등)
+  3. Git 커밋 (커밋 링크 TASKS.md에 추가)
+  4. Notion 로그 링크 추가 (자동 생성시)
+  5. 완료율 재계산 및 업데이트
+```
+
+**3-1. 에러 발생시 자동 문서화 (필수!)**
+```yaml
+에러 감지 시:
+  1. 발생 시간 기록 (HH:MM)
+  2. 에러 메시지 전체 캡처
+  3. Debug_Report.md에 새 섹션 추가:
+     - 🕐 발생 시간
+     - ❌ 에러 내용
+     - 🔍 에러 원인 (분석 중)
+  4. 디버깅 진행하며 실시간 업데이트
+
+디버깅 과정:
+  - 모든 시도(명령어/코드 변경) 단계별 기록
+  - 각 시도의 결과 (성공 ✅ / 실패 ❌) 명시
+  - 타임스탬프 포함
+
+해결 후:
+  1. ✅ 해결 방법 섹션 완성
+  2. 📊 영향 범위 확인
+  3. 🔑 교훈 작성 (향후 예방 방법)
+  4. Git 커밋 메시지에 Debug Report 참조
+     예: "fix: [문제] (Debug: Debug_Report.md#2025-11-06)"
+
+참고:
+  - Debug_Report.md 작성 가이드 참조
+  - 모든 에러는 반드시 문서화!
+```
+
+**4. 워크플로우 예시**
+
+**정상 케이스**:
+```yaml
+/init 작업 시작:
+  ↓
+STEP 1: Read TASKS.md (Phase 1 섹션 확인)
+  → "Task 1.1: ✅ 완료 (2025-11-04)"
+  → "Task 1.2: ⏳ 대기 중 (SQLite 벤치마킹)"
+  ↓
+STEP 2: 다음 작업 식별
+  → "Task 1.2를 🟢 진행 중으로 전환"
+  ↓
+STEP 3: CLAUDE.md 참조
+  → "Section 9.1: 테스트 패턴 확인"
+  → "Section 5.1: PostgreSQL 전략 확인"
+  ↓
+STEP 4: 작업 실행
+  → Criterion.rs 벤치마크 작성
+  → 성능 측정 (평균 0.5ms 달성)
+  ↓
+STEP 5: TASKS.md 업데이트
+  → Task 1.2: 🟢 → ✅
+  → 실측 데이터: "평균 0.5ms, p99 1.2ms"
+  → 커밋 링크: "eeb328c"
+  → 완료율: 12.5% → 25%
+```
+
+**에러 발생 케이스** (신규!):
+```yaml
+/init 작업 시작:
+  ↓
+STEP 1-4: (동일)
+  ↓
+STEP 4-A: ⚠️ 에러 발생 (09:22)
+  → vitest 실행 실패: "No test suite found"
+  ↓
+STEP 4-B: Debug_Report.md 즉시 문서화
+  → ## 2025-11-06: Vitest "No test suite found" 에러
+  → 🕐 발생 시간: 09:22
+  → ❌ 에러 내용: [전체 메시지 캡처]
+  ↓
+STEP 4-C: 디버깅 진행 (실시간 업데이트)
+  → 1단계: npm list vitest 확인 ✅
+  → 2단계: 설정 파일 검증 ❌
+  → 3단계: TypeScript 설정 확인 ❌
+  → 4단계: vitest 다운그레이드 ✅ (해결!)
+  ↓
+STEP 4-D: Debug_Report.md 완료 섹션 추가
+  → ✅ 해결 방법: vitest v4.0.7 → v2.1.9
+  → 📊 영향 범위: 모든 테스트 정상 작동
+  → 🔑 교훈: LTS 버전 사용 권장
+  ↓
+STEP 5: TASKS.md + Git 커밋
+  → 커밋 메시지: "fix: Resolve vitest test suite error
+     (Debug: Debug_Report.md#2025-11-06)"
+```
+
+**5. 금지 사항**
+```yaml
+❌ 하지 말 것:
+  - TASKS.md 확인 없이 작업 시작
+  - 완료율 업데이트 누락
+  - 실측 데이터 기록 누락
+  - 작업 상태 변경 누락 (⏳ → 🟢 → ✅)
+  - 에러 발생시 Debug_Report.md 문서화 누락 (신규!) ⚠️
+  - 디버깅 과정 기록 없이 해결책만 작성
+
+✅ 해야 할 것:
+  - 모든 /init 작업 전 TASKS.md 확인
+  - 작업 완료시 즉시 TASKS.md 업데이트
+  - 성능 지표 정확히 측정 및 기록
+  - Git 커밋 링크 추가
+  - 에러 발생시 즉시 Debug_Report.md 문서화 시작 (신규!) 📝
+  - 디버깅 시도 과정 단계별 기록 (성공/실패 명시)
+```
+
+**상세 가이드**: [TASKS.md](TASKS.md) - `/init` 워크플로우 섹션 참조
+
+---
+
+### 🔄 Ver2.0 Final 아키텍처 변경 요약
+
+**서비스 구조 변화**:
+- Ver1.0: 6개 서비스 → Ver2.0 Final: **9개 마이크로서비스**
+- **Learning Service (8009) 신규 추가**: 자동학습 + Rule 추출 (ML 대체!)
+- **용어 정정**: "Dashboard" → 3개 독립 서비스
+  - Data Visualization Service (8006): 단순 데이터 대시보드
+  - BI Service (8007): MCP 기반 AI 인사이트
+  - Chat Interface Service (8008): 통합 AI 어시스턴트
+
+**핵심 혁신 기능**:
+1. **하이브리드 판단**: Rule Engine + LLM 순차 실행 ([섹션 2.1](#21-하이브리드-판단-전략-rule--llm))
+2. **자동학습 시스템**: 3개 알고리즘 (빈도 분석 + 결정 트리 + LLM) ([섹션 2.3](#23-자동학습-시스템-전략-ver20-final---ml-대체))
+3. **데이터 집계**: 토큰 90% 절감 + 할루시네이션 방지 ([섹션 2.4](#24-데이터-집계-알고리즘-할루시네이션-방지))
+4. **Visual Workflow Builder**: n8n 스타일 드래그앤드롭
+5. **MCP 컴포넌트 조립**: 사전 제작 컴포넌트 활용
+
+**UI 매핑**:
+- `UI/judgify-inventory-dashboard.html` → Data Visualization (8006)
+- `UI/judgify-inventory-chat.html` → BI Service (8007)
+- `UI/judgify-enterprise-ui.html` → Chat Interface (8008)
+
+---
+
+## 🏗 1. Ver2.0 Final 마이크로서비스 아키텍처 이해
+
+Claude가 개발할 **9개 핵심 마이크로서비스**:
+
+| 서비스 | 포트 | Claude의 개발 역할 | 핵심 기술 | UI 매핑 |
+|--------|------|-------------------|-----------|---------|
+| **API Gateway** | 8000 | JWT 인증 + 라우팅 로직 설계 | Kong/Nginx + JWT | - |
+| **Workflow Service** | 8001 | **Visual Workflow Builder (n8n 스타일)** | FastAPI + PostgreSQL + Next.js 14 | - |
+| **Judgment Service** | 8002 | **하이브리드 판단 엔진 핵심 로직 + Connector 통합** | FastAPI + OpenAI + AST Parser + pgvector | - |
+| **Action Service** | 8003 | 외부 시스템 연동 + Celery 비동기 | FastAPI + Celery + MCP | - |
+| **Notification Service** | 8004 | Slack/Teams/Email 알림 | FastAPI + Message Queue | - |
+| **Logging Service** | 8005 | 중앙집중 로그 수집/분석 시스템 | FastAPI + PostgreSQL + ELK | - |
+| **Data Visualization Service** | 8006 | 단순 데이터 대시보드 (편집 가능) | FastAPI + PostgreSQL + WebSocket | `judgify-inventory-dashboard.html` |
+| **BI Service** | 8007 | **MCP 기반 컴포넌트 조립 + 인사이트** | FastAPI + LLM + MCP Components | `judgify-inventory-chat.html` |
+| **Chat Interface Service** | 8008 | **통합 AI 채팅 어시스턴트 (마스터 컨트롤러)** | FastAPI + LLM + WebSocket | `judgify-enterprise-ui.html` |
+| **Learning Service** | **8009** | **자동학습 + Rule 추출 (ML 대체)** | FastAPI + PostgreSQL + pgvector + sklearn | - |
+
+### 🧠 핵심 개발 우선순위 (Ver2.0 Final)
+1. **Judgment Service (8002)** - 하이브리드 판단 엔진 (가장 중요!)
+2. **Learning Service (8009)** - 자동학습 시스템 (혁신 기능! ML 대체)
+3. **BI Service (8007)** - MCP 기반 컴포넌트 조립 (React 생성 대신)
+4. **Chat Interface Service (8008)** - 통합 AI 어시스턴트 (마스터 컨트롤러)
+5. **Workflow Service (8001)** - Visual Workflow Builder (n8n 스타일)
+6. **Data Visualization Service (8006)** - 단순 데이터 대시보드
+7. **나머지 서비스들** - 지원 시스템
+
+---
+
+## 🎯 2. Ver2.0 핵심 개발 철학
+
+### 2.1 하이브리드 판단 전략 (Rule + LLM)
+
+**실행 흐름**:
+```
+1. Rule Engine 우선 실행 (AST 기반, 안전함)
+   ├─ 성공 && 신뢰도 ≥ 0.7 → 즉시 반환 (종료)
+   └─ 실패 || 저신뢰도 → 2단계로 진행
+
+2. LLM 보완 실행
+   └─ OpenAI API 호출 (workflow context 활용)
+
+3. 최종 결과 종합
+   └─ Rule 결과 + LLM 결과 → 하이브리드 판단
+```
+
+**핵심 파라미터**:
+- 신뢰도 임계값: `0.7`
+- Rule Engine: AST 기반 (eval 금지)
+- LLM Engine: OpenAI API
+
+### 2.2 3-Tier Frontend 전략 (Ver2.0 핵심 변경!)
+
+**용어 정정**: "Dashboard" → 3개 서비스로 분리
+
+#### 2.2.1 Data Visualization Service (8006) - 단순 대시보드
+
+**기능**: 미리 정의된 차트로 데이터 표시 (편집 가능)
+
+**처리 흐름**:
+```
+render_dashboard:
+  1. DB에서 대시보드 설정 로드
+  2. PostgreSQL 데이터 직접 조회
+  3. 미리 정의된 차트 렌더링
+     (KPI 카드, 게이지, 라인/바 차트)
+
+edit_dashboard:
+  └─ 드래그앤드롭으로 차트 배치 변경 저장
+```
+
+#### 2.2.2 BI Service (8007) - AI 기반 인사이트 생성
+
+**기능**: MCP 기반 컴포넌트 조립 + AI 인사이트 생성
+
+**처리 흐름**:
+```
+generate_insight(user_request):
+  1. LLM 요청 분석
+     └─ 필요 데이터 + 비즈니스 컨텍스트 추출
+
+  2. Judgment Service 호출
+     └─ 데이터 기반 판단 실행
+
+  3. React 컴포넌트 자동 생성
+     └─ 인사이트 + 최적 차트 타입 기반
+
+  4. 비즈니스 권장사항 생성
+     ├─ 판단 결과 분석
+     └─ RAG 엔진으로 유사 사례 검색
+
+  반환: 대시보드 + 인사이트 + 권장사항
+```
+
+#### 2.2.3 Chat Interface Service (8008) - 통합 AI 어시스턴트
+
+**기능**: Claude Desktop 수준 마스터 컨트롤러
+
+**처리 흐름**:
+```
+handle_chat(user_message, session_id):
+  1. 의도 분석 (NLP)
+     └─ workflow_execution | data_visualization | settings_change
+
+  2. 라우팅 로직
+     ├─ workflow_execution → Workflow Service 호출
+     ├─ data_visualization → BI Service 호출
+     └─ settings_change → Settings 변경 (MCP 서버 상태 포함)
+
+  3. 컨텍스트 유지 (멀티턴 대화)
+     └─ 세션별 대화 이력 저장
+
+  반환: 결과 + 세션 컨텍스트
+```
+
+### 2.3 자동학습 시스템 전략 (Ver2.0 Final - ML 대체!)
+
+**핵심 개념**: 전통적 머신러닝 대신 3개 알고리즘 + Few-shot 학습으로 자동 Rule 추출
+
+#### 처리 흐름
+
+**1. 피드백 수집**:
+```
+collect_feedback(judgment_id, feedback_type, value):
+  ├─ 피드백 저장 (👍👎, LOG 리뷰, 채팅)
+  └─ value == 1 (긍정) → Few-shot 샘플 자동 추가
+```
+
+**2. Few-shot 학습**:
+```
+manage_few_shot(input_data):
+  1. 입력 임베딩 생성 (OpenAI API)
+  2. pgvector 유사 샘플 검색
+     ├─ 테이블: training_samples
+     ├─ 개수: 10-20개
+     └─ 최소 정확도: 0.8
+  반환: 유사 예시 목록
+```
+
+**3. 자동 Rule 추출 (3개 알고리즘)**:
+```
+extract_rules(workflow_id):
+  알고리즘 1: 빈도 분석
+    └─ 반복 패턴 발견
+
+  알고리즘 2: 결정 트리 학습 (sklearn)
+    └─ 조건문 자동 생성
+
+  알고리즘 3: LLM 패턴 발견
+    └─ OpenAI로 복잡한 패턴 추출
+
+  → 최적 Rule 선택 및 저장
+```
+
+### 2.4 데이터 집계 알고리즘 (할루시네이션 방지!)
+
+**목적**: LLM 토큰 최적화 + 할루시네이션 방지
+
+**처리 흐름**:
+```
+aggregate_for_llm(raw_data, time_range):
+  1. 통계 집계 (Statistical Aggregation)
+     ├─ mean (평균)
+     ├─ median (중앙값)
+     ├─ std_dev (표준편차)
+     ├─ min (최소)
+     └─ max (최대)
+
+  2. 평가 집계 (Evaluation Aggregation)
+     ├─ status: normal | warning | critical
+     │   (평균 < threshold → normal, 아니면 critical)
+     └─ trend: increasing | decreasing
+         (현재 평균 vs 이전 평균 비교)
+
+  3. 트렌드 분석 (Trend Analysis)
+     ├─ direction: 데이터 방향성 계산
+     └─ change_rate: 변화율 계산
+
+  4. 집계 데이터 저장 (아카이빙)
+     └─ 통계 + 평가 + 트렌드 → DB 저장
+
+  반환: {stats, evaluation, trend}
+```
+
+**핵심 효과**:
+- 토큰 사용량: 원본 데이터 대비 90% 감소
+- 할루시네이션 방지: 집계된 정확한 통계 값 전달
+
+### 2.5 보안 우선 개발
+- **AST 기반 Rule Engine**: JavaScript `eval()` 절대 금지
+- **입력 검증**: 모든 API에 Pydantic 모델 적용
+- **인증**: JWT + RBAC 철저히 구현
+
+---
+
+## 🔧 3. Ver2.0 Final 개발 컨텍스트 전략
+
+### 3.1 문서 기반 컨텍스트 우선순위
+Claude는 개발시 **반드시 다음 순서로** 문서를 참조해야 함:
+
+1. **`CLAUDE.md`** (이 문서) - 전역 개발 규칙 및 아키텍처 이해
+2. **`initial.md`** - Ver2.0 요구사항 및 제약조건
+3. **`docs/services/{서비스명}.md`** - 구체적 구현 스펙
+4. **`docs/architecture/system_overview.md`** - 전체 시스템 설계
+5. **`prompt-guide.md`** - LLM 관련 개발시 Prompt 설계 가이드
+
+### 3.2 서비스별 개발 컨텍스트 매핑 (Ver2.0 Final)
+
+**핵심 원칙**: 각 서비스 개발시 관련 문서를 순서대로 참조
+
+1. **서비스별 상세 설계**: `docs/services/{service-name}.md`
+2. **아키텍처 참조**: `docs/architecture/` 디렉토리 문서들
+3. **LLM 관련**: `prompt-guide.md` 프롬프트 템플릿
+4. **UI 디자인**: `UI/` 디렉토리 HTML 파일들
+
+**전체 문서 목록**: [섹션 0](#-0-ver20-final-문서-목적-및-범위)의 "📚 Ver2.0 핵심 문서 구조" 참조
+
+---
+
+## 🚀 4. Ver2.0 개발 흐름 및 패턴
+
+### 4.1 마이크로서비스 개발 패턴
+
+**FastAPI 서비스 구조**:
+```python
+# version.py에서 버전 가져오기
+from version import __version__
+
+app = FastAPI(title="서비스명", version=__version__)
+```
+
+```
+1. 기본 구조
+   └─ FastAPI(title="서비스명", version=__version__)
+
+2. 의존성 주입
+   ├─ get_database() → PostgreSQL 연결
+   └─ get_redis_cache() → Redis 캐시
+
+3. 라우터 분리
+   ├─ /api/v2/{service} → 비즈니스 로직
+   └─ /health → 헬스체크
+
+4. 에러 처리
+   └─ @exception_handler → JSON 응답
+
+5. 구조화 로깅
+   └─ structured_logger → workflow_id + result 포함
+```
+
+### 4.2 하이브리드 판단 개발 패턴
+
+**클래스 구조**:
+```
+HybridJudgmentEngine:
+  초기화:
+    ├─ rule_engine: ASTRuleEngine
+    └─ llm_engine: OpenAIEngine
+
+  judge(workflow_input) → JudgmentResult:
+    1. Rule Engine 평가
+    2. 성공 조건 체크 (신뢰도 ≥ 0.7 && 에러 없음)
+       └─ 성공시 → method="rule"로 즉시 반환
+    3. LLM 보완 실행
+    4. 최종 결과 종합 (Rule + LLM)
+```
+
+### 4.3 자동 대시보드 생성 패턴
+
+**처리 흐름**:
+```
+DashboardAutoGenerator.generate(user_request):
+  1. LLM 요청 분석
+     ├─ 필요 데이터 소스 식별
+     └─ 비즈니스 의도 파악
+
+  2. 컴포넌트 선택
+     ├─ 데이터 타입 → 차트 타입 매핑
+     └─ 시각화 의도 → 최적 레이아웃
+
+  3. React 코드 생성
+     └─ 컴포넌트 + 데이터 바인딩
+
+  반환: DashboardConfig
+    ├─ title (LLM 제안)
+    ├─ components (선택된 차트들)
+    ├─ react_code (생성된 코드)
+    └─ real_time_config (업데이트 주기)
+```
+
+---
+
+## 💾 5. Ver2.0 데이터베이스 개발 전략
+
+### 5.1 PostgreSQL + pgvector 활용
+```sql
+-- Claude가 생성해야 하는 핵심 테이블들
+
+-- 워크플로우 정의  
+CREATE TABLE workflows (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    definition JSONB NOT NULL,  -- 워크플로우 노드 구조
+    rule_expression TEXT,       -- AST 파싱용 Rule 표현식
+    version INTEGER DEFAULT 1,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 판단 실행 결과 (핵심!)
+CREATE TABLE judgment_executions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_id UUID REFERENCES workflows(id),
+    input_data JSONB NOT NULL,
+    rule_result JSONB,           -- Rule Engine 결과
+    llm_result JSONB,            -- LLM Engine 결과  
+    final_result JSONB NOT NULL, -- 최종 하이브리드 결과
+    confidence_score DECIMAL(3,2), -- 신뢰도 점수
+    method_used VARCHAR(20),     -- rule|llm|hybrid
+    execution_time_ms INTEGER,
+    explanation_embedding VECTOR(1536), -- RAG용 임베딩
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### 5.2 RAG 기반 설명 생성
+```python
+# Claude가 구현해야 하는 RAG 패턴
+
+class RAGExplanationGenerator:
+    async def generate_explanation(self, judgment_result: JudgmentResult) -> str:
+        # 1. 유사한 과거 판단 검색 (pgvector)
+        similar_cases = await self.vector_search(
+            query_embedding=judgment_result.input_embedding,
+            table="judgment_executions", 
+            limit=5
+        )
+        
+        # 2. 컨텍스트 구성
+        context = {
+            "current_judgment": judgment_result.dict(),
+            "similar_cases": similar_cases,
+            "domain_knowledge": self.get_domain_rules()
+        }
+        
+        # 3. LLM으로 설명 생성
+        explanation = await self.llm_explainer.generate(
+            template="explanation_template",
+            context=context
+        )
+        
+        return explanation
+```
+
+---
+
+## 🤖 6. Ver2.0 AI 에이전트 팀 구성
+
+### 18개 AI 에이전트 요약
+
+| Phase | 에이전트 | 역할 | 주요 서비스 |
+|-------|---------|------|------------|
+| **Phase 1 (8개)** | ai-engineer | 하이브리드 판단 로직 설계 | Judgment (8002), Learning (8009) |
+| | prompt-engineer | LLM 프롬프트 최적화 | Judgment, Chat (8008) |
+| | database-optimization | PostgreSQL + pgvector | 전체 |
+| | data-engineer | ETL 파이프라인, 데이터 처리 | 전체 |
+| | graphql-architect | 마이크로서비스 간 API | 전체 |
+| | business-analyst | KPI, 비즈니스 메트릭 | BI (8007) |
+| | task-decomposition-expert | 복잡한 워크플로우 분해 | Workflow (8001) |
+| | search-specialist | RAG, 벡터 검색 | Judgment, Learning |
+| **Phase 2 (6개)** | devops-engineer | Docker/K8s 배포 자동화 | 전체 |
+| | security-engineer | JWT, RBAC, 암호화 | API Gateway (8000) |
+| | performance-engineer | 성능 테스트, 최적화 | 전체 |
+| | mlops-engineer | AI 모델 배포, 모니터링 | Learning (8009) |
+| | customer-support | 사용자 가이드, 문서화 | 전체 |
+| | risk-manager | 안정성, 장애 대응 | 전체 |
+| **Phase 3 (4개)** | technical-writer | 문서화 표준화 | 전체 |
+| | observability-engineer | 모니터링, 로그 분석 | Logging (8005) |
+| | frontend-architect | 대시보드 UI/UX | Data Viz (8006), BI (8007) |
+| | academic-researcher | AI 논문, 기술 동향 | 전체 |
+
+**상세 가이드**: [docs/guides/hybrid-ai-strategy.md](../docs/guides/hybrid-ai-strategy.md)
+- 18개 에이전트 상세 설명
+- 8개 Skill 상세 설명
+- 워크플로우 패턴 및 사용 예시
+
+### 6.4 서비스별 에이전트 매핑 전략 (Ver2.0 Final)
+| 서비스 | 주담당 에이전트 | 협업 에이전트 |
+|--------|-----------------|---------------|
+| **Judgment Service (8002)** | ai-engineer, prompt-engineer | search-specialist, mlops-engineer |
+| **Learning Service (8009)** 🔥 | **ai-engineer, mlops-engineer** | **search-specialist, database-optimization** |
+| **Workflow Service (8001)** | task-decomposition-expert, graphql-architect | frontend-architect (Visual Builder) |
+| **BI Service (8007)** | ai-engineer, business-analyst | prompt-engineer, frontend-architect |
+| **Chat Interface Service (8008)** | prompt-engineer, frontend-architect | ai-engineer, technical-writer |
+| **Data Visualization Service (8006)** | frontend-architect, data-engineer | business-analyst |
+| **Action Service (8003)** | data-engineer, graphql-architect | security-engineer |
+| **Notification Service (8004)** | data-engineer | devops-engineer |
+| **Logging Service (8005)** | devops-engineer, observability-engineer | risk-manager |
+| **API Gateway (8000)** | security-engineer, performance-engineer | devops-engineer |
+
+### 6.5 하이브리드 AI 전략: Agent + Skill 통합 🆕
+
+Ver2.0 Final에서는 **Agent (전략)** 와 **Skill (전술)** 을 결합한 하이브리드 접근법을 사용합니다.
+
+#### 📊 Agent vs Skill 비교
+
+| 구분 | Agent | Skill |
+|------|-------|-------|
+| **복잡도** | 높음 (전문가 판단) | 낮음 (절차 따라가기) |
+| **소요 시간** | 20-60분 (깊이 분석) | 초-5분 (빠른 실행) |
+| **창의성** | 필요 (새로운 해결책) | 불필요 (정해진 패턴) |
+| **사용 방법** | `Task tool` 호출 | `/명령어` 실행 |
+| **재사용성** | 낮음 (매번 다름) | 높음 (같은 패턴) |
+| **비용** | 높음 (Opus 모델) | 낮음 (템플릿 실행) |
+
+#### 🎯 언제 무엇을 사용할까?
+
+**Agent 사용 조건**:
+- ✅ 복잡한 아키텍처 설계 필요
+- ✅ 창의적 문제 해결 필요
+- ✅ 전문가 수준 판단 필요
+- ✅ 컨텍스트 이해 필수
+- ✅ 시간 여유 있음 (20-60분)
+- ✅ 고품질 결과 중요
+
+**Skill 사용 조건**:
+- ✅ 반복적인 작업
+- ✅ 정해진 절차 실행
+- ✅ 빠른 결과 필요 (초~분)
+- ✅ 일관성 중요
+- ✅ 간단한 템플릿 생성
+- ✅ 자동화 가능한 검증
+
+#### 📋 8개 Skill 목록 (.claude/skills/)
+
+1. **`/create-service`** - 새 FastAPI 서비스 템플릿 생성 (30초)
+2. **`/generate-api`** - CRUD API 엔드포인트 자동 생성 (1분)
+3. **`/generate-tests`** - pytest 테스트 템플릿 생성 (2분)
+4. **`/sync-docs`** - API 문서 자동 동기화 (1분)
+5. **`/validate-architecture`** - 아키텍처 규칙 검증 (30초)
+6. **`/collect-metrics`** - Prometheus 메트릭 수집 (30초)
+7. **`/run-load-test`** - Apache Bench 성능 테스트 (5분)
+8. **`/compare-metrics`** - Before/After 비교 보고서 (1분)
+
+#### 🔄 하이브리드 워크플로우 패턴
+
+**패턴 1: Agent 설계 → Skill 생성 → Manual 개발**
+```
+Task tool (ai-engineer): 아키텍처 설계 (40분)
+  ↓
+/create-service: 템플릿 생성 (30초)
+  ↓
+수동 개발: 비즈니스 로직 구현 (60분)
+  ↓
+/generate-tests: 테스트 생성 (2분)
+  ↓
+/validate-architecture: 검증 (30초)
+```
+
+**패턴 2: Skill 데이터 수집 → Agent 분석 → Skill 실행**
+```
+/collect-metrics: 메트릭 수집 (30초)
+  ↓
+Task tool (performance-engineer): 문제 분석 (30분)
+  ↓
+수동 수정: 코드 최적화 (45분)
+  ↓
+/run-load-test: 성능 테스트 (5분)
+  ↓
+/compare-metrics: Before/After 비교 (1분)
+```
+
+**패턴 3: 반복 작업 자동화 (Skill 체인)**
+```
+/validate-architecture (30초)
+  ↓
+/generate-tests (2분)
+  ↓
+/sync-docs (1분)
+  ↓
+/collect-metrics (30초)
+```
+
+#### 📊 서비스별 Agent/Skill 비율 (예상)
+
+| 서비스 | Agent 작업 | Skill 작업 | 비율 |
+|--------|-----------|-----------|------|
+| **Judgment Service (8002)** | 설계, 최적화 | 테스트, 검증 | 70% / 30% |
+| **Learning Service (8009)** | 알고리즘 개선 | 벤치마크, 검증 | 75% / 25% |
+| **Workflow Service (8001)** | UI/UX 설계 | 템플릿 생성 | 60% / 40% |
+| **BI Service (8007)** | 인사이트 로직 | 컴포넌트 조립 | 65% / 35% |
+| **전체 평균** | - | - | **58% / 42%** |
+
+#### 💡 하이브리드 전략의 핵심
+
+- **Agent는 "전략"**, **Skill은 "전술"**
+- **복잡한 설계는 Agent**, **반복 실행은 Skill**
+- **시간이 중요하면 Skill**, **품질이 중요하면 Agent**
+- **처음엔 Agent로 설계**, **이후엔 Skill로 자동화**
+
+#### 🎯 예상 효과
+
+- **작업 시간**: 45분 → 19분 (58% 절감)
+- **일일 처리량**: 10개 → 24개 (2.4배)
+- **자동화율**: 반복 작업 95% Skill로 처리
+
+**상세 가이드**: [docs/guides/hybrid-ai-strategy.md](docs/guides/hybrid-ai-strategy.md)
+
+---
+
+## 🔄 7. Ver2.0 MCP 및 외부 연동 전략
+
+### 핵심 MCP 도구
+
+| 우선순위 | 도구 | 용도 | 관련 서비스 |
+|---------|------|------|------------|
+| **1단계 (필수)** | postgresql-integration | DB 직접 연결 | 전체 |
+| | filesystem-access | 프로젝트 코드 관리 | 전체 |
+| | github-integration | CI/CD | 전체 |
+| | memory-integration | 컨텍스트 관리 | Judgment, Chat |
+| | playwright-mcp-server | E2E 테스트 | 전체 |
+| **2단계 (확장)** | context7 | 라이브러리 문서 | 개발 |
+| | circleci | CI/CD 자동화 | 배포 |
+| | deepgraph-typescript | 코드 분석 | Workflow |
+| | openai | LLM 판단, 대시보드 | Judgment, BI |
+| | slack | 알림 | Action (8003) |
+| | notion | 문서 관리 | 문서화 |
+| | terminal | Docker/K8s 명령 | 배포 |
+| | redis | 캐시, 세션 | 전체 |
+
+**상세 가이드**: [docs/guides/mcp-integration.md](../docs/guides/mcp-integration.md)
+- MCP 도구별 활용 시나리오 (PostgreSQL, Memory, GitHub, Context7)
+- 외부 시스템 연동 패턴 (Action Service 코드)
+- 설치 및 설정 가이드
+
+---
+
+## 🎨 8. Ver2.0 Frontend 자동 생성 전략
+
+**핵심 개념**: BI Service와 Data Visualization Service에서 React 컴포넌트 자동 생성
+
+**전략**:
+- **BI Service (8007)**: MCP 기반 **사전 제작 컴포넌트 조립** (React 코드 생성 대신)
+- **Data Visualization Service (8006)**: 미리 정의된 차트로 단순 렌더링
+
+**상세 구현**: [docs/guides/frontend-auto-generation.md](../docs/guides/frontend-auto-generation.md)
+- React 컴포넌트 패턴
+- 실시간 데이터 훅 (WebSocket)
+- 지원 차트 타입 (MetricCard, BarChart, LineChart, GaugeChart)
+- 자동 대시보드 생성 흐름
+
+---
+
+## 🔍 9. Ver2.0 개발 검증 및 테스트 전략
+
+### 9.1 마이크로서비스 테스트 패턴
+```python
+# Claude가 생성해야 하는 테스트 코드 패턴
+
+import pytest
+from fastapi.testclient import TestClient
+from judgment_service.app import app
+
+client = TestClient(app)
+
+class TestJudgmentService:
+    def test_hybrid_judgment_rule_success(self):
+        """Rule Engine 성공 케이스 테스트"""
+        response = client.post("/api/v2/judgment/execute", json={
+            "workflow_id": "test-workflow-123",
+            "input_data": {"temperature": 90, "vibration": 45},
+            "method": "hybrid"
+        })
+        
+        assert response.status_code == 200
+        result = response.json()
+        assert result["result"] is True
+        assert result["method_used"] == "rule"
+        assert result["confidence"] >= 0.9
+    
+    def test_hybrid_judgment_llm_fallback(self):
+        """LLM 보완 실행 케이스 테스트"""  
+        response = client.post("/api/v2/judgment/execute", json={
+            "workflow_id": "complex-workflow-456", 
+            "input_data": {"complex_scenario": "unexpected situation"},
+            "method": "hybrid"
+        })
+        
+        assert response.status_code == 200
+        result = response.json()
+        assert result["method_used"] in ["llm", "hybrid"]
+        assert "explanation" in result
+```
+
+### 9.2 E2E 테스트 자동화
+
+**도구**: Playwright MCP 서버 활용
+
+**핵심 테스트 시나리오**:
+- Judgment Service: 하이브리드 판단 워크플로우
+- Learning Service: 피드백 수집 + Few-shot 학습
+- Chat Interface: 멀티턴 대화 + 컨텍스트 유지
+- BI Service: 자동 대시보드 생성
+
+**상세 구현**: [docs/guides/e2e-testing.md](../docs/guides/e2e-testing.md)
+- Playwright 설정 및 테스트 패턴
+- Page Object Model (POM) 패턴
+- 네트워크 모킹 및 테스트 격리
+
+---
+
+## 🚀 10. Ver2.0 배포 및 운영 자동화
+
+### 10.1 Docker + Kubernetes 배포 전략
+
+**핵심 원칙**:
+- 마이크로서비스별 독립 배포 (9개 서비스)
+- 환경별 설정 분리 (dev/staging/prod)
+- Secret 관리 (PostgreSQL, Redis, OpenAI API)
+- 헬스체크 및 리소스 제한 (CPU/Memory)
+- 롤링 업데이트 (무중단 배포)
+
+**상세 구현**: [docs/operations/deployment_guide.md](../operations/deployment_guide.md)
+- Kubernetes 배포 YAML 템플릿
+- Docker 이미지 빌드 전략
+- CI/CD 파이프라인 설정
+
+### 10.2 모니터링 및 알림 자동화
+```python
+# Claude가 구현하는 모니터링 메트릭
+
+from prometheus_client import Counter, Histogram, Gauge
+
+# 비즈니스 메트릭
+judgment_executions_total = Counter(
+    'judgment_executions_total', 
+    'Total number of judgment executions',
+    ['method', 'result', 'workflow_id']
+)
+
+judgment_execution_duration = Histogram(
+    'judgment_execution_duration_seconds',
+    'Duration of judgment execution',
+    ['method']
+)
+
+judgment_confidence_score = Gauge(
+    'judgment_confidence_score',
+    'Average confidence score of judgments',
+    ['workflow_id']
+)
+
+# 시스템 메트릭
+active_websocket_connections = Gauge(
+    'dashboard_websocket_connections_active',
+    'Number of active WebSocket connections for dashboards'
+)
+```
+
+---
+
+## 🎯 11. Ver2.0 Claude 개발 체크리스트
+
+Claude가 개발시 **반드시 확인해야 할 체크리스트**:
+
+### ✅ 아키텍처 준수사항
+- [ ] 마이크로서비스별 독립적 배포 가능한 구조
+- [ ] PostgreSQL + pgvector 활용한 RAG 구현  
+- [ ] Redis 캐싱으로 성능 최적화
+- [ ] JWT 기반 인증 및 RBAC 구현
+- [ ] AST 기반 안전한 Rule Engine (eval 금지!)
+
+### ✅ 핵심 기능 구현사항
+- [ ] 하이브리드 판단 로직 (Rule → LLM 보완)
+- [ ] 자연어 → React 대시보드 자동 생성
+- [ ] 실시간 WebSocket 데이터 스트리밍
+- [ ] pgvector 기반 유사 사례 검색
+- [ ] Celery 비동기 외부 시스템 연동
+
+### ✅ 품질 보증사항  
+- [ ] 각 서비스별 유닛 테스트 90% 이상 커버리지
+- [ ] Playwright E2E 테스트 시나리오 구현
+- [ ] Prometheus 메트릭 및 Grafana 대시보드 구성
+- [ ] 에러 처리 및 로깅 구조화
+- [ ] API 문서 자동 생성 (OpenAPI/Swagger)
+
+### ✅ 운영 준비사항
+- [ ] Docker 컨테이너화 및 Kubernetes 배포 설정
+- [ ] 헬스체크 엔드포인트 구현
+- [ ] 환경별 설정 분리 (dev/staging/prod)
+- [ ] 백업/복구 전략 수립
+- [ ] 모니터링 및 알림 시스템 구축
+
+### ✅ AI 에이전트 협업사항
+- [ ] Phase 1 핵심 에이전트 8개 활성화
+- [ ] 서비스별 담당 에이전트 명확한 역할 분담
+- [ ] 에이전트 간 협업 워크플로우 구축
+- [ ] MCP 도구 우선순위에 따른 단계적 도입
+- [ ] 에이전트별 성과 측정 지표 설정
+
+---
+
+## 📖 12. Ver2.0 Quick Start for Claude
+
+새로운 기능 개발시 Claude가 따라야 하는 **단계별 가이드**:
+
+### 🚀 1단계: 아키텍처 및 팀 구성 이해
+```bash
+1. README.md 읽기 → 전체 프로젝트 파악
+2. initial.md 읽기 → Ver2.0 요구사항 이해  
+3. system-structure.md 읽기 → 마이크로서비스 구조 파악
+4. 참고.txt 읽기 → 추가된 AI 에이전트 및 MCP 도구 현황
+```
+
+### 🚀 2단계: 에이전트 팀과 서비스별 설계 이해 (Ver2.0 Final)
+```bash
+# 핵심 서비스별 담당 에이전트 확인 (Ver2.0 Final - 9 services)
+1. Judgment Service (8002) → ai-engineer, prompt-engineer 주도
+2. Learning Service (8009) 🔥 → ai-engineer, mlops-engineer 주도 (혁신!)
+3. Workflow Service (8001) → task-decomposition-expert, graphql-architect + frontend-architect (Visual Builder)
+4. BI Service (8007) → ai-engineer, business-analyst 주도 (MCP 기반 BI)
+5. Chat Interface Service (8008) → prompt-engineer, frontend-architect 주도 (마스터 컨트롤러)
+6. Data Visualization Service (8006) → frontend-architect, data-engineer 주도
+
+# 상세 설계 문서 확인
+7. docs/services/judgment_engine.md → 하이브리드 판단 로직
+8. docs/services/learning_service.md → 자동학습 시스템 (신규! ML 대체)
+9. docs/algorithms/auto_rule_extraction.md → 3개 알고리즘 설계 (신규!)
+10. docs/algorithms/data_aggregation.md → 데이터 집계 알고리즘 (신규!)
+11. docs/services/workflow_editor.md → Visual Workflow Builder (n8n 스타일)
+12. docs/services/bi_service.md → MCP 기반 BI (컴포넌트 조립)
+13. docs/services/chat_interface_service.md → 통합 AI 채팅
+14. docs/architecture/database_design.md → DB 스키마 (Learning 테이블 포함)
+```
+
+### 🚀 3단계: MCP 도구 설정 및 개발 시작 (Ver2.0 Final)
+```bash
+# 1. 핵심 MCP 도구 설치 (우선순위)
+1. postgresql-integration → 데이터베이스 연결
+2. filesystem-access → 프로젝트 파일 관리
+3. github-integration → 코드 관리
+4. memory-integration → 컨텍스트 관리
+5. playwright-mcp-server → 테스트 자동화
+
+# 2. 개발 우선순위 (에이전트 협업) - Ver2.0 Final (9 services)
+1. Judgment Service (8002) → ai-engineer + prompt-engineer
+2. Learning Service (8009) 🔥 → ai-engineer + mlops-engineer (혁신 기능!)
+3. BI Service (8007) → ai-engineer + business-analyst (MCP 기반 BI)
+4. Chat Interface Service (8008) → prompt-engineer + frontend-architect (마스터 컨트롤러)
+5. Workflow Service (8001) → task-decomposition-expert + frontend-architect (Visual Builder)
+6. Data Visualization Service (8006) → frontend-architect + data-engineer
+7. 기타 지원 서비스들 → 각 담당 에이전트
+```
+
+### 🚀 4단계: 품질 검증 및 에이전트 성과 평가
+```bash
+# 기술적 품질 검증
+1. 유닛 테스트 작성 및 실행 (performance-engineer 지원)
+2. E2E 테스트 시나리오 구현 (playwright MCP 활용)  
+3. API 문서 자동 생성 확인 (technical-writer 검토)
+4. Docker 컨테이너 빌드/실행 테스트 (devops-engineer 주도)
+
+# 에이전트 협업 성과 검증
+5. 각 에이전트별 담당 영역 완료도 확인
+6. 서비스별 에이전트 협업 효율성 측정
+7. Phase별 에이전트 확장 계획 검토
+```
+
+---
+
+---
+
+## 🌟 13. Ver2.0 AI 에이전트 활용 가이드
+
+### 13.1 에이전트별 핵심 역할 및 활용법
+
+#### 🧠 **AI/ML 전문 에이전트**
+```bash
+# ai-engineer
+- 하이브리드 판단 로직 아키텍처 설계
+- AST Rule Engine + LLM 통합 구현
+- 판단 성능 최적화 및 메트릭 설계
+
+# prompt-engineer  
+- LLM 판단용 프롬프트 템플릿 설계
+- Few-shot 학습 데이터 구성
+- 프롬프트 성능 A/B 테스트
+
+# search-specialist
+- pgvector 기반 RAG 시스템 구현
+- 유사 사례 검색 알고리즘 최적화
+- 임베딩 모델 선택 및 튜닝
+```
+
+#### 📊 **데이터/백엔드 전문 에이전트**
+```bash
+# data-engineer
+- ETL 파이프라인 설계 및 구현
+- 실시간 데이터 스트리밍 구축
+- 데이터 품질 관리 및 검증
+
+# database-optimization
+- PostgreSQL 성능 튜닝
+- 인덱스 전략 및 쿼리 최적화
+- pgvector 벡터 검색 최적화
+
+# graphql-architect
+- 마이크로서비스 간 API 설계
+- GraphQL 스키마 최적화
+- API Gateway 라우팅 전략
+```
+
+#### 🎨 **Frontend/UX 전문 에이전트**
+```bash
+# frontend-architect
+- 자동 대시보드 생성 UI/UX 설계
+- React 컴포넌트 자동 생성 로직
+- 실시간 데이터 시각화 최적화
+
+# business-analyst
+- 비즈니스 메트릭 및 KPI 설계
+- 사용자 요구사항 분석
+- 대시보드 효과성 측정
+```
+
+### 13.2 MCP 도구 활용 우선순위
+
+#### 🥇 **1단계: 핵심 도구 (즉시 도입)**
+```bash
+1. postgresql-integration → database-optimization 에이전트와 협업
+2. filesystem-access → 모든 에이전트 공통 활용
+3. github-integration → devops-engineer 주도 활용
+4. memory-integration → ai-engineer, prompt-engineer 활용
+5. playwright-mcp-server → performance-engineer 테스트 자동화
+```
+
+#### 🥈 **2단계: 확장 도구 (단계적 도입)**
+```bash
+6. context7 → academic-researcher 최신 기술 동향 파악
+7. circleci → devops-engineer CI/CD 파이프라인 구축
+8. slack → customer-support 사용자 소통 채널
+9. notion → technical-writer 문서 관리
+10. terminal → devops-engineer 배포 자동화
+```
+
+### 13.3 에이전트 간 협업 워크플로우
+
+#### 🔄 **Judgment Service 개발 워크플로우**
+```mermaid
+workflow TD
+    A[ai-engineer: 판단 로직 설계] --> B[prompt-engineer: 프롬프트 최적화]
+    B --> C[search-specialist: RAG 구현]
+    C --> D[mlops-engineer: 모델 배포]
+    D --> E[performance-engineer: 성능 테스트]
+```
+
+#### 🔄 **BI Service + Data Visualization 개발 워크플로우**
+```mermaid
+workflow TD
+    A[business-analyst: 요구사항 분석] --> B[frontend-architect: UI 설계]
+    B --> C[data-engineer: 데이터 파이프라인]
+    C --> D[technical-writer: 사용자 가이드]
+    D --> E[customer-support: 피드백 수집]
+```
+
+### 13.4 에이전트 성과 측정 지표
+
+| 에이전트 | 핵심 KPI | 측정 방법 |
+|----------|----------|----------|
+| **ai-engineer** | 판단 정확도, 응답 시간 | 95% 정확도, <500ms 응답 |
+| **prompt-engineer** | LLM 성능, 비용 효율성 | F1-score >0.9, 30% 비용 절감 |
+| **frontend-architect** | 대시보드 생성 시간, 사용성 | <30초 생성, 4.5/5 사용자 만족도 |
+| **devops-engineer** | 배포 성공률, 서비스 가용성 | 99.9% 배포 성공, 99.5% 가용성 |
+| **performance-engineer** | 시스템 성능, 확장성 | <100ms API 응답, 10x 트래픽 대응 |
+
+---
+
+**🎯 Ver2.0 Final 최종 성공 지표**:
+1. **사용자 경험**:
+   - "지난 주 불량률 분석해줘" → 30초 내 AI 인사이트 + 자동 대시보드 생성
+   - 채팅으로 "품질 검사 워크플로우 실행해줘" → 즉시 실행 및 결과 표시
+   - Settings에서 MCP 서버 연결 상태 실시간 확인
+   - n8n 스타일 Visual Builder로 워크플로우 드래그앤드롭 생성
+2. **기술적 성과**: 18개 에이전트가 협력하여 **9개 마이크로서비스 (Ver2.0 Final)** 완성
+3. **비즈니스 가치**: 하이브리드 판단으로 95% 정확도, 50% 비용 절감 달성
+4. **혁신 기능**: 자동학습 시스템 (ML 대체) + 데이터 집계 알고리즘으로 토큰 최적화
+
+---
+
+## 📌 15. Ver2.0 버전 관리 전략
+
+### 15.1 현재 버전 정책 (초기 개발 단계)
+
+```yaml
+현재 버전: 0.1.0
+개발 단계: alpha
+버전 형식: 0.MINOR.PATCH (SemVer 0.x.x 시리즈)
+
+규칙:
+  - 0.x.x: 초기 개발 (API 변경 자유)
+  - MINOR: 주요 기능 추가 (서비스 구현)
+  - PATCH: 버그 수정, 문서 업데이트
+```
+
+### 15.2 Single Source of Truth
+
+**핵심 파일**: `version.py`
+```python
+__version__ = "0.1.0"
+__stage__ = "alpha"
+__release_date__ = "2025-10-22"
+```
+
+**자동 동기화 파일**:
+- `package.json` (Node.js/Frontend)
+- `src-tauri/Cargo.toml` (Rust/Backend)
+- FastAPI 서비스들 (`from version import __version__`)
+
+### 15.3 버전 증가 방법
+
+```bash
+# 기능 추가시 (0.1.0 → 0.2.0)
+python scripts/bump_version.py minor
+
+# 버그 수정시 (0.1.0 → 0.1.1)
+python scripts/bump_version.py patch
+
+# 자동으로 다음 파일 업데이트:
+# - version.py
+# - package.json
+# - src-tauri/Cargo.toml
+```
+
+### 15.4 3단계 버전 관리 로드맵
+
+**Phase 1: 초기 개발 (현재 ~ 3개월)**
+```
+0.1.0: Desktop App 프로토타입 ✅
+0.2.0: Judgment Service 첫 구현 (예정)
+0.3.0: Learning Service 추가 (예정)
+0.4~0.8.x: 나머지 마이크로서비스
+0.9.0: 베타 릴리스 (9개 서비스 완성)
+```
+
+**Phase 2: 베타 테스트 (3~6개월)**
+```
+0.9.0: 베타 릴리스
+0.9.x: 베타 버그 수정
+1.0.0-rc.1: Release Candidate
+1.0.0: 정식 릴리스 🎉
+```
+
+**Phase 3: 정식 운영 (1.0.0 이후)**
+```
+버전 전환: SemVer → CalVer
+- 1.0.0 (마지막 SemVer)
+- 2025.2.0 (첫 CalVer, 2025년 2월)
+
+마이크로서비스 독립 버전:
+- Judgment Service: 1.0.0 (SemVer)
+- Learning Service: 1.1.0
+- BI Service: 1.0.2
+```
+
+### 15.5 Git 태그 전략
+
+```bash
+# 주요 마일스톤마다만 태그 생성
+git tag -a v0.1.0 -m "Desktop App 프로토타입 완성"
+git tag -a v0.2.0 -m "Judgment Service 첫 구현"
+git push origin develop --tags
+
+# 브랜치 전략
+main          # 안정 버전 (태그만)
+develop       # 개발 중 (기본 브랜치)
+feature/*     # 기능 개발
+```
+
+### 15.6 Claude의 버전 관리 체크리스트
+
+**새 서비스 개발시**:
+- [ ] version.py의 `MICROSERVICES_STATUS` 업데이트
+- [ ] 완료율 정확히 반영 (0% → 50% → 100%)
+- [ ] 주요 마일스톤 달성시 `bump_version.py` 실행
+- [ ] CHANGELOG.md에 변경사항 기록
+
+**FastAPI 서비스 생성시**:
+```python
+# ✅ 올바른 방법
+from version import __version__
+app = FastAPI(title="Judgment Service", version=__version__)
+
+# ❌ 잘못된 방법 (하드코딩)
+app = FastAPI(title="Judgment Service", version="2.0.0")
+```
+
+**상세 가이드**: [docs/development/versioning-strategy.md](docs/development/versioning-strategy.md)
+
+---
+
+## 📦 16. 코드 재사용 전략 (Common Library)
+
+### 16.1 개요 및 목적
+
+**목적**: 9개 마이크로서비스에서 **평균 84% 코드 재사용**으로 개발 속도 4배 향상
+
+**적용 방법론** (2024-2025 업계 표준):
+- **DRY 원칙**: Don't Repeat Yourself
+- **SOLID 원칙**: 특히 D (Dependency Inversion)
+- **Service Layer Pattern**: Controller → Service → Repository → DB
+- **Monorepo + Shared Library**: Poetry 의존성 관리
+
+**아키텍처**:
+```
+common/                    # 공유 라이브러리 (16개 파일, 1,000줄)
+├── base/                  # 추상 클래스 (SOLID)
+│   ├── base_service.py    # Service Layer (85% 재사용)
+│   ├── base_repository.py # Repository Pattern (80% 재사용)
+│   └── base_model.py      # Pydantic 모델 (100% 재사용)
+├── utils/                 # 유틸리티
+│   ├── database.py        # PostgreSQL 연결 풀 (100% 재사용)
+│   ├── cache.py           # Redis 클라이언트 (100% 재사용)
+│   ├── logger.py          # 구조화 로깅 (100% 재사용)
+│   └── validators.py      # 입력 검증 (100% 재사용)
+├── middleware/            # FastAPI 미들웨어
+│   ├── auth.py            # JWT + RBAC (100% 재사용)
+│   ├── cors.py            # CORS 설정 (100% 재사용)
+│   └── error_handler.py   # 전역 예외 처리 (100% 재사용)
+└── exceptions/            # 커스텀 예외
+    ├── base.py            # JudgifyException (100% 재사용)
+    ├── validation.py      # 400 Bad Request (100% 재사용)
+    ├── not_found.py       # 404 Not Found (100% 재사용)
+    └── unauthorized.py    # 401 Unauthorized (100% 재사용)
+```
+
+### 16.2 서비스별 재사용률 (실측)
+
+| 서비스 | Base Service | Repository | Utils | Middleware | 총 재사용률 |
+|--------|-------------|-----------|-------|-----------|------------|
+| **Workflow (8001)** | 85% | 80% | 100% | 100% | **91%** |
+| **Judgment (8002)** | 50% | 60% | 100% | 100% | **78%** |
+| **Action (8003)** | 80% | 75% | 100% | 100% | **89%** |
+| **Notification (8004)** | 90% | 85% | 100% | 100% | **94%** |
+| **Logging (8005)** | 85% | 80% | 100% | 100% | **91%** |
+| **Data Viz (8006)** | 70% | 70% | 100% | 100% | **85%** |
+| **BI (8007)** | 40% | 50% | 100% | 100% | **73%** |
+| **Chat (8008)** | 60% | 65% | 100% | 100% | **81%** |
+| **Learning (8009)** | 45% | 55% | 100% | 100% | **75%** |
+| **평균** | **67%** | **69%** | **100%** | **100%** | **84%** |
+
+### 16.3 실전 사용 예시
+
+**Step 1: Base Service 상속**
+```python
+# services/workflow/app/services/workflow_service.py
+from common.base import BaseService
+from common.utils import get_database
+
+class WorkflowService(BaseService[
+    WorkflowDBModel,      # SQLAlchemy 모델
+    WorkflowCreate,       # 생성 스키마
+    WorkflowUpdate,       # 수정 스키마
+    WorkflowResponse      # 응답 스키마
+]):
+    def __init__(self, db: AsyncSession):
+        repo = WorkflowRepository(db, WorkflowDBModel)
+        super().__init__(db, repo)  # Base 초기화!
+
+    # 고유 비즈니스 로직만 추가
+    async def simulate(self, workflow_id: UUID, test_data: dict):
+        workflow = await self.get_by_id(workflow_id)  # Base 메서드 재사용!
+        # 시뮬레이션 로직
+        return result
+```
+
+**Step 2: API 엔드포인트**
+```python
+# services/workflow/app/routers/api.py
+from fastapi import APIRouter, Depends
+from common.utils import get_database
+from common.exceptions import NotFoundError
+
+router = APIRouter()
+
+@router.post("/workflows")
+async def create_workflow(
+    data: WorkflowCreate,
+    db: AsyncSession = Depends(get_database)  # 공통 의존성!
+):
+    service = WorkflowService(db)
+    return await service.create(data)  # Base 메서드 재사용!
+
+@router.get("/workflows/{id}")
+async def get_workflow(
+    id: UUID,
+    db: AsyncSession = Depends(get_database)
+):
+    service = WorkflowService(db)
+    return await service.get_by_id(id)  # Base 메서드 재사용!
+```
+
+**결과**: CRUD API 5개 메서드 무료 획득! (create, get_by_id, get_all, update, delete)
+
+### 16.4 Poetry 의존성 관리
+
+**공유 라이브러리 정의** (common/pyproject.toml):
+```toml
+[tool.poetry]
+name = "judgify-common"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.104.1"
+sqlalchemy = "^2.0.23"
+redis = "^5.0.1"
+```
+
+**서비스에서 참조** (services/*/pyproject.toml):
+```toml
+[tool.poetry.dependencies]
+judgify-common = { path = "../../common", develop = true }
+
+# develop = true → 로컬 변경 즉시 반영!
+```
+
+### 16.5 Skill 템플릿 확장
+
+**신규 Skill 3개** (`.claude/skills/`):
+- `/generate-base-model` - Pydantic 모델 자동 생성 (BaseEntity 상속)
+- `/generate-repository` - Repository 클래스 생성 (BaseRepository 상속)
+- `/generate-service` - Service 클래스 생성 (BaseService 상속)
+
+**기존 Skill과 조합**:
+```bash
+# 1. 서비스 템플릿 생성
+/create-service workflow-service 8001
+
+# 2. 모델 생성
+/generate-base-model Workflow workflow-service
+
+# 3. Repository 생성
+/generate-repository Workflow workflow-service
+
+# 4. Service 생성
+/generate-service Workflow workflow-service
+
+# 5. CRUD API 생성
+/generate-api Workflow workflow-service
+
+# → 총 30분 소요 (기존 120분에서 75% 단축!)
+```
+
+### 16.6 예상 효과
+
+**개발 속도**:
+```
+Before (공통 라이브러리 없이):
+  - 새 서비스 개발: 120분
+  - 9개 서비스 총: 1,080분 (18시간)
+
+After (공통 라이브러리 활용):
+  - 새 서비스 개발: 30분
+  - 9개 서비스 총: 270분 (4.5시간)
+
+→ 절감 효과: 810분 (13.5시간, 75% 절감!)
+```
+
+**유지보수 개선**:
+```
+Before: DB 연결 풀 최적화시 9개 파일 수정 (180분)
+After: common/utils/database.py 1개 파일만 수정 (20분)
+
+→ 절감 효과: 160분 (89% 절감!)
+```
+
+**코드 품질**:
+```
+중복 코드: 80% → 16% (64%p 감소)
+버그 발생률: 100건/월 → 30건/월 (70% 감소)
+코드 리뷰 시간: 90분 → 30분 (67% 감소)
+```
+
+### 16.7 주의사항
+
+**80/20 법칙**:
+- ✅ 80% 이상 재사용되는 것만 `common/`으로 이동
+- ❌ 비즈니스 로직은 공유하지 말 것 (서비스 독립성 유지)
+
+**테스트 커버리지**:
+- `common/` 라이브러리는 **90% 이상 필수**
+- 공유 코드 버그는 모든 서비스에 영향!
+
+**버전 관리**:
+- Monorepo + `develop = true` → "Living at HEAD" 전략
+- 항상 최신 코드 참조 (버전 충돌 방지)
+
+**상세 가이드**: [docs/guides/code-reusability.md](docs/guides/code-reusability.md)
+
+---
+
+## 17. 작업 진행 현황
+
+**실시간 작업 진행 현황은 [TASKS.md](TASKS.md)에서 확인하세요.**
+
+TASKS.md에는 다음 내용이 포함되어 있습니다:
+
+- **전체 진행률 대시보드**: Phase별 진척도 및 최근 업데이트 현황
+- **Desktop App 구현 현황** (Phase 0): 71.7% 완료
+  - Memory-First Hybrid Cache 아키텍처 상세 설명
+  - 실시간 UI 업데이트 패턴 (탭 가시성 기반)
+  - 성능 지표 및 ROI 분석
+- **Performance Engineer** (Phase 1): 12.5% 진행 중
+  - CacheService 성능 측정 완료 (Task 1.1)
+  - 실측 성능 데이터 (0.001ms GET, 90% 적중률)
+  - 벤치마크 및 최적화 계획
+- **Test Automation Engineer** (Phase 2): 계획 단계
+  - Playwright E2E 테스트 자동화
+  - 통합 테스트 및 커버리지 개선
+
+### 업데이트 규칙
+
+**모든 `/init` 작업 시작 전 TASKS.md를 먼저 확인 및 업데이트합니다.**
+
+**자동 업데이트 트리거**:
+- 새로운 작업 완료시 → 완료율 업데이트
+- 성능 지표 측정시 → 실측 데이터 추가
+- Git 커밋 후 → 커밋 링크 업데이트
+- Notion 로그 생성시 → Notion 링크 추가
+
+**상세 가이드**: [TASKS.md](TASKS.md)
+
+---
+
+**Happy Coding with Desktop App + AI Agents + Auto-Learning, Claude! 🤖⚡🚀🔥**

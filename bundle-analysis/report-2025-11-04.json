@@ -1,0 +1,109 @@
+{
+  "timestamp": "2025-11-04T02:42:12.832Z",
+  "files": [
+    {
+      "name": "vendor-recharts-1-l2f2g8.js",
+      "size": 373257,
+      "gzipSize": 101243,
+      "type": "JavaScript"
+    },
+    {
+      "name": "vendor-react-BFkFR0ox.js",
+      "size": 161824,
+      "gzipSize": 52807,
+      "type": "JavaScript"
+    },
+    {
+      "name": "vendor-reactflow-BZHI9JzS.js",
+      "size": 150398,
+      "gzipSize": 49351,
+      "type": "JavaScript"
+    },
+    {
+      "name": "vendor-query-Bf0B0tor.js",
+      "size": 40706,
+      "gzipSize": 12147,
+      "type": "JavaScript"
+    },
+    {
+      "name": "index-CeRr3Qb9.js",
+      "size": 30899,
+      "gzipSize": 10840,
+      "type": "JavaScript"
+    },
+    {
+      "name": "index-BvMTCbc6.css",
+      "size": 16407,
+      "gzipSize": 3962,
+      "type": "CSS"
+    },
+    {
+      "name": "vendor-ui-CTpVWY6D.js",
+      "size": 14307,
+      "gzipSize": 4035,
+      "type": "JavaScript"
+    },
+    {
+      "name": "ChatInterface-lTKgRXwt.js",
+      "size": 8292,
+      "gzipSize": 2994,
+      "type": "JavaScript"
+    },
+    {
+      "name": "WorkflowBuilder-Fd0xVSp_.css",
+      "size": 7044,
+      "gzipSize": 1576,
+      "type": "CSS"
+    },
+    {
+      "name": "Settings-CpnqE9md.js",
+      "size": 5280,
+      "gzipSize": 1928,
+      "type": "JavaScript"
+    },
+    {
+      "name": "Dashboard-BQFTvqNn.js",
+      "size": 5031,
+      "gzipSize": 1594,
+      "type": "JavaScript"
+    },
+    {
+      "name": "WorkflowBuilder-CYfYdlMi.js",
+      "size": 4478,
+      "gzipSize": 1809,
+      "type": "JavaScript"
+    },
+    {
+      "name": "BiInsights-DcNGu7XI.js",
+      "size": 4459,
+      "gzipSize": 1685,
+      "type": "JavaScript"
+    },
+    {
+      "name": "card-Df1SiYKc.js",
+      "size": 1071,
+      "gzipSize": 415,
+      "type": "JavaScript"
+    },
+    {
+      "name": "input-C6qT-3XQ.js",
+      "size": 623,
+      "gzipSize": 380,
+      "type": "JavaScript"
+    },
+    {
+      "name": "textarea-D6vA1A2i.js",
+      "size": 559,
+      "gzipSize": 352,
+      "type": "JavaScript"
+    },
+    {
+      "name": "label-D2nj9pAy.js",
+      "size": 374,
+      "gzipSize": 268,
+      "type": "JavaScript"
+    }
+  ],
+  "totalSize": 825009,
+  "totalGzipSize": 247386
+}

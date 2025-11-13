@@ -1,0 +1,69 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+
+  // Tauri expects a fixed port, fail if that port is not available
+  server: {
+    port: 1420,
+    strictPort: true,
+    // Phase 32: Proxy removed - using Tauri backend for API calls
+  },
+
+  // to make use of `TAURI_DEBUG` and other env variables
+  // https://tauri.studio/v1/api/config#buildconfig.beforedevcommand
+  envPrefix: ['VITE_', 'TAURI_'],
+
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+
+  build: {
+    // Tauri supports es2021
+    target: process.env.TAURI_PLATFORM == 'windows' ? 'chrome105' : 'safari13',
+    // don't minify for debug builds
+    minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
+    // produce sourcemaps for debug builds
+    sourcemap: !!process.env.TAURI_DEBUG,
+    // Performance optimization: Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000,
+    // Manual chunk splitting for better caching
+    rollupOptions: {
+      output: {
+        // Optimize asset file names
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name?.split('.');
+          const ext = info?.[info.length - 1];
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext ?? '')) {
+            return `assets/images/[name]-[hash][extname]`;
+          } else if (/woff|woff2|eot|ttf|otf/i.test(ext ?? '')) {
+            return `assets/fonts/[name]-[hash][extname]`;
+          }
+          return `assets/[name]-[hash][extname]`;
+        },
+        manualChunks: {
+          // React core (changes rarely)
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // UI primitives (changes rarely)
+          'vendor-ui': ['@radix-ui/react-label', '@radix-ui/react-slot', 'lucide-react'],
+          // Large visualization libraries (split for parallel loading)
+          'vendor-reactflow': ['reactflow'],
+          'vendor-recharts': ['recharts'],
+          // Data fetching (changes occasionally)
+          'vendor-query': ['@tanstack/react-query'],
+        },
+      },
+    },
+  },
+
+  // Optimize dependencies pre-bundling
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom'],
+    exclude: ['@tauri-apps/api'],
+  },
+})

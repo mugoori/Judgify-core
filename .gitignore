@@ -1,0 +1,114 @@
+# Logs
+*.log
+debug_output.log
+hwp_mcp_stdio_server.log
+app.log
+benchmark*.log
+build-output.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node modules (if any)
+node_modules/
+
+# Environment variables (실제 값 포함된 파일만 무시)
+.env
+.env.development
+.env.testing
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# .env.example은 템플릿이므로 커밋에 포함
+
+# MCP Configuration (contains tokens)
+.mcp.json
+.claude/settings.local.json
+
+# Build directories
+dist/
+build/
+out/
+
+# Lighthouse reports
+.lighthouseci/
+lighthouse/
+lighthouse/*.html
+
+# Rust build artifacts (Tauri)
+src-tauri/target/
+
+# Tauri Signing Keys (Private keys, NEVER commit!)
+.tauri-keys/
+*.key
+
+# Chat Service Database (SQLite)
+src-tauri/chat_service.db
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
+# Vite cache
+node_modules/.vite/deps_temp*
+
+# Execution scripts (로컬 전용)
+*.ps1
+!scripts/*.ps1          # scripts 폴더의 자동화 스크립트는 포함
+EXECUTE-NOW.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+# Artifacts created by path-unzip issues on Windows
+C?Users*
+
+# Poetry lock files (auto-generated)
+common/poetry.lock
+
+# Notion commit backup (로컬 전용)
+scripts/notion/.commit_backup/
+
+# Notion 분석 임시 스크립트 (개발용)
+scripts/analyze_notion_*.py
+scripts/capture_notion_*.py
+scripts/extract_notion_*.py
+scripts/notion_page_analysis.json
+scripts/notion_screenshots/
+scripts/nul
+
+# Git hooks 테스트 완료 (post-commit 자동화)
+# Python 경로 수정: python3 → python (Windows 환경)
+
+# Coverage reports (local only, CI generates fresh)
+coverage/
+.coverage
+*.lcov
+*.info
+htmlcov/
+
+# Codecov
+codecov.yml.local
+
+nul
