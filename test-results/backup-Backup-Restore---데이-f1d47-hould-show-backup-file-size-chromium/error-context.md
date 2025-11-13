@@ -1,0 +1,83 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - link "메인 콘텐츠로 건너뛰기" [ref=e3] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e4]:
+    - complementary "메인 네비게이션" [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - img "TriFlow AI Logo" [ref=e8]
+          - generic [ref=e9]: TriFlow AI
+        - button "사이드바 닫기" [ref=e10] [cursor=pointer]:
+          - img [ref=e11]
+      - navigation "주요 메뉴" [ref=e13]:
+        - link "AI 채팅" [ref=e14] [cursor=pointer]:
+          - /url: "#/"
+          - generic [ref=e15]:
+            - img [ref=e16]
+            - generic [ref=e18]: AI 채팅
+        - link "대시보드" [ref=e19] [cursor=pointer]:
+          - /url: "#/dashboard"
+          - generic [ref=e20]:
+            - img [ref=e21]
+            - generic [ref=e26]: 대시보드
+        - link "워크플로우" [ref=e27] [cursor=pointer]:
+          - /url: "#/workflow"
+          - generic [ref=e28]:
+            - img [ref=e29]
+            - generic [ref=e33]: 워크플로우
+        - link "BI 인사이트" [ref=e34] [cursor=pointer]:
+          - /url: "#/bi"
+          - generic [ref=e35]:
+            - img [ref=e36]
+            - generic [ref=e38]: BI 인사이트
+        - link "설정" [ref=e39] [cursor=pointer]:
+          - /url: "#/settings"
+          - generic [ref=e40]:
+            - img [ref=e41]
+            - generic [ref=e44]: 설정
+      - generic [ref=e45]:
+        - paragraph [ref=e46]: TriFlow AI Desktop v1.0.0
+        - paragraph [ref=e47]: Tauri + Rust + React
+    - generic [ref=e48]:
+      - banner [ref=e49]:
+        - heading "TriFlow AI Desktop" [level=2] [ref=e51]
+        - generic [ref=e52]:
+          - button [ref=e53] [cursor=pointer]:
+            - img [ref=e54]
+          - button [ref=e57] [cursor=pointer]:
+            - img [ref=e58]
+      - main [ref=e60]:
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - generic [ref=e64]:
+              - heading "AI 어시스턴트" [level=1] [ref=e65]
+              - paragraph [ref=e66]: 자연어로 대화하며 판단 실행, 워크플로우 관리, 데이터 분석을 수행하세요.
+            - button "대화 초기화" [ref=e67] [cursor=pointer]:
+              - img [ref=e68]
+              - text: 대화 초기화
+          - generic [ref=e71]:
+            - button "지난 주 불량률 트렌드" [ref=e72] [cursor=pointer]:
+              - img [ref=e73]
+              - generic [ref=e76]: 지난 주 불량률 트렌드
+            - button "워크플로우 실행" [ref=e77] [cursor=pointer]:
+              - img [ref=e78]
+              - generic [ref=e80]: 워크플로우 실행
+            - button "워크플로우 생성 방법" [ref=e81] [cursor=pointer]:
+              - img [ref=e82]
+              - generic [ref=e85]: 워크플로우 생성 방법
+            - button "시스템 상태 확인" [ref=e86] [cursor=pointer]:
+              - img [ref=e87]
+              - generic [ref=e89]: 시스템 상태 확인
+          - generic [ref=e91]:
+            - img [ref=e93]
+            - paragraph [ref=e97]: "안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요? 다음과 같은 작업을 도와드릴 수 있습니다: 📊 \"지난 주 불량률 트렌드 보여줘\" ⚙️ \"품질 검사 워크플로우 실행해줘\" 📋 \"워크플로우 생성 방법 알려줘\" 🔧 \"시스템 상태 확인해줘\""
+          - generic [ref=e98]:
+            - textbox "메시지를 입력하세요... (Shift+Enter로 줄바꿈, Ctrl+/로 포커스)" [active] [ref=e99]: Show backup info
+            - button [ref=e100] [cursor=pointer]:
+              - img [ref=e101]
+  - region "Notifications (F8)":
+    - list
+```

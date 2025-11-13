@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { getSystemStatus, getDataDirectory, exportDatabase } from '@/lib/tauri-api-wrapper';
+import { getSystemStatus, getDataDirectory, exportDatabase, testClaudeApi } from '@/lib/tauri-api-wrapper';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -97,6 +97,19 @@ export default function Settings() {
     onError: (error) => {
       console.error('업데이트 설치 실패:', error);
       alert('업데이트 설치 실패: ' + error);
+    },
+  });
+
+  // Claude API 키 테스트
+  const testApiMutation = useMutation({
+    mutationFn: async () => {
+      return await testClaudeApi();
+    },
+    onSuccess: (data) => {
+      alert('✅ ' + data);
+    },
+    onError: (error) => {
+      alert('❌ API 키 테스트 실패: ' + error);
     },
   });
 
@@ -338,9 +351,24 @@ export default function Settings() {
             </p>
           </div>
 
-          <Button onClick={handleSaveApiKey} disabled={!claudeKey.trim()}>
-            API 키 저장
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleSaveApiKey} disabled={!claudeKey.trim()}>
+              API 키 저장
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => testApiMutation.mutate()}
+              disabled={testApiMutation.isPending || !status?.claude_configured}
+            >
+              <Key className={`w-4 h-4 mr-2 ${testApiMutation.isPending ? 'animate-pulse' : ''}`} />
+              {testApiMutation.isPending ? '테스트 중...' : 'API 키 테스트'}
+            </Button>
+          </div>
+          {!status?.claude_configured && (
+            <p className="text-xs text-amber-600">
+              ⚠️ API 키를 저장하고 앱을 재시작한 후 테스트할 수 있습니다.
+            </p>
+          )}
         </CardContent>
       </Card>
 

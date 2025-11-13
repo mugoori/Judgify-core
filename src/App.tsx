@@ -16,7 +16,7 @@ const Settings = lazy(() => import('./pages/Settings'))
 // Layout (eager loaded - needed immediately)
 import Sidebar from './components/layout/Sidebar'
 import Header from './components/layout/Header'
-import ErrorBoundary from './components/ErrorBoundary'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Toaster } from './components/ui/toaster'
 import { Skeleton } from './components/ui/skeleton'
 import OfflineDetector from './components/OfflineDetector'

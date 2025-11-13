@@ -1953,13 +1953,14 @@ dependencies = [
 
 [[package]]
 name = "judgify-desktop"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "chrono",
  "criterion",
  "dirs",
  "dotenvy",
+ "flate2",
  "handlebars",
  "lru",
  "rand 0.8.5",
@@ -1972,6 +1973,7 @@ dependencies = [
  "smartcore",
  "tauri",
  "tauri-build",
+ "tempfile",
  "thiserror",
  "tiktoken-rs",
  "tokio",

@@ -59,6 +59,7 @@ fn main() {
             // Chat Service Commands
             chat::send_chat_message,
             chat::get_chat_history,
+            chat::test_claude_api,
 
             // Workflow Service Commands
             // workflow::create_workflow,
@@ -82,6 +83,12 @@ fn main() {
             update::check_for_updates,
             update::install_update,
             update::get_app_version,
+
+            // Backup Commands (Phase 8 Task 8.3)
+            backup::create_backup,
+            backup::restore_backup,
+            backup::list_backups,
+            backup::get_backup_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

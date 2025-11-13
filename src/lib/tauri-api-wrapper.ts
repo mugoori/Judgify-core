@@ -73,6 +73,7 @@ export const generateBiInsight = api.generateBiInsight;
 // Chat API
 export const sendChatMessage = api.sendChatMessage;
 export const getChatHistory = api.getChatHistory;
+export const testClaudeApi = api.testClaudeApi;
 
 // Workflow API
 export const createWorkflow = api.createWorkflow;

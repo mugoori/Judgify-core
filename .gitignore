@@ -112,3 +112,4 @@ htmlcov/
 codecov.yml.local
 
 nul
+node_modules
