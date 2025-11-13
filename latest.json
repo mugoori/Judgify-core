@@ -1,0 +1,11 @@
+{
+  "version": "0.1.0-beta.1",
+  "notes": "TriFlow AI Desktop Application 업데이트",
+  "pub_date": "2025-11-12T08:51:50.918Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "https://github.com/mugoori/Judgify-core/releases/download/v0.1.0-beta.1/TriFlow.AI_0.1.0_x64_en-US_windows.msi.zip.sig",
+      "url": "https://github.com/mugoori/Judgify-core/releases/download/v0.1.0-beta.1/TriFlow.AI_0.1.0_x64_en-US_windows.msi.zip"
+    }
+  }
+}
