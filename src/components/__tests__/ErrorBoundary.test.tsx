@@ -50,8 +50,8 @@ describe('ErrorBoundary', () => {
       );
 
       // 에러 UI가 렌더링됨
-      expect(screen.getByText('앱에서 오류가 발생했습니다')).toBeInTheDocument();
-      expect(screen.getByText('예상치 못한 오류가 발생했습니다. 앱을 다시 시작해 주세요.')).toBeInTheDocument();
+      expect(screen.getByText('오류가 발생했습니다')).toBeInTheDocument();
+      expect(screen.getByText('애플리케이션에서 예상치 못한 오류가 발생했습니다.')).toBeInTheDocument();
     });
 
     it('componentDidCatch가 에러 정보를 상태에 저장', () => {
@@ -79,7 +79,7 @@ describe('ErrorBoundary', () => {
       expect(screen.getByText('No error')).toBeInTheDocument();
 
       // 에러 UI가 렌더링되지 않음
-      expect(screen.queryByText('앱에서 오류가 발생했습니다')).not.toBeInTheDocument();
+      expect(screen.queryByText('오류가 발생했습니다')).not.toBeInTheDocument();
     });
   });
 
@@ -110,7 +110,7 @@ describe('ErrorBoundary', () => {
       );
 
       // 개발자용 세부 정보 확인
-      expect(screen.getByText('기술적 세부 정보 (개발자용)')).toBeInTheDocument();
+      expect(screen.getByText('에러 메시지:')).toBeInTheDocument();
 
       // 원래 환경 복원
       import.meta.env.DEV = originalEnv;
@@ -128,7 +128,7 @@ describe('ErrorBoundary', () => {
       );
 
       // 개발자용 세부 정보가 없음
-      expect(screen.queryByText('기술적 세부 정보 (개발자용)')).not.toBeInTheDocument();
+      expect(screen.queryByText('에러 메시지:')).not.toBeInTheDocument();
 
       // 원래 환경 복원
       import.meta.env.DEV = originalEnv;
@@ -139,15 +139,15 @@ describe('ErrorBoundary', () => {
   // Group 3: Error Recovery Actions
   // ========================================
   describe('Group 3: Error Recovery Actions', () => {
-    it('"앱 다시 시작" 버튼 클릭시 window.location.reload() 호출', () => {
+    it('"다시 시도" 버튼 클릭시 window.location.reload() 호출', () => {
       render(
         <ErrorBoundary>
           <ThrowError shouldThrow={true} />
         </ErrorBoundary>
       );
 
-      // "앱 다시 시작" 버튼 찾기
-      const resetButton = screen.getByText('앱 다시 시작');
+      // "다시 시도" 버튼 찾기
+      const resetButton = screen.getByText('다시 시도');
       expect(resetButton).toBeInTheDocument();
 
       // 버튼 클릭
@@ -157,15 +157,15 @@ describe('ErrorBoundary', () => {
       expect(mockReload).toHaveBeenCalledTimes(1);
     });
 
-    it('"홈으로 이동" 버튼 클릭시 window.location.href 변경', () => {
+    it('"페이지 새로고침" 버튼 클릭시 window.location.href 변경', () => {
       render(
         <ErrorBoundary>
           <ThrowError shouldThrow={true} />
         </ErrorBoundary>
       );
 
-      // "홈으로 이동" 버튼 찾기
-      const homeButton = screen.getByText('홈으로 이동');
+      // "페이지 새로고침" 버튼 찾기
+      const homeButton = screen.getByText('페이지 새로고침');
       expect(homeButton).toBeInTheDocument();
 
       // 버튼 클릭
