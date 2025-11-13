@@ -381,7 +381,20 @@ export default function Settings() {
               id="api-key"
               type="password"
               value={claudeKey}
-              onChange={(e) => setClaudeKey(e.target.value)}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setClaudeKey(newValue);
+                // 새로 입력하는 값은 원본으로 간주
+                if (newValue && !newValue.includes('...')) {
+                  originalApiKeyRef.current = newValue;
+                }
+              }}
+              onFocus={() => {
+                // 포커스시 마스킹된 값이면 빈 문자열로 초기화 (새로 입력 유도)
+                if (claudeKey.includes('...')) {
+                  setClaudeKey('');
+                }
+              }}
               placeholder="sk-ant-..."
               className="font-mono"
             />
