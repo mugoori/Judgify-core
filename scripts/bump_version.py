@@ -136,6 +136,31 @@ def update_cargo_toml(new_version):
     print(f"  Cargo.toml → {new_version}")
 
 
+def update_tauri_conf_json(new_version):
+    """src-tauri/tauri.conf.json 업데이트"""
+    import json
+
+    tauri_conf_file = Path(__file__).parent.parent / "src-tauri" / "tauri.conf.json"
+
+    if not tauri_conf_file.exists():
+        print("  tauri.conf.json not found (skipping)")
+        return
+
+    content = tauri_conf_file.read_text(encoding='utf-8')
+    data = json.loads(content)
+
+    # package.version 업데이트
+    if 'package' in data and 'version' in data['package']:
+        data['package']['version'] = new_version
+
+    # JSON 파일 쓰기 (2-space indent, 한글 유지)
+    tauri_conf_file.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False) + '\n',
+        encoding='utf-8'
+    )
+    print(f"  tauri.conf.json → {new_version}")
+
+
 def main():
     """메인 실행 함수"""
     # 인자 확인
@@ -168,10 +193,11 @@ def main():
     update_version_py(new_version)
     update_package_json(new_version)
     update_cargo_toml(new_version)
+    update_tauri_conf_json(new_version)
 
     print(f"\nVersion bumped successfully: {current_version} → {new_version}")
     print("\n다음 명령 실행:")
-    print(f"  git add version.py package.json src-tauri/Cargo.toml")
+    print(f"  git add version.py package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json")
     print(f"  git commit -m 'chore: Bump version to {new_version}'")
     print(f"  git tag -a v{new_version} -m 'Release v{new_version}'")
     print(f"  git push origin develop --tags")
