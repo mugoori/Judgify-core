@@ -41,6 +41,7 @@ handlebars = "5.1"
 smartcore = "0.3"
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 flate2 = "1.0"  # gzip 압축/해제
+keyring = "2.3"  # Windows Credential Manager / macOS Keychain / Linux Secret Service
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
