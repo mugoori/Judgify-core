@@ -88,8 +88,8 @@ pub struct ChatService {
 impl ChatService {
     /// 새 ChatService 인스턴스 생성 (테스트용, AppHandle 없음)
     pub fn new() -> Result<Self> {
-        let claude_api_key =
-            env::var("ANTHROPIC_API_KEY").unwrap_or_else(|_| "sk-ant-test-key".to_string());
+        let claude_api_key = env::var("ANTHROPIC_API_KEY")
+            .map_err(|_| anyhow::anyhow!("Claude API 키가 설정되지 않았습니다. Settings 페이지에서 API 키를 설정해주세요."))?;
 
         let db_path = "chat_service.db";
         let db = Connection::open(db_path)?;
@@ -108,8 +108,8 @@ impl ChatService {
 
     /// AppHandle 포함 생성 (Tauri 환경용)
     pub fn with_app_handle(app_handle: Option<AppHandle>) -> Result<Self> {
-        let claude_api_key =
-            env::var("ANTHROPIC_API_KEY").unwrap_or_else(|_| "sk-ant-test-key".to_string());
+        let claude_api_key = env::var("ANTHROPIC_API_KEY")
+            .map_err(|_| anyhow::anyhow!("Claude API 키가 설정되지 않았습니다. Settings 페이지에서 API 키를 설정해주세요."))?;
 
         let db_path = "chat_service.db";
         let db = Connection::open(db_path)?;

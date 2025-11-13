@@ -31,7 +31,12 @@ pub struct LLMEngine {
 impl LLMEngine {
     pub fn new() -> anyhow::Result<Self> {
         let api_key = std::env::var("ANTHROPIC_API_KEY")
-            .unwrap_or_else(|_| "sk-ant-test-key".to_string());
+            .map_err(|_| anyhow::anyhow!("Claude API 키가 설정되지 않았습니다. Settings 페이지에서 API 키를 설정해주세요."))?;
+
+        // API 키 형식 검증
+        if !api_key.starts_with("sk-ant-") {
+            return Err(anyhow::anyhow!("Claude API 키 형식이 올바르지 않습니다. 'sk-ant-'로 시작해야 합니다."));
+        }
 
         Ok(Self {
             client: Client::new(),
@@ -100,7 +105,7 @@ impl LLMEngine {
             "max_tokens": 1024,
         });
 
-        let response = self
+        let http_response = self
             .client
             .post("https://api.anthropic.com/v1/messages")
             .header("x-api-key", &self.api_key)
@@ -108,9 +113,28 @@ impl LLMEngine {
             .header("Content-Type", "application/json")
             .json(&request)
             .send()
-            .await?
+            .await
+            .map_err(|e| anyhow::anyhow!("Claude API 호출 실패: {}. 인터넷 연결을 확인해주세요.", e))?;
+
+        // HTTP 상태 코드 확인
+        let status = http_response.status();
+        if !status.is_success() {
+            return Err(anyhow::anyhow!(
+                "Claude API 에러 ({}): {}. Settings에서 API 키가 올바른지 확인해주세요.",
+                status.as_u16(),
+                match status.as_u16() {
+                    401 => "인증 실패 - API 키가 올바르지 않습니다",
+                    429 => "요청 한도 초과 - 잠시 후 다시 시도해주세요",
+                    500 => "Claude API 서버 오류",
+                    _ => "알 수 없는 오류",
+                }
+            ));
+        }
+
+        let response = http_response
             .json::<ClaudeResponse>()
-            .await?;
+            .await
+            .map_err(|e| anyhow::anyhow!("Claude API 응답 파싱 실패: {}", e))?;
 
         let llm_response = &response.content[0].text;
         let (result, confidence, explanation) = self.parse_llm_response(llm_response)?;
