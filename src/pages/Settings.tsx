@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getSystemStatus, getDataDirectory, exportDatabase, testClaudeApi } from '@/lib/tauri-api-wrapper';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,6 +53,7 @@ interface UpdateInfo {
 
 export default function Settings() {
   const [claudeKey, setClaudeKey] = useState('');
+  const originalApiKeyRef = useRef<string>(''); // 원본 API 키 보관용
   const [mcpSettings, setMcpSettings] = useState<MCPSettings>({
     context7_enabled: true,
     complexity_threshold: 'medium',
@@ -134,6 +135,8 @@ export default function Settings() {
     try {
       const apiKey = await invoke<string>('load_api_key');
       if (apiKey) {
+        // 원본 API 키 보관
+        originalApiKeyRef.current = apiKey;
         // 마스킹 처리 (보안)
         const maskedKey = apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 10);
         setClaudeKey(maskedKey);
@@ -147,13 +150,25 @@ export default function Settings() {
 
   const handleSaveApiKey = async () => {
     try {
+      // 이미 마스킹된 값인지 확인
+      const isAlreadyMasked = claudeKey.includes('...');
+      const apiKeyToSave = isAlreadyMasked ? originalApiKeyRef.current : claudeKey;
+
+      // 빈 값 체크
+      if (!apiKeyToSave) {
+        alert('❌ API 키를 입력해주세요.');
+        return;
+      }
+
       // 시스템 keychain에 영구 저장 (Windows Credential Manager / macOS Keychain)
-      await invoke('save_api_key', { apiKey: claudeKey });
+      await invoke('save_api_key', { apiKey: apiKeyToSave });
 
       alert('✅ API 키가 성공적으로 저장되었습니다.\n앱 재시작 후에도 자동으로 복원됩니다!');
 
+      // 원본 API 키 보관
+      originalApiKeyRef.current = apiKeyToSave;
       // 저장 후 마스킹된 값으로 업데이트
-      const maskedKey = claudeKey.substring(0, 10) + '...' + claudeKey.substring(claudeKey.length - 10);
+      const maskedKey = apiKeyToSave.substring(0, 10) + '...' + apiKeyToSave.substring(apiKeyToSave.length - 10);
       setClaudeKey(maskedKey);
     } catch (error: any) {
       console.error('API 키 저장 실패:', error);
