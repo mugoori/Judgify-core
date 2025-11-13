@@ -16,18 +16,23 @@ pub async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateInfo, Stri
     // Tauri updater를 사용한 업데이트 체크
     match app.updater().check().await {
         Ok(update) => {
-            if update.is_update_available() {
+            let latest_version = update.latest_version().to_string();
+
+            // 버전 비교: 현재 버전과 최신 버전이 같으면 업데이트 없음
+            let is_update_available = update.is_update_available() && latest_version != current_version;
+
+            if is_update_available {
                 Ok(UpdateInfo {
                     available: true,
                     current_version,
-                    latest_version: Some(update.latest_version().to_string()),
+                    latest_version: Some(latest_version),
                     release_notes: update.body().map(|b| b.to_string()),
                 })
             } else {
                 Ok(UpdateInfo {
                     available: false,
-                    current_version,
-                    latest_version: None,
+                    current_version: current_version.clone(),
+                    latest_version: Some(current_version),
                     release_notes: None,
                 })
             }
