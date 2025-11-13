@@ -41,31 +41,27 @@ jobs:
 
       - name: Create GitHub Release
         id: create-release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: TriFlow AI ${{ steps.get_version.outputs.VERSION }}
+          name: TriFlow AI ${{ steps.get_version.outputs.VERSION }}
           body: |
-            TriFlow AI Desktop Application Release
+            TriFlow AI Desktop Application 업데이트
 
-            ## 주요 변경사항
-            - System Tray 통합 (백그라운드 실행)
-            - Auto Update 기능
-            - Visual Workflow Builder
-            - Dashboard & Settings 페이지
+            ## 변경사항
+            - Auto-Update 기능 완성 (GitHub Pages 호스팅)
+            - Tauri Updater 완전 통합
+            - 최신 GitHub Actions 권한 시스템 호환
 
-            ## 설치 방법
-            1. Windows: `.msi` 또는 `.exe` 파일 다운로드
-            2. 설치 프로그램 실행
-            3. 앱 시작 후 Claude API 키 설정
+            ## 다운로드
+            Windows 사용자는 `.msi` 파일을 다운로드하여 설치하세요.
 
             ## 업데이트 방법
             - Settings 페이지에서 "업데이트 확인" 클릭
-            - 또는 자동 업데이트 알림 확인
+            - 또는 자동 업데이트 알림 대기
           draft: false
           prerelease: false
+          generate_release_notes: false
 
   build-tauri:
     needs: create-release
