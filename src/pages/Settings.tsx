@@ -114,12 +114,11 @@ export default function Settings() {
   });
 
   useEffect(() => {
-    // 환경 변수에서 Claude API 키 로드
+    // 시스템 keychain에서 Claude API 키 로드 (자동 복원)
     if (typeof window !== 'undefined') {
-      const savedKey = localStorage.getItem('claude_api_key');
-      if (savedKey) setClaudeKey(savedKey);
+      loadApiKeyFromSystem();
 
-      // MCP 설정 로드
+      // MCP 설정 로드 (localStorage 유지)
       const savedMcpSettings = localStorage.getItem('mcp_settings');
       if (savedMcpSettings) {
         try {
@@ -131,10 +130,35 @@ export default function Settings() {
     }
   }, []);
 
-  const handleSaveApiKey = () => {
-    localStorage.setItem('claude_api_key', claudeKey);
-    // 실제 구현에서는 Tauri를 통해 환경 변수나 secure storage에 저장
-    alert('API 키가 저장되었습니다. 앱을 재시작해주세요.');
+  const loadApiKeyFromSystem = async () => {
+    try {
+      const apiKey = await invoke<string>('load_api_key');
+      if (apiKey) {
+        // 마스킹 처리 (보안)
+        const maskedKey = apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 10);
+        setClaudeKey(maskedKey);
+        console.log('✅ API 키가 시스템 keychain에서 로드되었습니다.');
+      }
+    } catch (error) {
+      console.log('ℹ️  저장된 API 키 없음:', error);
+      // 에러는 무시 (첫 설치시 정상)
+    }
+  };
+
+  const handleSaveApiKey = async () => {
+    try {
+      // 시스템 keychain에 영구 저장 (Windows Credential Manager / macOS Keychain)
+      await invoke('save_api_key', { apiKey: claudeKey });
+
+      alert('✅ API 키가 성공적으로 저장되었습니다.\n앱 재시작 후에도 자동으로 복원됩니다!');
+
+      // 저장 후 마스킹된 값으로 업데이트
+      const maskedKey = claudeKey.substring(0, 10) + '...' + claudeKey.substring(claudeKey.length - 10);
+      setClaudeKey(maskedKey);
+    } catch (error: any) {
+      console.error('API 키 저장 실패:', error);
+      alert(`❌ API 키 저장 실패: ${error}`);
+    }
   };
 
   const handleSaveMcpSettings = () => {

@@ -13,7 +13,7 @@ use commands::*;
 
 fn main() {
     // Load .env file from project root (one level up from src-tauri)
-    match dotenvy::from_path("../.env") {
+    let env_loaded = match dotenvy::from_path("../.env") {
         Ok(_) => {
             eprintln!("✅ Successfully loaded .env file");
 
@@ -24,14 +24,42 @@ fn main() {
                 } else {
                     "***".to_string()
                 };
-                eprintln!("✅ ANTHROPIC_API_KEY loaded: {}", masked_key);
+                eprintln!("✅ ANTHROPIC_API_KEY loaded from .env: {}", masked_key);
             } else {
-                eprintln!("⚠️  ANTHROPIC_API_KEY not found in environment");
+                eprintln!("⚠️  ANTHROPIC_API_KEY not found in .env");
             }
+            true
         }
         Err(e) => {
             eprintln!("⚠️  Failed to load .env file: {}", e);
-            eprintln!("Using system environment variables instead");
+            false
+        }
+    };
+
+    // .env 파일이 없거나 API 키가 없으면 keyring에서 시도 (프로덕션 빌드용)
+    if !env_loaded || std::env::var("ANTHROPIC_API_KEY").is_err() {
+        eprintln!("🔑 Attempting to load API key from system keychain...");
+
+        match keyring::Entry::new("Judgify", "claude_api_key") {
+            Ok(entry) => {
+                match entry.get_password() {
+                    Ok(api_key) => {
+                        std::env::set_var("ANTHROPIC_API_KEY", &api_key);
+                        let masked_key = if api_key.len() > 20 {
+                            format!("{}...{}", &api_key[..10], &api_key[api_key.len()-10..])
+                        } else {
+                            "***".to_string()
+                        };
+                        eprintln!("✅ ANTHROPIC_API_KEY loaded from keychain: {}", masked_key);
+                    }
+                    Err(_) => {
+                        eprintln!("ℹ️  No API key found in keychain. Please set it in Settings page.");
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("⚠️  Failed to access keychain: {}", e);
+            }
         }
     }
 
@@ -78,6 +106,9 @@ fn main() {
             system::get_data_directory,
             system::export_database,
             system::get_token_metrics,
+            system::save_api_key,
+            system::load_api_key,
+            system::delete_api_key,
 
             // Update Commands
             update::check_for_updates,

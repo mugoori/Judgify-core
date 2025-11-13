@@ -49,7 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
+    window.location.reload();
   };
 
   render() {
@@ -67,15 +67,15 @@ export class ErrorBoundary extends Component<Props, State> {
               <CardDescription>애플리케이션에서 예상치 못한 오류가 발생했습니다.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {this.state.error && (
+              {this.state.error && import.meta.env.DEV && (
                 <div className="bg-muted p-4 rounded-md">
                   <p className="font-semibold text-sm mb-2">에러 메시지:</p>
-                  <p className="text-sm font-mono text-destructive">{this.state.error.toString()}</p>
+                  <p className="text-sm font-mono text-destructive">{this.state.error.message}</p>
                 </div>
               )}
               <div className="flex gap-2">
                 <Button onClick={this.handleReset}>다시 시도</Button>
-                <Button onClick={() => window.location.reload()} variant="outline">페이지 새로고침</Button>
+                <Button onClick={() => { window.location.href = '/'; }} variant="outline">페이지 새로고침</Button>
               </div>
             </CardContent>
           </Card>
@@ -85,3 +85,5 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+
+export default ErrorBoundary;

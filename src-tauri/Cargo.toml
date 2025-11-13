@@ -1,6 +1,6 @@
 [package]
 name = "judgify-desktop"
-version = "0.1.8"  # Managed by version.py + scripts/bump_version.py
+version = "0.1.9"  # Managed by version.py + scripts/bump_version.py
 description = "Judgify AI 판단 플랫폼 - Windows Desktop"
 authors = ["Judgify Team"]
 license = ""
@@ -41,6 +41,7 @@ handlebars = "5.1"
 smartcore = "0.3"
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 flate2 = "1.0"  # gzip 압축/해제
+keyring = "2.3"  # Windows Credential Manager / macOS Keychain / Linux Secret Service
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
