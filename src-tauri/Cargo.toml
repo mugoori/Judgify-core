@@ -40,9 +40,11 @@ lru = "0.12"
 handlebars = "5.1"
 smartcore = "0.3"
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+flate2 = "1.0"  # gzip 압축/해제
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3.8"  # 테스트용 임시 파일
 
 [[bench]]
 name = "db_benchmark"

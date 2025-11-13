@@ -152,7 +152,14 @@
       "Bash(if [ -f .env ])",
       "Bash(then grep \"ANTHROPIC_API_KEY\" .env)",
       "Bash(else echo \".env 파일 없음\")",
-      "Bash(then echo \"ANTHROPIC_API_KEY 길이:\")"
+      "Bash(then echo \"ANTHROPIC_API_KEY 길이:\")",
+      "Bash(docs/archive/TASKS-Phase1-Performance.md)",
+      "Bash(c:devJudgify-coredocsarchiveTASKS-Phase2-TestAutomation.md)",
+      "Bash(docs/archive/TASKS-Phase2-TestAutomation.md)",
+      "Bash(docs/archive/TASKS-Week5-Workflow.md)",
+      "Bash(docs/archive/TASKS-Week6-Dashboard.md)",
+      "Bash(docs/archive/TASKS-Week7-Windows.md)",
+      "Bash(TASKS-new.md)"
     ],
     "deny": [],
     "additionalDirectories": [
