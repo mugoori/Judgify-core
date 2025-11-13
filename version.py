@@ -5,7 +5,7 @@ Judgify-core 버전 관리 (Single Source of Truth)
 버전 변경시 이 파일만 수정하고, scripts/bump_version.py를 실행하세요.
 """
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 __stage__ = "beta"  # alpha → beta → rc → stable
 __release_date__ = "2025-11-13"
 __description__ = "Auto-Update 기능 완성 (GitHub Pages 호스팅)"
