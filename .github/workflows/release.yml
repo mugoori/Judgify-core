@@ -156,13 +156,23 @@ jobs:
               return;
             }
 
+            // Download signature file content
+            const https = require('https');
+            const sigResponse = await new Promise((resolve, reject) => {
+              https.get(sigAsset.browser_download_url, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => resolve(data));
+              }).on('error', reject);
+            });
+
             const manifest = {
               version: '${{ steps.get_version.outputs.VERSION }}'.replace('v', ''),
               notes: 'TriFlow AI Desktop Application 업데이트',
               pub_date: new Date().toISOString(),
               platforms: {
                 'windows-x86_64': {
-                  signature: sigAsset.browser_download_url,
+                  signature: sigResponse.trim(),
                   url: msiAsset.browser_download_url
                 }
               }
