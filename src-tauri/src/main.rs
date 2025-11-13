@@ -78,6 +78,7 @@ fn main() {
             system::get_data_directory,
             system::export_database,
             system::get_token_metrics,
+            system::save_api_key,
 
             // Update Commands
             update::check_for_updates,

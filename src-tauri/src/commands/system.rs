@@ -126,3 +126,19 @@ pub async fn get_token_metrics() -> Result<crate::database::sqlite::TokenMetrics
     let db = Database::new().map_err(|e| e.to_string())?;
     db.get_token_metrics().map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn save_api_key(api_key: String) -> Result<(), String> {
+    println!("🔑 [IPC] save_api_key called!");
+
+    // API 키 형식 검증
+    if !api_key.starts_with("sk-ant-") {
+        return Err("Claude API 키 형식이 올바르지 않습니다. 'sk-ant-'로 시작해야 합니다.".to_string());
+    }
+
+    // 런타임 환경 변수에 설정
+    std::env::set_var("ANTHROPIC_API_KEY", &api_key);
+
+    println!("✅ [IPC] API 키가 성공적으로 설정되었습니다.");
+    Ok(())
+}

@@ -131,10 +131,19 @@ export default function Settings() {
     }
   }, []);
 
-  const handleSaveApiKey = () => {
-    localStorage.setItem('claude_api_key', claudeKey);
-    // 실제 구현에서는 Tauri를 통해 환경 변수나 secure storage에 저장
-    alert('API 키가 저장되었습니다. 앱을 재시작해주세요.');
+  const handleSaveApiKey = async () => {
+    try {
+      // 1. Tauri 명령으로 환경 변수에 저장 (즉시 적용)
+      await invoke('save_api_key', { apiKey: claudeKey });
+
+      // 2. localStorage에도 저장 (다음 실행시 복원용)
+      localStorage.setItem('claude_api_key', claudeKey);
+
+      alert('✅ API 키가 성공적으로 저장되었습니다. 즉시 사용 가능합니다!');
+    } catch (error: any) {
+      console.error('API 키 저장 실패:', error);
+      alert(`❌ API 키 저장 실패: ${error}`);
+    }
   };
 
   const handleSaveMcpSettings = () => {
