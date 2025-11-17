@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { generateBiInsight, type BiInsightResponse } from '@/lib/tauri-api-wrapper';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,38 @@ import { Sparkles, TrendingUp, AlertCircle } from 'lucide-react';
 export default function BiInsights() {
   const [request, setRequest] = useState('');
   const [insight, setInsight] = useState<BiInsightResponse | null>(null);
+
+  // 🔧 Phase 1 Security Fix: Load API key from Tauri IPC (프로덕션 빌드 호환)
+  useEffect(() => {
+    async function loadApiKey() {
+      try {
+        const { invoke } = await import('@tauri-apps/api/tauri');
+        const apiKey = await invoke<string>('load_api_key');
+        if (apiKey) {
+          console.log('[BiInsights] API key loaded from system keychain');
+
+          // Rust 환경변수에도 설정 (bi_service.rs가 사용)
+          await invoke('save_api_key', { apiKey });
+        }
+      } catch (error) {
+        console.error('[BiInsights] Failed to load API key from keychain:', error);
+
+        // Fallback: localStorage
+        const localKey = localStorage.getItem('claude_api_key');
+        if (localKey) {
+          console.log('[BiInsights] Fallback to localStorage API key');
+
+          try {
+            const { invoke } = await import('@tauri-apps/api/tauri');
+            await invoke('save_api_key', { apiKey: localKey });
+          } catch (e) {
+            console.error('[BiInsights] Failed to save API key to Rust env:', e);
+          }
+        }
+      }
+    }
+    loadApiKey();
+  }, []);
 
   const generateMutation = useMutation({
     mutationFn: (userRequest: string) => generateBiInsight(userRequest),

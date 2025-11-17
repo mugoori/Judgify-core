@@ -88,8 +88,23 @@ pub struct ChatService {
 impl ChatService {
     /// 새 ChatService 인스턴스 생성 (테스트용, AppHandle 없음)
     pub fn new() -> Result<Self> {
+        // 🔧 Phase 1 Security Fix: keychain fallback 안전장치
         let claude_api_key = env::var("ANTHROPIC_API_KEY")
+            .or_else(|_| {
+                eprintln!("⚠️  ANTHROPIC_API_KEY not found in env, retrying from keychain...");
+                keyring::Entry::new("Judgify", "claude_api_key")
+                    .and_then(|e| e.get_password())
+                    .map_err(|e| anyhow::anyhow!("Keychain 로드 실패: {}", e))
+            })
             .map_err(|_| anyhow::anyhow!("Claude API 키가 설정되지 않았습니다. Settings 페이지에서 API 키를 설정해주세요."))?;
+
+        // API 키 로그 (마스킹)
+        let masked = if claude_api_key.len() > 20 {
+            format!("{}...{}", &claude_api_key[..10], &claude_api_key[claude_api_key.len()-10..])
+        } else {
+            "***".to_string()
+        };
+        eprintln!("✅ ChatService initialized with API key: {}", masked);
 
         let db_path = "chat_service.db";
         let db = Connection::open(db_path)?;
@@ -108,8 +123,23 @@ impl ChatService {
 
     /// AppHandle 포함 생성 (Tauri 환경용)
     pub fn with_app_handle(app_handle: Option<AppHandle>) -> Result<Self> {
+        // 🔧 Phase 1 Security Fix: keychain fallback 안전장치
         let claude_api_key = env::var("ANTHROPIC_API_KEY")
+            .or_else(|_| {
+                eprintln!("⚠️  ANTHROPIC_API_KEY not found in env, retrying from keychain...");
+                keyring::Entry::new("Judgify", "claude_api_key")
+                    .and_then(|e| e.get_password())
+                    .map_err(|e| anyhow::anyhow!("Keychain 로드 실패: {}", e))
+            })
             .map_err(|_| anyhow::anyhow!("Claude API 키가 설정되지 않았습니다. Settings 페이지에서 API 키를 설정해주세요."))?;
+
+        // API 키 로그 (마스킹)
+        let masked = if claude_api_key.len() > 20 {
+            format!("{}...{}", &claude_api_key[..10], &claude_api_key[claude_api_key.len()-10..])
+        } else {
+            "***".to_string()
+        };
+        eprintln!("✅ ChatService (with AppHandle) initialized with API key: {}", masked);
 
         let db_path = "chat_service.db";
         let db = Connection::open(db_path)?;
