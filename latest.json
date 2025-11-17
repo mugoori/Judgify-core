@@ -1,11 +1,11 @@
 {
-  "version": "0.2.1",
+  "version": "0.2.2",
   "notes": "TriFlow AI Desktop Application 업데이트",
-  "pub_date": "2025-11-17T01:42:33.237Z",
+  "pub_date": "2025-11-17T02:54:48.857Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSM3BKdldBVC91WFB0T2VZSE5wZXo2N1A2RXVHcFgxSk81ZDZmMHNyYTBJbzN6RWViTkcyQTNaTmhQQXd3NHN3MGp3cWp0eit6V2szZG9NVVNyZ1JtcUdOOGs0N2had3dRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzYzMzQzNzM1CWZpbGU6VHJpRmxvdy1BSV8wLjIuMV94NjRfZW4tVVMubXNpLnppcApzS1Rma3RFNjdFZmp3YnFnZVNuUlExSjFucVFRUmd6NnZQRXdnN2lRRERIWGtObE5RbERaZjM2R0loN25OSDhCUm5kYlVORHJPUTNaUys1VHNvaXpCdz09Cg==",
-      "url": "https://github.com/mugoori/Judgify-core/releases/download/v0.2.1/TriFlow-AI_0.2.1_x64_en-US.msi.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSM3BKdldBVC91WE5RZ2lCblRIRUoxWHRJbmhRNW5kTGF5TGFYaE9ESHhGeThUZXU5bzVjSTYxVHNVYTEvTEttazN6bjVYWlRnRndVem1kUG5zdTNKUmVqelptazBVTWcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzYzMzQ4MDI1CWZpbGU6VHJpRmxvdy1BSV8wLjIuMl94NjRfZW4tVVMubXNpLnppcApudmZnNDY1aXViQjd2U1F4SGRjcEdwbnJzeC9IOHg5QmNtMEJlVE84a2VESWlOcm56VVlhVjAybEo5RkJvT0JIUE9mcndNSWoxOGxCUVZNY0FGalBCQT09Cg==",
+      "url": "https://github.com/mugoori/Judgify-core/releases/download/v0.2.2/TriFlow-AI_0.2.2_x64_en-US.msi.zip"
     }
   }
 }

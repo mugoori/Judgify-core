@@ -358,14 +358,12 @@ describe('ChatInterface', () => {
   // Group 5: Clear History
   // ========================================
   describe('Group 5: Clear History', () => {
-    it('대화 초기화 버튼 클릭시 confirm 후 초기화', async () => {
+    it('대화 초기화 버튼 클릭시 AlertDialog 표시 후 초기화', async () => {
       vi.mocked(tauriApi.sendChatMessage).mockResolvedValueOnce({
         response: 'AI 응답',
         session_id: 'test-session',
         intent: 'general',
       });
-
-      mockConfirm.mockReturnValue(true);
 
       renderWithQueryClient(<ChatInterface />);
 
@@ -381,10 +379,14 @@ describe('ChatInterface', () => {
       // 대화 초기화 버튼 클릭
       await user.click(screen.getByText('대화 초기화'));
 
-      // confirm 호출 확인
-      expect(mockConfirm).toHaveBeenCalledWith(
-        '채팅 내역을 모두 삭제하시겠습니까?'
-      );
+      // ✅ AlertDialog 표시 확인
+      await waitFor(() => {
+        expect(screen.getByText('대화 내역 삭제')).toBeInTheDocument();
+        expect(screen.getByText(/채팅 내역을 모두 삭제하시겠습니까?/)).toBeInTheDocument();
+      });
+
+      // ✅ 확인 버튼 클릭 (메시지 삭제 실행)
+      await user.click(screen.getByRole('button', { name: '확인' }));
 
       // session ID 초기화 확인
       expect(mockLocalStorage.getItem('chat-session-id')).toBeNull();
@@ -393,14 +395,12 @@ describe('ChatInterface', () => {
       await waitFor(() => {
         expect(screen.queryByText('테스트 메시지')).not.toBeInTheDocument();
         expect(
-          screen.getByText(/안녕하세요! Judgify AI 어시스턴트입니다/)
+          screen.getByText(/안녕하세요! .* TriFlow AI 어시스턴트입니다/)
         ).toBeInTheDocument();
       });
     });
 
-    it('대화 초기화 confirm 취소시 아무 동작 안함', async () => {
-      mockConfirm.mockReturnValue(false);
-
+    it('대화 초기화 취소 버튼 클릭시 아무 동작 안함', async () => {
       renderWithQueryClient(<ChatInterface />);
 
       // localStorage에 데이터 저장
@@ -415,8 +415,13 @@ describe('ChatInterface', () => {
       // 대화 초기화 버튼 클릭
       await user.click(screen.getByText('대화 초기화'));
 
-      // confirm 호출 확인
-      expect(mockConfirm).toHaveBeenCalled();
+      // ✅ AlertDialog 표시 확인
+      await waitFor(() => {
+        expect(screen.getByText('대화 내역 삭제')).toBeInTheDocument();
+      });
+
+      // ✅ 취소 버튼 클릭 (메시지 유지)
+      await user.click(screen.getByRole('button', { name: '취소' }));
 
       // localStorage 유지 확인
       expect(mockLocalStorage.getItem('chat-messages')).not.toBeNull();

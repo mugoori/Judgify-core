@@ -4,6 +4,16 @@ import { sendChatMessage, getChatHistory, type ChatMessageRequest, type ChatMess
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Send, Bot, User, Trash2, TrendingUp, Play, FileQuestion, Activity } from 'lucide-react';
 
 interface Message {
@@ -56,6 +66,7 @@ export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [claudeApiKey, setClaudeApiKey] = useState<string>(''); // 🔧 API 키 상태
+  const [showClearDialog, setShowClearDialog] = useState(false); // ✅ AlertDialog 상태
   const messagesRef = useRef<Message[]>([]); // 🔧 최신 messages 추적용 ref
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -404,19 +415,21 @@ export default function ChatInterface() {
   };
 
   const handleClearHistory = () => {
-    // 먼저 확인 후 삭제 (confirm이 true일 때만 실행)
-    const confirmed = window.confirm('채팅 내역을 모두 삭제하시겠습니까?');
+    // ✅ AlertDialog 표시 (삭제하지 않음)
+    setShowClearDialog(true);
+  };
 
-    if (confirmed) {
-      const initialMessage: Message = {
-        role: 'assistant',
-        content: '안녕하세요! 👋 TriFlow AI 어시스턴트입니다.\n\n판단 실행, 워크플로우 관리, 데이터 시각화, BI 인사이트 생성 등을 도와드릴 수 있어요. 무엇을 도와드릴까요?',
-      };
-      setMessages([initialMessage]);
-      setSessionId(undefined);
-      localStorage.removeItem('chat-messages');
-      localStorage.removeItem('chat-session-id');
-    }
+  const confirmClearHistory = () => {
+    // ✅ 사용자 확인 후 실제 삭제 실행
+    const initialMessage: Message = {
+      role: 'assistant',
+      content: '안녕하세요! 👋 TriFlow AI 어시스턴트입니다.\n\n판단 실행, 워크플로우 관리, 데이터 시각화, BI 인사이트 생성 등을 도와드릴 수 있어요. 무엇을 도와드릴까요?',
+    };
+    setMessages([initialMessage]);
+    setSessionId(undefined);
+    localStorage.removeItem('chat-messages');
+    localStorage.removeItem('chat-session-id');
+    setShowClearDialog(false);
   };
 
   const handleQuickAction = (query: string) => {
@@ -536,6 +549,22 @@ export default function ChatInterface() {
           <Send className="w-5 h-5" />
         </Button>
       </div>
+
+      {/* ✅ 대화 초기화 확인 다이얼로그 */}
+      <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>대화 내역 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              채팅 내역을 모두 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmClearHistory}>확인</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
