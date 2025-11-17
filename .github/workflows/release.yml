@@ -152,11 +152,11 @@ jobs:
             });
 
             const assets = release.assets;
-            const nsisAsset = assets.find(a => a.name.endsWith('.nsis.zip'));
-            const sigAsset = assets.find(a => a.name.endsWith('.nsis.zip.sig'));
+            const nsisAsset = assets.find(a => a.name.includes('-setup.exe') && a.name.endsWith('.zip'));
+            const sigAsset = assets.find(a => a.name.includes('-setup.exe') && a.name.endsWith('.zip.sig'));
 
             if (!nsisAsset || !sigAsset) {
-              core.setFailed('NSIS or signature file not found');
+              core.setFailed(`NSIS or signature file not found. Available assets: ${assets.map(a => a.name).join(', ')}`);
               return;
             }
 
