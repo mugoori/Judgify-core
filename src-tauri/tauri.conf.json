@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "TriFlow-AI",
-    "version": "0.2.3"
+    "version": "0.2.4"
   },
   "tauri": {
     "allowlist": {
@@ -22,7 +22,10 @@
       },
       "fs": {
         "all": true,
-        "scope": ["$APPDATA/*", "$APPDATA/**"]
+        "scope": [
+          "$APPDATA/*",
+          "$APPDATA/**"
+        ]
       }
     },
     "bundle": {
