@@ -1,6 +1,6 @@
 [package]
 name = "judgify-desktop"
-version = "0.2.4"  # Managed by version.py + scripts/bump_version.py
+version = "0.3.0"  # Managed by version.py + scripts/bump_version.py
 description = "Judgify AI 판단 플랫폼 - Windows Desktop"
 authors = ["Judgify Team"]
 license = ""
