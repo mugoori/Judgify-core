@@ -5,10 +5,10 @@ Judgify-core 버전 관리 (Single Source of Truth)
 버전 변경시 이 파일만 수정하고, scripts/bump_version.py를 실행하세요.
 """
 
-__version__ = "0.1.8"
+__version__ = "0.2.3"
 __stage__ = "beta"  # alpha → beta → rc → stable
-__release_date__ = "2025-11-13"
-__description__ = "tauri.conf.json 버전 동기화 수정"
+__release_date__ = "2025-11-17"
+__description__ = "TriFlow AI 브랜딩 마이그레이션 (Judgify → TriFlow)"
 
 # 9개 마이크로서비스 구현 상태 추적
 MICROSERVICES_STATUS = {
