@@ -55,8 +55,43 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>();
+  const [claudeApiKey, setClaudeApiKey] = useState<string>(''); // 🔧 API 키 상태
   const messagesRef = useRef<Message[]>([]); // 🔧 최신 messages 추적용 ref
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 🔧 Phase 1 Security Fix: Load API key from Tauri IPC (프로덕션 빌드 호환)
+  useEffect(() => {
+    async function loadApiKey() {
+      try {
+        const { invoke } = await import('@tauri-apps/api/tauri');
+        const apiKey = await invoke<string>('load_api_key');
+        if (apiKey) {
+          console.log('[ChatInterface] API key loaded from system keychain');
+          setClaudeApiKey(apiKey);
+
+          // Rust 환경변수에도 설정 (chat_service.rs가 사용)
+          await invoke('save_api_key', { apiKey });
+        }
+      } catch (error) {
+        console.error('[ChatInterface] Failed to load API key from keychain:', error);
+
+        // Fallback: localStorage
+        const localKey = localStorage.getItem('claude_api_key');
+        if (localKey) {
+          console.log('[ChatInterface] Fallback to localStorage API key');
+          setClaudeApiKey(localKey);
+
+          try {
+            const { invoke } = await import('@tauri-apps/api/tauri');
+            await invoke('save_api_key', { apiKey: localKey });
+          } catch (e) {
+            console.error('[ChatInterface] Failed to save API key to Rust env:', e);
+          }
+        }
+      }
+    }
+    loadApiKey();
+  }, []);
 
   // Load chat history from localStorage on mount + recover pending responses
   useEffect(() => {
