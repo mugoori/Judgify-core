@@ -60,14 +60,12 @@ pub fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
     }
 }
 
-/// 창 닫기 이벤트 핸들러 - 트레이로 최소화 (백그라운드 실행)
-pub fn handle_window_close(window: &tauri::Window, event: &tauri::WindowEvent) {
-    if let WindowEvent::CloseRequested { api, .. } = event {
-        // 창 닫기 요청 → 숨기기만 하고 종료 방지
-        api.prevent_close();
-
-        // 창을 숨김 (트레이로 최소화)
-        let _ = window.hide();
+/// 창 닫기 이벤트 핸들러 - 완전히 종료
+pub fn handle_window_close(_window: &tauri::Window, event: &tauri::WindowEvent) {
+    if let WindowEvent::CloseRequested { .. } = event {
+        // ✅ Phase 10: X 버튼 클릭시 완전 종료 (prevent_close 제거)
+        // 트레이 메뉴의 "종료"는 여전히 작동
+        // 최소화 버튼으로 백그라운드 실행 가능
     }
 }
 
