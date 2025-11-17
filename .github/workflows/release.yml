@@ -119,6 +119,7 @@ jobs:
           prerelease: false
           projectPath: .
           args: --target ${{ matrix.rust_target }}
+          includeUpdaterJson: true
 
   generate-update-manifest:
     needs: [create-release, build-tauri]
@@ -152,11 +153,15 @@ jobs:
             });
 
             const assets = release.assets;
-            const nsisAsset = assets.find(a => a.name.includes('-setup.exe') && a.name.endsWith('.zip'));
-            const sigAsset = assets.find(a => a.name.includes('-setup.exe') && a.name.endsWith('.zip.sig'));
+            const nsisAsset = assets.find(a => a.name.endsWith('.nsis.zip'));
+            const sigAsset = assets.find(a => a.name.endsWith('.nsis.zip.sig'));
 
             if (!nsisAsset || !sigAsset) {
-              core.setFailed(`NSIS or signature file not found. Available assets: ${assets.map(a => a.name).join(', ')}`);
+              core.setFailed(
+                `NSIS updater files not found!\n` +
+                `Expected: .nsis.zip and .nsis.zip.sig\n` +
+                `Available assets:\n${assets.map(a => `  - ${a.name}`).join('\n')}`
+              );
               return;
             }
 
