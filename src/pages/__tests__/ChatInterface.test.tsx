@@ -81,7 +81,7 @@ describe('ChatInterface', () => {
         screen.getByText(/자연어로 대화하며 판단 실행/)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/안녕하세요! Judgify AI 어시스턴트입니다/)
+        screen.getByText(/안녕하세요! TriFlow AI 어시스턴트입니다/)
       ).toBeInTheDocument();
     });
 
@@ -489,7 +489,7 @@ describe('ChatInterface', () => {
 
       // 환영 메시지 표시
       expect(
-        screen.getByText(/안녕하세요! Judgify AI 어시스턴트입니다/)
+        screen.getByText(/안녕하세요! TriFlow AI 어시스턴트입니다/)
       ).toBeInTheDocument();
     });
 
