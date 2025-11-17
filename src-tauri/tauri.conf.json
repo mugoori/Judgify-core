@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "TriFlow-AI",
-    "version": "0.2.2"
+    "version": "0.2.3"
   },
   "tauri": {
     "allowlist": {
@@ -39,7 +39,10 @@
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "",
+        "wix": {
+          "upgradeCode": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        }
       },
       "longDescription": "TriFlow AI - AI 기반 워크플로우 자동화 플랫폼으로, 드래그앤드롭 방식의 직관적인 인터페이스로 복잡한 비즈니스 프로세스를 시각적으로 설계하고 자동화합니다.",
       "shortDescription": "TriFlow AI 워크플로우 플랫폼",
