@@ -54,7 +54,7 @@ jobs:
             - 최신 GitHub Actions 권한 시스템 호환
 
             ## 다운로드
-            Windows 사용자는 `.msi` 파일을 다운로드하여 설치하세요.
+            Windows 사용자는 `-setup.exe` 파일을 다운로드하여 설치하세요.
 
             ## 업데이트 방법
             - Settings 페이지에서 "업데이트 확인" 클릭
@@ -152,11 +152,11 @@ jobs:
             });
 
             const assets = release.assets;
-            const msiAsset = assets.find(a => a.name.endsWith('.msi.zip'));
-            const sigAsset = assets.find(a => a.name.endsWith('.msi.zip.sig'));
+            const nsisAsset = assets.find(a => a.name.endsWith('.nsis.zip'));
+            const sigAsset = assets.find(a => a.name.endsWith('.nsis.zip.sig'));
 
-            if (!msiAsset || !sigAsset) {
-              core.setFailed('MSI or signature file not found');
+            if (!nsisAsset || !sigAsset) {
+              core.setFailed('NSIS or signature file not found');
               return;
             }
 
@@ -182,7 +182,7 @@ jobs:
               platforms: {
                 'windows-x86_64': {
                   signature: sigContent.trim(),
-                  url: msiAsset.browser_download_url
+                  url: nsisAsset.browser_download_url
                 }
               }
             };
