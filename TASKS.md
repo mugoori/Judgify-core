@@ -1,7 +1,7 @@
 # Judgify-core 작업 진행 현황 (TASKS.md)
 
 **생성일**: 2025-11-04
-**최종 업데이트**: 2025-11-13
+**최종 업데이트**: 2025-11-17
 **관리 원칙**: 모든 `/init` 작업 시작 전 이 문서를 먼저 확인 및 업데이트
 
 ---
@@ -13,6 +13,7 @@
 | **Desktop App (Phase 0)** | 71.7% | ✅ 완료 | 2025-11-04 |
 | **API 키 테스트 (Phase 0.5)** | 100% (2/2) | ✅ 완료 | 2025-11-13 |
 | **Desktop App 100% 완성 (Phase 8)** | 100% (7/7) | ✅ 완료! | 2025-11-13 |
+| **v0.2.1 핫픽스 (Phase 9)** | 100% (3/3) | ✅ 완료 | 2025-11-17 |
 | **Performance Engineer (Phase 1)** | 100% (8/8) | ✅ 완료 | 2025-11-04 |
 | **Test Automation (Phase 2)** | 100% (8/8) | ✅ 완료 | 2025-11-06 |
 | **Week 5: Visual Workflow Builder** | 100% (8/8) | ✅ 완료 | 2025-11-11 |
@@ -425,6 +426,127 @@ SQLite 백업 (영구 저장)
 **상태**: ✅ 완료 (PR 생성 준비, 2025-11-13)
 **커밋**: [54fce54](https://github.com/mugoori/Judgify-core/commit/54fce54)
 **Notion 로그**: [2025-11-13 작업 일지](https://www.notion.so/2025-11-13-2aa25d02284a8162a9e3d2212d3658ba)
+
+---
+
+## 🔧 Phase 9: v0.2.1 핫픽스 (2025-11-17 시작)
+
+**목표**: v0.2.0 릴리스 후 발견된 API 키 로딩 버그 수정
+**진행률**: 100% (3/3 작업 완료)
+**완료일**: 2025-11-17
+
+---
+
+### ✅ Task 9.1: main.rs 구문 오류 수정 (30분)
+
+**설명**: GitHub Actions 빌드 실패 원인 파악 및 수정
+
+**문제**:
+```rust
+error: unexpected closing delimiter: `}`
+   --> src\main.rs:159:1
+```
+
+**원인**:
+- `mask_api_key()` 함수 추가시 `main()` 함수를 잘못 닫음
+- Tauri builder 코드가 함수 밖에 고아 상태로 남음
+
+**해결 방법**:
+1. 새로운 `run()` 함수 생성하여 Tauri builder 래핑
+2. `main()` 함수가 환경 설정 후 `run()` 호출
+3. `#[cfg_attr(mobile, tauri::mobile_entry_point)]` 속성 추가
+
+**파일 변경**:
+- [src-tauri/src/main.rs](src-tauri/src/main.rs) (101-163줄)
+  ```rust
+  pub fn run() {
+      tauri::Builder::default()
+          // ... Tauri builder 코드
+          .run(tauri::generate_context!())
+          .expect("error while running tauri application");
+  }
+  ```
+- [src-tauri/src/algorithms/llm_pattern_discoverer.rs](src-tauri/src/algorithms/llm_pattern_discoverer.rs)
+  - 미사용 `json` import 제거
+
+**빌드 결과**: ✅ 성공 (컴파일 통과, 경고만 존재)
+
+**Git Commit**: [20429ee](https://github.com/mugoori/Judgify-core/commit/20429ee)
+
+**상태**: ✅ 완료 (2025-11-17)
+
+---
+
+### ✅ Task 9.2: ChatInterface/BiInsights API 키 로딩 추가 (1시간)
+
+**설명**: 프로덕션 빌드에서 "undefined" 오류 발생 문제 해결
+
+**문제**:
+- WorkflowBuilder는 정상 작동 (API 키 로딩 로직 존재)
+- ChatInterface와 BiInsights는 API 키 로딩 없음
+- 프로덕션 빌드에서 VITE_ 환경변수 번들 안 됨
+- chat_service.rs가 환경변수에 의존
+
+**해결 방법**:
+1. **ChatInterface.tsx** (라인 58, 62-94):
+   - Tauri IPC로 keychain에서 API 키 로드
+   - React state에 저장
+   - Rust 환경변수에 저장 (`save_api_key` 명령)
+   - localStorage 폴백
+
+2. **BiInsights.tsx** (라인 1, 14-44):
+   - ChatInterface와 동일한 패턴 적용
+
+3. **chat_service.rs** (라인 90-107, 125-142):
+   - `new()` 함수에 keychain 폴백 추가
+   - `with_app_handle()` 함수에 keychain 폴백 추가
+   - API 키 마스킹 로그 추가
+
+**파일 변경**:
+- [src/pages/ChatInterface.tsx](src/pages/ChatInterface.tsx)
+- [src/pages/BiInsights.tsx](src/pages/BiInsights.tsx)
+- [src-tauri/src/services/chat_service.rs](src-tauri/src/services/chat_service.rs)
+
+**성과**:
+- 프로덕션 빌드에서 API 키 정상 로드
+- "undefined" 오류 제거
+- 3단계 폴백 체계 (keychain → localStorage → 오류)
+
+**Git Commit**: [daf09b2](https://github.com/mugoori/Judgify-core/commit/daf09b2)
+
+**상태**: ✅ 완료 (2025-11-17)
+
+---
+
+### ✅ Task 9.3: v0.2.1 태그 업데이트 및 GitHub Actions 빌드 (30분)
+
+**설명**: 최신 커밋으로 v0.2.1 태그 재생성 및 배포
+
+**작업 내용**:
+1. 기존 v0.2.1 태그 삭제 (로컬 및 원격)
+2. 최신 커밋(`daf09b2`)에 새 태그 생성
+3. 원격 저장소에 태그 푸시
+4. GitHub Actions Release 워크플로우 자동 트리거
+
+**Git 명령**:
+```bash
+git tag -d v0.2.1
+git push origin :refs/tags/v0.2.1
+git tag -a v0.2.1 -m "Release v0.2.1: API key loading fixes + Claude migration"
+git push origin v0.2.1
+```
+
+**GitHub Actions 상태**:
+- ✅ Release 워크플로우 자동 시작
+- 🔗 URL: https://github.com/mugoori/Judgify-core/actions/runs/19415601613
+- ⏳ Status: `in_progress` (진행 중)
+
+**예상 산출물**:
+- ✅ `TriFlow AI_0.2.1_x64_en-US.msi` (Windows 설치 파일)
+- ✅ `TriFlow AI_0.2.1_x64-setup.exe` (NSIS 설치 파일)
+- ✅ 자동 업데이트용 ZIP 파일 2개
+
+**상태**: ✅ 완료 (빌드 진행 중, 2025-11-17)
 
 ---
 
