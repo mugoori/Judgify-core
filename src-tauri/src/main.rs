@@ -12,56 +12,89 @@ mod tray;
 use commands::*;
 
 fn main() {
-    // Load .env file from project root (one level up from src-tauri)
-    let env_loaded = match dotenvy::from_path("../.env") {
-        Ok(_) => {
-            eprintln!("✅ Successfully loaded .env file");
+    // ✅ Phase 1: Keychain-first loading strategy
+    // 1단계: Keychain에서 API 키 로드 (프로덕션 + 개발 공통)
+    load_secrets_from_keychain();
 
-            // Verify critical environment variables
-            if let Ok(api_key) = std::env::var("ANTHROPIC_API_KEY") {
-                let masked_key = if api_key.len() > 20 {
-                    format!("{}...{}", &api_key[..10], &api_key[api_key.len()-10..])
-                } else {
-                    "***".to_string()
-                };
-                eprintln!("✅ ANTHROPIC_API_KEY loaded from .env: {}", masked_key);
-            } else {
-                eprintln!("⚠️  ANTHROPIC_API_KEY not found in .env");
-            }
-            true
-        }
-        Err(e) => {
-            eprintln!("⚠️  Failed to load .env file: {}", e);
-            false
-        }
-    };
-
-    // .env 파일이 없거나 API 키가 없으면 keyring에서 시도 (프로덕션 빌드용)
-    if !env_loaded || std::env::var("ANTHROPIC_API_KEY").is_err() {
-        eprintln!("🔑 Attempting to load API key from system keychain...");
-
-        match keyring::Entry::new("Judgify", "claude_api_key") {
-            Ok(entry) => {
-                match entry.get_password() {
-                    Ok(api_key) => {
-                        std::env::set_var("ANTHROPIC_API_KEY", &api_key);
-                        let masked_key = if api_key.len() > 20 {
-                            format!("{}...{}", &api_key[..10], &api_key[api_key.len()-10..])
-                        } else {
-                            "***".to_string()
-                        };
-                        eprintln!("✅ ANTHROPIC_API_KEY loaded from keychain: {}", masked_key);
-                    }
-                    Err(_) => {
-                        eprintln!("ℹ️  No API key found in keychain. Please set it in Settings page.");
+    // 2단계: 개발 환경에서만 .env 파일 fallback (Keychain에 없을 경우)
+    #[cfg(debug_assertions)]
+    {
+        if std::env::var("ANTHROPIC_API_KEY").is_err() {
+            eprintln!("🔍 Development mode: Attempting to load .env file as fallback...");
+            match dotenvy::from_path("../.env") {
+                Ok(_) => {
+                    eprintln!("✅ Successfully loaded .env file");
+                    if let Ok(api_key) = std::env::var("ANTHROPIC_API_KEY") {
+                        let masked_key = mask_api_key(&api_key);
+                        eprintln!("✅ ANTHROPIC_API_KEY loaded from .env: {}", masked_key);
                     }
                 }
-            }
-            Err(e) => {
-                eprintln!("⚠️  Failed to access keychain: {}", e);
+                Err(e) => {
+                    eprintln!("⚠️  Failed to load .env file: {}", e);
+                    eprintln!("ℹ️  Please set API key in Settings page or create .env file");
+                }
             }
         }
     }
+
+    // 최종 검증
+    if std::env::var("ANTHROPIC_API_KEY").is_err() {
+        eprintln!("⚠️  ANTHROPIC_API_KEY not set. Please configure in Settings.");
+    }
+}
+
+/// Keychain에서 시크릿 로드 (프로덕션 + 개발 공통)
+fn load_secrets_from_keychain() {
+    eprintln!("🔑 Loading secrets from system keychain...");
+
+    // ANTHROPIC_API_KEY 로드
+    match keyring::Entry::new("Judgify", "claude_api_key") {
+        Ok(entry) => {
+            match entry.get_password() {
+                Ok(api_key) => {
+                    std::env::set_var("ANTHROPIC_API_KEY", &api_key);
+                    let masked_key = mask_api_key(&api_key);
+                    eprintln!("✅ ANTHROPIC_API_KEY loaded from keychain: {}", masked_key);
+                }
+                Err(_) => {
+                    eprintln!("ℹ️  No ANTHROPIC_API_KEY found in keychain");
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("⚠️  Failed to access keychain for ANTHROPIC_API_KEY: {}", e);
+        }
+    }
+
+    // OpenAI Embedding Key 로드 (선택사항)
+    match keyring::Entry::new("Judgify", "openai_embedding_key") {
+        Ok(entry) => {
+            match entry.get_password() {
+                Ok(api_key) => {
+                    std::env::set_var("OPENAI_API_KEY", &api_key);
+                    let masked_key = mask_api_key(&api_key);
+                    eprintln!("✅ OPENAI_API_KEY (embedding) loaded from keychain: {}", masked_key);
+                }
+                Err(_) => {
+                    // OpenAI는 선택사항이므로 경고만 출력
+                    eprintln!("ℹ️  No OPENAI_API_KEY found in keychain (optional for embeddings)");
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("⚠️  Failed to access keychain for OPENAI_API_KEY: {}", e);
+        }
+    }
+}
+
+/// API 키 마스킹 헬퍼 함수
+fn mask_api_key(api_key: &str) -> String {
+    if api_key.len() > 20 {
+        format!("{}...{}", &api_key[..10], &api_key[api_key.len()-10..])
+    } else {
+        "***".to_string()
+    }
+}
 
     tauri::Builder::default()
         .system_tray(tray::create_tray())

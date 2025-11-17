@@ -223,34 +223,35 @@ pub struct RealTimeConfig {
     pub websocket_url: String,
 }
 
-/// LLM 요청/응답 구조체
+/// ✅ Phase 2: Claude API 요청/응답 구조체 (OpenAI에서 마이그레이션)
 #[derive(Debug, Serialize, Deserialize)]
-struct OpenAIRequest {
+struct ClaudeRequest {
     model: String,
-    messages: Vec<OpenAIMessage>,
+    max_tokens: u32,
+    messages: Vec<ClaudeMessage>,
     temperature: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct OpenAIMessage {
+struct ClaudeMessage {
     role: String,
     content: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct OpenAIResponse {
-    choices: Vec<OpenAIChoice>,
+struct ClaudeResponse {
+    content: Vec<ClaudeContent>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct OpenAIChoice {
-    message: OpenAIMessage,
+struct ClaudeContent {
+    text: String,
 }
 
 // ========== BI Service 메인 구조체 ==========
 
 pub struct BiService {
-    openai_api_key: String,
+    claude_api_key: String, // ✅ Phase 2: OpenAI → Claude
     http_client: reqwest::Client,
     component_registry: HashMap<String, ComponentMetadata>,
     db: Database,
@@ -264,13 +265,14 @@ impl BiService {
 
     /// Phase 5: AppHandle을 포함한 생성자 (이벤트 발생용)
     pub fn with_app_handle(app_handle: Option<AppHandle>) -> anyhow::Result<Self> {
-        let openai_api_key = env::var("OPENAI_API_KEY")
-            .unwrap_or_else(|_| "sk-test-key".to_string());
+        // ✅ Phase 2: ANTHROPIC_API_KEY 사용 (OpenAI에서 변경)
+        let claude_api_key = env::var("ANTHROPIC_API_KEY")
+            .unwrap_or_else(|_| "sk-ant-test-key".to_string());
 
         let db = Database::new()?;
 
         let mut service = Self {
-            openai_api_key,
+            claude_api_key,
             http_client: reqwest::Client::new(),
             component_registry: HashMap::new(),
             db,
@@ -834,16 +836,11 @@ impl BiService {
         Ok(analysis)
     }
 
-    /// LLM 기반 분석 (복잡도 >= 0.5)
+    /// ✅ Phase 2: Claude 기반 분석 (OpenAI에서 마이그레이션)
     async fn analyze_with_llm(&self, request: &str) -> anyhow::Result<RequestAnalysis> {
         let prompt = self.build_analysis_prompt(request);
 
-        let openai_request = OpenAIRequest {
-            model: "gpt-4o-mini".to_string(),
-            messages: vec![
-                OpenAIMessage {
-                    role: "system".to_string(),
-                    content: r#"You are a BI request analyzer. Analyze the user's request and return JSON with:
+        let system_prompt = r#"You are a BI request analyzer. Analyze the user's request and return JSON with:
 {
   "intent": "monitoring | analysis | comparison | overview",
   "entities": ["workflow", "judgment", "action"],
@@ -852,30 +849,33 @@ impl BiService {
   "preferred_charts": ["line", "bar", "pie", "gauge"],
   "complexity_score": 0.0-1.0
 }
-Return ONLY valid JSON, no additional text."#.to_string(),
-                },
-                OpenAIMessage {
-                    role: "user".to_string(),
-                    content: prompt,
-                },
-            ],
+Return ONLY valid JSON, no additional text."#;
+
+        let claude_request = ClaudeRequest {
+            model: "claude-sonnet-4-5-20250929".to_string(),
+            max_tokens: 2048, // ✅ Claude는 max_tokens 필수
+            messages: vec![ClaudeMessage {
+                role: "user".to_string(),
+                content: format!("{}\n\nUser request: {}", system_prompt, prompt),
+            }],
             temperature: 0.3,
         };
 
         let response = self.http_client
-            .post("https://api.openai.com/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", self.openai_api_key))
-            .json(&openai_request)
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.claude_api_key) // ✅ Claude 헤더
+            .header("anthropic-version", "2023-06-01")
+            .json(&claude_request)
             .send()
             .await?;
 
         if !response.status().is_success() {
             let error_text = response.text().await?;
-            return Err(anyhow::anyhow!("OpenAI API error: {}", error_text));
+            return Err(anyhow::anyhow!("Claude API error: {}", error_text));
         }
 
-        let openai_response: OpenAIResponse = response.json().await?;
-        let content = &openai_response.choices[0].message.content;
+        let claude_response: ClaudeResponse = response.json().await?;
+        let content = &claude_response.content[0].text; // ✅ Claude 응답 형식
 
         // JSON 파싱
         let analysis: RequestAnalysis = serde_json::from_str(content)
@@ -992,7 +992,7 @@ Return JSON only."#,
         })
     }
 
-    /// 비즈니스 권장사항 생성 (LLM 기반)
+    /// ✅ Phase 2: 비즈니스 권장사항 생성 (Claude 기반, OpenAI에서 마이그레이션)
     async fn generate_recommendations(
         &self,
         rag_context: &RagContext,
@@ -1000,36 +1000,34 @@ Return JSON only."#,
         // RAG 컨텍스트 기반 프롬프트 생성
         let prompt = self.build_recommendation_prompt(rag_context);
 
-        // OpenAI API 호출
-        let openai_request = json!({
-            "model": "gpt-4o-mini",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are a business analyst specializing in manufacturing quality control. Generate actionable recommendations based on judgment execution data and similar past cases."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "temperature": 0.7,
-        });
+        let system_prompt = "You are a business analyst specializing in manufacturing quality control. Generate actionable recommendations based on judgment execution data and similar past cases.";
+
+        // ✅ Phase 2: Claude API 호출
+        let claude_request = ClaudeRequest {
+            model: "claude-sonnet-4-5-20250929".to_string(),
+            max_tokens: 2048, // ✅ Claude는 max_tokens 필수
+            messages: vec![ClaudeMessage {
+                role: "user".to_string(),
+                content: format!("{}\n\n{}", system_prompt, prompt),
+            }],
+            temperature: 0.7,
+        };
 
         let response = self.http_client
-            .post("https://api.openai.com/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", self.openai_api_key))
-            .json(&openai_request)
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.claude_api_key)
+            .header("anthropic-version", "2023-06-01")
+            .json(&claude_request)
             .send()
             .await?;
 
         if !response.status().is_success() {
             let error_text = response.text().await?;
-            return Err(anyhow::anyhow!("OpenAI API error: {}", error_text));
+            return Err(anyhow::anyhow!("Claude API error: {}", error_text));
         }
 
-        let openai_response: OpenAIResponse = response.json().await?;
-        let content = &openai_response.choices[0].message.content;
+        let claude_response: ClaudeResponse = response.json().await?;
+        let content = &claude_response.content[0].text;
 
         // JSON 파싱
         let recommendations: Vec<BusinessRecommendation> = serde_json::from_str(content)
@@ -2169,7 +2167,7 @@ mod tests {
             }
             Err(e) => {
                 // API 키 없음 에러는 예상됨 (테스트 환경)
-                assert!(e.to_string().contains("OpenAI") || e.to_string().contains("API"));
+                assert!(e.to_string().contains("Claude") || e.to_string().contains("API")); // ✅ Phase 2
                 println!("⚠️ Expected error in test environment: {}", e);
             }
         }
@@ -2197,7 +2195,7 @@ mod tests {
             }
             Err(e) => {
                 // API 키 없음 에러는 예상됨 (테스트 환경)
-                assert!(e.to_string().contains("OpenAI") || e.to_string().contains("API"));
+                assert!(e.to_string().contains("Claude") || e.to_string().contains("API")); // ✅ Phase 2
                 println!("⚠️ Expected error in test environment: {}", e);
             }
         }

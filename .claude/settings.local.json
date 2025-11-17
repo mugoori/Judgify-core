@@ -4,7 +4,10 @@
     "allow": [
       "Bash(Select-Object ProcessName, Id)",
       "Bash(Format-Table)",
-      "Bash(Get-Content c:devJudgify-coresrclibtauri-api-wrapper.ts -Head 20)"
+      "Bash(Get-Content c:devJudgify-coresrclibtauri-api-wrapper.ts -Head 20)",
+      "Bash(cargo tree:*)",
+      "Bash(cargo check:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": [],
