@@ -589,13 +589,13 @@ export default function Settings() {
       {/* About */}
       <Card>
         <CardHeader>
-          <CardTitle>Judgify Desktop</CardTitle>
+          <CardTitle>TriFlow Desktop</CardTitle>
           <CardDescription>Windows Desktop Application</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p>버전: {status?.version || 'N/A'}</p>
           <p>Tauri + Rust + React 기반 하이브리드 AI 판단 시스템</p>
-          <p>© 2024 Judgify. All rights reserved.</p>
+          <p>© 2024 TriFlow. All rights reserved.</p>
         </CardContent>
       </Card>
       </div>
