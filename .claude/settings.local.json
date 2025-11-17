@@ -7,7 +7,10 @@
       "Bash(Get-Content c:devJudgify-coresrclibtauri-api-wrapper.ts -Head 20)",
       "Bash(cargo tree:*)",
       "Bash(cargo check:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": [],
