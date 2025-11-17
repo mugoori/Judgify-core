@@ -113,3 +113,4 @@ codecov.yml.local
 
 nul
 node_modules
+.claude/settings.local.json

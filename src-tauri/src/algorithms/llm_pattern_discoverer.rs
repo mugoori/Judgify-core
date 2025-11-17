@@ -3,7 +3,7 @@
 use super::{ExtractedRule, FeedbackData};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 
 /// LLM 패턴 발견 알고리즘

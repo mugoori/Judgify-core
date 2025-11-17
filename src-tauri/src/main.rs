@@ -41,6 +41,8 @@ fn main() {
     if std::env::var("ANTHROPIC_API_KEY").is_err() {
         eprintln!("⚠️  ANTHROPIC_API_KEY not set. Please configure in Settings.");
     }
+
+    run();
 }
 
 /// Keychain에서 시크릿 로드 (프로덕션 + 개발 공통)
@@ -96,6 +98,8 @@ fn mask_api_key(api_key: &str) -> String {
     }
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
     tauri::Builder::default()
         .system_tray(tray::create_tray())
         .on_system_tray_event(tray::handle_tray_event)
