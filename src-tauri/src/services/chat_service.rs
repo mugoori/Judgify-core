@@ -200,7 +200,7 @@ impl ChatService {
     /// * `Intent` - 분석된 의도
     pub async fn analyze_intent(&self, message: &str) -> Result<Intent> {
         // Intent 분석 프롬프트
-        let system_prompt = r#"You are an intent classifier for the Judgify AI platform.
+        let system_prompt = r#"You are an intent classifier for the TriFlow AI platform.
 
 Classify the user's message into one of the following intents:
 - workflow_management: User wants to create, modify, delete, or view workflows
@@ -221,7 +221,7 @@ Examples:
 - "재고 데이터로 판단 실행해줘" → judgment_execution
 - "지난 주 성공률 보여줘" → data_visualization
 - "MCP 서버 연결 설정 변경" → settings_change
-- "Judgify 사용법 알려줘" → general_query
+- "TriFlow 사용법 알려줘" → general_query
 "#;
 
         let user_prompt = format!("User message: \"{}\"", message);
@@ -673,7 +673,7 @@ Examples:
         &self,
         message: &str,
     ) -> Result<(String, serde_json::Value)> {
-        let system_prompt = r#"You are a parameter extractor for the Judgify AI platform.
+        let system_prompt = r#"You are a parameter extractor for the TriFlow AI platform.
 
 Extract judgment parameters from the user's message and respond in JSON format:
 {
@@ -785,7 +785,7 @@ Examples:
         history: Vec<ChatMessage>,
     ) -> Result<String> {
         // 시스템 프롬프트 (Judgify AI Assistant 역할)
-        let system_prompt = r#"You are Judgify AI Assistant, a helpful AI assistant for the Judgify platform.
+        let system_prompt = r#"You are TriFlow AI Assistant, a helpful AI assistant for the TriFlow platform.
 
 Capabilities you can help with:
 - Judgment execution (판단 실행): Execute rules and LLM-based judgments on data
@@ -796,14 +796,14 @@ Capabilities you can help with:
 Response guidelines:
 - Be conversational, friendly, and helpful
 - Use Korean language naturally
-- Provide practical information about Judgify features
+- Provide practical information about TriFlow features
 - If user asks about capabilities, explain briefly with examples
 - Keep responses concise (2-4 sentences)
 - If user asks how to do something, give step-by-step guidance
 - Reference conversation history when relevant
 
 Examples:
-- User: "안녕" → "안녕하세요! Judgify AI 어시스턴트입니다. 판단 실행, 워크플로우 관리, 데이터 분석 등을 도와드릴 수 있어요. 무엇을 도와드릴까요?"
+- User: "안녕" → "안녕하세요! TriFlow AI 어시스턴트입니다. 판단 실행, 워크플로우 관리, 데이터 분석 등을 도와드릴 수 있어요. 무엇을 도와드릴까요?"
 - User: "뭘 할 수 있어?" → "저는 워크플로우 기반 판단 실행, 실시간 데이터 분석, BI 인사이트 생성 등을 할 수 있어요. 예를 들어 '재고 데이터로 판단해줘' 또는 '지난 주 불량률 분석해줘'처럼 말씀해주시면 됩니다!"
 - User: "워크플로우 어떻게 만들어?" → "워크플로우는 채팅에서 '워크플로우 만들어줘'라고 말씀하시거나, 워크플로우 페이지에서 직접 생성하실 수 있어요. 필요하신 워크플로우 종류를 말씀해주시면 더 자세히 안내해드릴게요!"
 "#;
