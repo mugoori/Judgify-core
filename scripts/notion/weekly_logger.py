@@ -146,8 +146,8 @@ def extract_page_content(notion: Client, page_id: str) -> str:
         return ""
 
 
-def summarize_with_openai(daily_logs_content: list) -> str:
-    """OpenAI API로 주간 요약 생성
+def summarize_with_claude(daily_logs_content: list) -> str:
+    """✅ Phase 3: Claude API로 주간 요약 생성 (OpenAI에서 마이그레이션)
 
     Args:
         daily_logs_content: 일일 업무일지 내용 목록
@@ -156,14 +156,14 @@ def summarize_with_openai(daily_logs_content: list) -> str:
         주간 요약 텍스트
     """
     try:
-        from openai import OpenAI
+        from anthropic import Anthropic
 
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
-            print("[WARNING] OPENAI_API_KEY가 설정되지 않았습니다. 간단한 요약을 생성합니다.")
+            print("[WARNING] ANTHROPIC_API_KEY가 설정되지 않았습니다. 간단한 요약을 생성합니다.")
             return "\n\n".join([f"- {content[:100]}..." for content in daily_logs_content])
 
-        client = OpenAI(api_key=api_key)
+        client = Anthropic(api_key=api_key)
 
         # 프롬프트 구성
         daily_logs_text = "\n\n".join([
@@ -190,24 +190,25 @@ def summarize_with_openai(daily_logs_content: list) -> str:
 (다음 주에 진행할 예정인 작업)
 """
 
-        response = client.chat.completions.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview"),
+        # ✅ Phase 3: Claude API 호출 (OpenAI에서 변경)
+        response = client.messages.create(
+            model=os.getenv("CLAUDE_MODEL", "claude-3-5-sonnet-20241022"),
+            max_tokens=1500,  # ✅ Claude는 max_tokens 필수
+            system="당신은 업무 일지를 분석하고 요약하는 전문가입니다.",
             messages=[
-                {"role": "system", "content": "당신은 업무 일지를 분석하고 요약하는 전문가입니다."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.7,
-            max_tokens=1500
+            temperature=0.7
         )
 
-        summary = response.choices[0].message.content
+        summary = response.content[0].text  # ✅ Claude 응답 형식
         return summary
 
     except ImportError:
-        print("[WARNING] openai 패키지가 설치되지 않았습니다. 간단한 요약을 생성합니다.")
+        print("[WARNING] anthropic 패키지가 설치되지 않았습니다. 간단한 요약을 생성합니다.")
         return "\n\n".join([f"- {content[:100]}..." for content in daily_logs_content])
     except Exception as e:
-        print(f"[WARNING] OpenAI 요약 생성 실패: {e}. 간단한 요약을 생성합니다.")
+        print(f"[WARNING] Claude 요약 생성 실패: {e}. 간단한 요약을 생성합니다.")
         return "\n\n".join([f"- {content[:100]}..." for content in daily_logs_content])
 
 
@@ -258,9 +259,9 @@ def create_weekly_log(week_start: str = None) -> dict:
 
     print(f"      {len(daily_contents)}개 페이지 내용 추출 완료")
 
-    # OpenAI로 주간 요약 생성
-    print(f"[4/6] AI로 주간 요약 생성 중...")
-    summary = summarize_with_openai(daily_contents)
+    # ✅ Phase 3: Claude로 주간 요약 생성 (OpenAI에서 변경)
+    print(f"[4/6] Claude AI로 주간 요약 생성 중...")
+    summary = summarize_with_claude(daily_contents)
 
     # 주간 업무일지 페이지 생성
     print(f"[5/6] 주간 업무일지 페이지 생성 중...")

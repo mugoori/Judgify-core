@@ -3,17 +3,17 @@
 use super::{ExtractedRule, FeedbackData};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 
 /// LLM 패턴 발견 알고리즘
 ///
-/// OpenAI API를 사용하여 복잡한 패턴 발견 및 Rule 추출
+/// ✅ Phase 2: Claude API를 사용하여 복잡한 패턴 발견 및 Rule 추출 (OpenAI에서 마이그레이션)
 pub struct LLMPatternDiscoverer {
-    /// OpenAI API 키
+    /// Claude API 키
     api_key: String,
 
-    /// 사용할 모델 (기본: gpt-4o)
+    /// 사용할 모델 (기본: claude-sonnet-4-5-20250929)
     model: String,
 
     /// HTTP 클라이언트
@@ -31,41 +31,30 @@ struct AggregatedSummary {
     correlations: HashMap<String, f64>,
 }
 
-/// OpenAI API 요청 구조
+/// ✅ Phase 2: Claude API 요청 구조
 #[derive(Debug, Serialize)]
-struct OpenAIRequest {
+struct ClaudeRequest {
     model: String,
-    messages: Vec<ChatMessage>,
+    max_tokens: u32,
+    messages: Vec<ClaudeMessage>,
     temperature: f64,
-    response_format: ResponseFormat,
 }
 
 #[derive(Debug, Serialize)]
-struct ChatMessage {
+struct ClaudeMessage {
     role: String,
     content: String,
 }
 
-#[derive(Debug, Serialize)]
-struct ResponseFormat {
-    #[serde(rename = "type")]
-    format_type: String,
-}
-
-/// OpenAI API 응답 구조
+/// ✅ Phase 2: Claude API 응답 구조
 #[derive(Debug, Deserialize)]
-struct OpenAIResponse {
-    choices: Vec<Choice>,
+struct ClaudeResponse {
+    content: Vec<ClaudeContent>,
 }
 
 #[derive(Debug, Deserialize)]
-struct Choice {
-    message: ResponseMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct ResponseMessage {
-    content: String,
+struct ClaudeContent {
+    text: String,
 }
 
 /// LLM이 반환하는 Rule 구조
@@ -86,7 +75,7 @@ impl LLMPatternDiscoverer {
     pub fn new(api_key: String) -> Self {
         LLMPatternDiscoverer {
             api_key,
-            model: "gpt-4o".to_string(),
+            model: "claude-sonnet-4-5-20250929".to_string(), // ✅ Phase 2: Claude 기본 모델
             client: Client::new(),
         }
     }
@@ -108,8 +97,8 @@ impl LLMPatternDiscoverer {
         // 2. LLM 프롬프트 생성
         let prompt = self.create_prompt(&summary);
 
-        // 3. OpenAI API 호출
-        let response = self.call_openai_api(&prompt).await?;
+        // 3. ✅ Phase 2: Claude API 호출 (OpenAI에서 변경)
+        let response = self.call_claude_api(&prompt).await?;
 
         // 4. 응답 파싱
         let rules = self.parse_llm_response(&response)?;
@@ -266,24 +255,23 @@ IMPORTANT: Return ONLY valid JSON, no additional text."#,
         )
     }
 
-    /// OpenAI API 호출
-    async fn call_openai_api(&self, prompt: &str) -> anyhow::Result<String> {
-        let request = OpenAIRequest {
+    /// ✅ Phase 2: Claude API 호출 (OpenAI에서 마이그레이션)
+    async fn call_claude_api(&self, prompt: &str) -> anyhow::Result<String> {
+        let request = ClaudeRequest {
             model: self.model.clone(),
-            messages: vec![ChatMessage {
+            max_tokens: 4096, // ✅ Claude는 max_tokens 필수!
+            messages: vec![ClaudeMessage {
                 role: "user".to_string(),
                 content: prompt.to_string(),
             }],
             temperature: 0.3, // 낮은 온도 = 일관성 높음
-            response_format: ResponseFormat {
-                format_type: "json_object".to_string(),
-            },
         };
 
         let response = self
             .client
-            .post("https://api.openai.com/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", self.api_key))
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.api_key) // ✅ Claude는 x-api-key 사용
+            .header("anthropic-version", "2023-06-01")
             .header("Content-Type", "application/json")
             .json(&request)
             .send()
@@ -291,15 +279,15 @@ IMPORTANT: Return ONLY valid JSON, no additional text."#,
 
         if !response.status().is_success() {
             let error_text = response.text().await?;
-            anyhow::bail!("OpenAI API error: {}", error_text);
+            anyhow::bail!("Claude API error: {}", error_text);
         }
 
-        let api_response: OpenAIResponse = response.json().await?;
+        let api_response: ClaudeResponse = response.json().await?;
 
-        if let Some(choice) = api_response.choices.first() {
-            Ok(choice.message.content.clone())
+        if let Some(content) = api_response.content.first() {
+            Ok(content.text.clone()) // ✅ Claude는 content[0].text
         } else {
-            anyhow::bail!("No response from OpenAI API")
+            anyhow::bail!("No response from Claude API")
         }
     }
 

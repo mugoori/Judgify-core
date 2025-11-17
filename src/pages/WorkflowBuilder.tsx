@@ -84,17 +84,30 @@ export default function WorkflowBuilder() {
   const [aiDescription, setAiDescription] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationMode, setGenerationMode] = useState<GenerationMode>('hybrid');
-  const [claudeApiKey, setClaudeApiKey] = useState<string>(() => {
-    // Phase 30: Check Vite env variable first, then localStorage
-    // @ts-ignore - Vite env variables
-    const viteKey = import.meta.env?.VITE_ANTHROPIC_API_KEY;
-    if (viteKey) {
-      console.log('[Phase 30] Using API key from VITE_ANTHROPIC_API_KEY');
-      return viteKey;
+  const [claudeApiKey, setClaudeApiKey] = useState<string>('');
+
+  // ✅ Phase 1 Security Fix: Load API key from Tauri IPC instead of VITE env
+  useEffect(() => {
+    async function loadApiKey() {
+      try {
+        const { invoke } = await import('@tauri-apps/api/tauri');
+        const apiKey = await invoke<string>('load_api_key');
+        if (apiKey) {
+          console.log('[Phase 1] API key loaded from system keychain via Tauri IPC');
+          setClaudeApiKey(apiKey);
+        }
+      } catch (error) {
+        console.error('[Phase 1] Failed to load API key from keychain:', error);
+        // Fallback to localStorage (legacy support)
+        const localKey = localStorage.getItem('claude_api_key');
+        if (localKey) {
+          console.log('[Phase 1] Fallback to localStorage API key');
+          setClaudeApiKey(localKey);
+        }
+      }
     }
-    // Load from localStorage
-    return localStorage.getItem('claude_api_key') || '';
-  });
+    loadApiKey();
+  }, []);
 
   // Delete workflow state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

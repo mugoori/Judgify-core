@@ -1,42 +1,9 @@
+// ✅ Phase 2: OpenAI 임베딩 전용 클라이언트 (Chat은 Claude로 마이그레이션)
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::env;
 
-#[derive(Serialize)]
-pub struct ChatCompletionRequest {
-    pub model: String,
-    pub messages: Vec<ChatMessage>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub temperature: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_tokens: Option<u32>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct ChatMessage {
-    pub role: String,
-    pub content: String,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct ChatCompletionResponse {
-    pub choices: Vec<ChatChoice>,
-    pub usage: Option<Usage>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct ChatChoice {
-    pub message: ChatMessage,
-    pub finish_reason: Option<String>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Usage {
-    pub prompt_tokens: u32,
-    pub completion_tokens: u32,
-    pub total_tokens: u32,
-}
-
+/// ✅ Phase 2: OpenAI 클라이언트 (임베딩 전용, Few-shot 학습용)
 pub struct OpenAIClient {
     client: Client,
     api_key: String,
@@ -51,26 +18,6 @@ impl OpenAIClient {
             client: Client::new(),
             api_key,
         })
-    }
-
-    pub async fn chat_completion(
-        &self,
-        request: ChatCompletionRequest,
-    ) -> anyhow::Result<ChatCompletionResponse> {
-        let response = self
-            .client
-            .post("https://api.openai.com/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .json(&request)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let error_text = response.text().await?;
-            anyhow::bail!("OpenAI API error: {}", error_text);
-        }
-
-        Ok(response.json().await?)
     }
 
     pub async fn create_embedding(&self, text: &str) -> anyhow::Result<Vec<f32>> {

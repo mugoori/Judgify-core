@@ -29,10 +29,12 @@ hiredis==2.3.2           # Redis performance boost
 # ===================================
 # AI/LLM
 # ===================================
-openai==1.10.0
+# ✅ Phase 3: Claude로 통합 (OpenAI는 임베딩 전용으로만 유지)
+anthropic==0.68.0        # Claude API (메인 LLM)
+openai==1.10.0           # OpenAI API (임베딩 전용)
 tiktoken==0.5.2          # Token counting
-langchain==0.1.6         # LLM orchestration
-langchain-openai==0.0.5
+# langchain==0.1.6       # LLM orchestration (미사용, 주석 처리)
+# langchain-openai==0.0.5  # (미사용, 주석 처리)
 
 # ===================================
 # Machine Learning (Auto-Learning System)
