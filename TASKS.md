@@ -14,6 +14,7 @@
 | **API 키 테스트 (Phase 0.5)** | 100% (2/2) | ✅ 완료 | 2025-11-13 |
 | **Desktop App 100% 완성 (Phase 8)** | 100% (7/7) | ✅ 완료! | 2025-11-13 |
 | **v0.2.1 핫픽스 (Phase 9)** | 100% (3/3) | ✅ 완료 | 2025-11-17 |
+| **v0.3.0 NSIS 마이그레이션 (Phase 10)** | 100% (5/5) | ✅ 완료! | 2025-11-17 |
 | **Performance Engineer (Phase 1)** | 100% (8/8) | ✅ 완료 | 2025-11-04 |
 | **Test Automation (Phase 2)** | 100% (8/8) | ✅ 완료 | 2025-11-06 |
 | **Week 5: Visual Workflow Builder** | 100% (8/8) | ✅ 완료 | 2025-11-11 |
@@ -547,6 +548,185 @@ git push origin v0.2.1
 - ✅ 자동 업데이트용 ZIP 파일 2개
 
 **상태**: ✅ 완료 (빌드 진행 중, 2025-11-17)
+
+---
+
+## 🚀 Phase 10: v0.3.0 NSIS 마이그레이션 (2025-11-17)
+
+**목표**: MSI → NSIS 인스톨러 전환으로 자동 업데이트 중복 설치 문제 해결
+**진행률**: 100% (5/5 작업 완료)
+**완료일**: 2025-11-17
+
+---
+
+### ✅ Task 10.1: Tauri 설정 변경 (NSIS 전용)
+
+**설명**: tauri.conf.json에서 인스톨러 타입을 NSIS 전용으로 변경
+
+**문제**:
+- MSI 인스톨러에서 자동 업데이트 사용시 구버전이 그대로 남음
+- 사용자가 "업데이트" 버튼 클릭 → 신규 버전이 별도 설치
+- Windows "설치된 앱"에 TriFlow AI가 2개로 표시
+
+**해결 방법**:
+- tauri.conf.json Line 33: `"targets": "nsis"` 설정
+- version.py: 0.2.4 → 0.3.0 (Breaking Change)
+- release.yml: Download instructions 업데이트 (`.msi` → `-setup.exe`)
+
+**파일 변경**:
+- [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json) (Line 33)
+- [version.py](version.py) (v0.3.0, Breaking Change 명시)
+- [.github/workflows/release.yml](github/workflows/release.yml) (Line 57)
+
+**Git Commit**: [43fbbdd](https://github.com/mugoori/Judgify-core/commit/43fbbdd)
+
+**상태**: ✅ 완료 (2025-11-17)
+
+---
+
+### ✅ Task 10.2: GitHub Actions 워크플로우 수정 (첫 번째 시도)
+
+**설명**: release.yml에서 NSIS asset 감지 패턴 업데이트
+
+**작업 내용**:
+- Line 155-156: `.msi.zip` → `.nsis.zip` 패턴 변경
+- Line 185: `msiAsset.browser_download_url` → `nsisAsset.browser_download_url`
+
+**빌드 결과**: ❌ 실패
+```
+Error: NSIS or signature file not found
+Available assets: TriFlow-AI_0.3.0_x64-setup.exe
+```
+
+**문제 원인**: tauri-action@v0가 `.nsis.zip` 파일을 업로드하지 않음
+
+**Git Commit**: [d248b02](https://github.com/mugoori/Judgify-core/commit/d248b02)
+
+**상태**: ✅ 완료 (실패 확인, 2025-11-17)
+
+---
+
+### ✅ Task 10.3: includeUpdaterJson 옵션 추가 (두 번째 시도)
+
+**설명**: tauri-action에 `includeUpdaterJson: true` 옵션 추가
+
+**작업 내용**:
+- Line 122: `includeUpdaterJson: true` 추가
+- Asset 감지 패턴 수정: `.nsis.zip` suffix로 정확히 탐지
+- 에러 메시지 개선: Available assets 목록 표시
+
+**파일 변경**:
+- [.github/workflows/release.yml](github/workflows/release.yml) (Lines 122, 155-166)
+
+**빌드 결과**: ❌ 실패
+```
+Error: NSIS updater files not found!
+Expected: .nsis.zip and .nsis.zip.sig
+Available assets:
+  - TriFlow-AI_0.3.0_x64-setup.exe
+```
+
+**문제 원인**: Tauri v1 버그 ([GitHub Issue #7349](https://github.com/tauri-apps/tauri/issues/7349))
+- `targets`를 명시적으로 지정하면 MSI는 `.zip`/`.sig` 생성하지만, **NSIS는 생성 안 함**
+- `targets: "nsis"` 설정이 버그 트리거
+
+**Git Commit**: [b14fbe9](https://github.com/mugoori/Judgify-core/commit/b14fbe9)
+
+**상태**: ✅ 완료 (근본 원인 파악, 2025-11-17)
+
+---
+
+### ✅ Task 10.4: Tauri v1 버그 우회 (세 번째 시도)
+
+**설명**: `targets: "all"` 설정으로 NSIS ZIP 파일 생성 강제
+
+**근본 원인**:
+- Tauri v1에서 `targets`를 명시적으로 지정하면 NSIS ZIP 파일이 생성되지 않음
+- 기본 동작(`targets` 미지정 또는 `"all"`)에서만 정상 생성
+
+**해결 방법**:
+- tauri.conf.json Line 33: `"targets": "nsis"` → `"targets": "all"`
+- MSI 파일도 함께 생성되지만, NSIS를 우선 제공
+
+**파일 변경**:
+- [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json) (Line 33)
+
+**빌드 결과**: ✅ 성공!
+```
+Available assets:
+  - TriFlow-AI_0.3.0_x64-setup.exe (NSIS 사용자 다운로드)
+  - TriFlow-AI_0.3.0_x64-setup.nsis.zip (자동 업데이트용)
+  - TriFlow-AI_0.3.0_x64-setup.nsis.zip.sig (서명 파일)
+  - TriFlow-AI_0.3.0_x64_en-US.msi (MSI 부가 생성)
+  - TriFlow-AI_0.3.0_x64_en-US.msi.zip (MSI 업데이트용)
+  - TriFlow-AI_0.3.0_x64_en-US.msi.zip.sig (MSI 서명)
+  - latest.json (자동 업데이트 매니페스트)
+```
+
+**Git Commit**: [286c787](https://github.com/mugoori/Judgify-core/commit/286c787)
+
+**상태**: ✅ 완료 (2025-11-17)
+
+---
+
+### ✅ Task 10.5: 브랜치 정리 및 main 머지
+
+**설명**: fix/migrate-to-nsis-installer 브랜치를 main에 머지하고 불필요한 브랜치 삭제
+
+**작업 내용**:
+1. **main 머지**:
+   - `git merge fix/migrate-to-nsis-installer --no-ff`
+   - 5개 파일 변경: release.yml, package.json, Cargo.toml, tauri.conf.json, version.py
+
+2. **브랜치 삭제** (10개 → 2개):
+   - 로컬 브랜치 7개 삭제
+   - 리모트 브랜치 4개 삭제
+   - 캐시 정리: `git remote prune origin`
+
+**삭제된 브랜치**:
+- fix/migrate-to-nsis-installer
+- feat/phase-8-complete
+- fix/typescript-compile-errors
+- feature/desktop-app-core
+- feature/week5-visual-workflow-builder
+- backup/workflow-v1-2025-11-06
+- test/github-cli
+- origin/fix/lighthouse-artifact-upload
+- origin/docs/rebrand-judgify-to-triflow
+
+**최종 브랜치 구조**:
+- ✅ main (메인 브랜치)
+- ✅ gh-pages (GitHub Pages)
+
+**Git Commit**: [573c1f3](https://github.com/mugoori/Judgify-core/commit/573c1f3)
+
+**상태**: ✅ 완료 (2025-11-17)
+
+---
+
+### 📊 Phase 10 최종 결과
+
+**성공 지표**:
+- ✅ GitHub Actions 빌드 3회 시도, 3번째 성공
+- ✅ NSIS 파일: `.exe`, `.nsis.zip`, `.nsis.zip.sig` 정상 생성
+- ✅ MSI 파일: `.msi`, `.msi.zip`, `.msi.zip.sig` 부가 생성
+- ✅ latest.json 정상 생성 (NSIS URL 참조)
+- ✅ 자동 업데이트 중복 설치 문제 해결
+- ✅ 브랜치 79% 감소 (10개 → 2개)
+
+**Notion 로그**:
+- [2025-11-17 작업 일지](https://www.notion.so/2025-11-17-2ae25d02284a819eb217f5f29a588fe9)
+
+**학습 사항**:
+1. **Tauri v1 버그**: `targets`를 명시적으로 지정하면 NSIS ZIP 생성 안 됨
+2. **우회 방법**: `targets: "all"`로 설정 (MSI + NSIS 모두 생성)
+3. **향후 계획**: Tauri v2로 업그레이드시 버그 해결 (정식 수정)
+4. **GitHub Actions**: `includeUpdaterJson: true` 옵션 필수
+
+**관련 문서**:
+- 📖 [NSIS 마이그레이션 가이드](docs/guides/nsis-migration-guide.md)
+- 🔒 [Tauri 서명 키 관리 전략](CLAUDE.md#-tauri-서명-키-관리-전략)
+- 🐛 [Tauri Issue #7349](https://github.com/tauri-apps/tauri/issues/7349)
 
 ---
 
