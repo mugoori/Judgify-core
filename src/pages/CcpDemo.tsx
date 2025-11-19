@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Search, BarChart3, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import './CcpDemo.css';
 
 // TypeScript interfaces matching Rust types
@@ -59,21 +66,58 @@ const CcpDemo: React.FC = () => {
 
   // Document Search Handler
   const handleSearch = async () => {
+    console.log('🔵 [DEBUG] handleSearch START ===================================');
+    console.log('[DEBUG] searchQuery:', searchQuery);
+    console.log('[DEBUG] searchCompany:', searchCompany);
+    console.log('[DEBUG] searchCcp:', searchCcp);
+    console.log('[DEBUG] topK:', topK);
+
+    // 필수 파라미터 검증
+    if (!searchQuery || searchQuery.trim() === '') {
+      console.error('❌ [DEBUG] searchQuery is empty!');
+      setSearchError('검색어를 입력해주세요.');
+      return;
+    }
+    if (!searchCompany) {
+      console.error('❌ [DEBUG] searchCompany is empty!');
+      setSearchError('회사를 선택해주세요.');
+      return;
+    }
+
+    console.log('[DEBUG] Validation passed, calling invoke...');
+
     setSearchLoading(true);
     setSearchError('');
     try {
+      console.log('[DEBUG] invoke("search_ccp_docs") called with params:', {
+        companyId: searchCompany,
+        ccpId: searchCcp,
+        query: searchQuery,
+        topK: topK
+      });
+
       const results = await invoke<CcpDocWithScore[]>('search_ccp_docs', {
         companyId: searchCompany,
         ccpId: searchCcp,
         query: searchQuery,
         topK: topK
       });
+
+      console.log('[DEBUG] ✅ invoke() SUCCESS!');
+      console.log('[DEBUG] Search results:', results);
+      console.log('[DEBUG] Results length:', results.length);
+
       setSearchResults(results);
     } catch (error) {
+      console.error('❌ [DEBUG] invoke() FAILED!');
+      console.error('[DEBUG] Error type:', typeof error);
+      console.error('[DEBUG] Error value:', error);
+      console.error('[DEBUG] Error stringified:', JSON.stringify(error, null, 2));
+
       setSearchError(`검색 실패: ${error}`);
-      console.error('Search error:', error);
     } finally {
       setSearchLoading(false);
+      console.log('🔵 [DEBUG] handleSearch END =====================================');
     }
   };
 
@@ -111,45 +155,59 @@ const CcpDemo: React.FC = () => {
   };
 
   return (
-    <div className="ccp-demo-container">
-      <header className="ccp-header">
-        <h1>CCP 제조기업 RAG + 룰베이스 판단 데모</h1>
-        <p>HACCP/ISO22000 품질 관리 시스템</p>
-      </header>
+    <div className="space-y-6 p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-2">CCP 품질 관리</h1>
+        <p className="text-muted-foreground">
+          HACCP/ISO22000 기반 CCP 문서 검색 및 하이브리드 판단
+        </p>
+      </div>
 
-      <div className="ccp-content">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Document Search Section */}
-        <section className="search-section">
-          <h2>📚 CCP 문서 검색 (RAG - BM25)</h2>
-
-          <div className="search-form">
-            <div className="form-row">
-              <div className="form-group">
-                <label>회사</label>
-                <select
-                  value={searchCompany}
-                  onChange={(e) => setSearchCompany(e.target.value)}
-                >
-                  <option value="COMP_A">COMP_A</option>
-                  <option value="COMP_B">COMP_B</option>
-                </select>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="w-5 h-5" />
+              CCP 문서 검색
+            </CardTitle>
+            <CardDescription>
+              BM25 알고리즘 기반 RAG 검색
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="search-company">회사</Label>
+                <Select value={searchCompany} onValueChange={setSearchCompany}>
+                  <SelectTrigger id="search-company">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="COMP_A">COMP_A</SelectItem>
+                    <SelectItem value="COMP_B">COMP_B</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              <div className="form-group">
-                <label>CCP 코드</label>
-                <select
-                  value={searchCcp || 'all'}
-                  onChange={(e) => setSearchCcp(e.target.value === 'all' ? null : e.target.value)}
-                >
-                  <option value="all">전체</option>
-                  <option value="CCP-01">CCP-01 (열처리)</option>
-                  <option value="CCP-02">CCP-02 (냉각)</option>
-                </select>
+              <div>
+                <Label htmlFor="search-ccp">CCP 코드</Label>
+                <Select value={searchCcp || 'all'} onValueChange={(v) => setSearchCcp(v === 'all' ? null : v)}>
+                  <SelectTrigger id="search-ccp">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체</SelectItem>
+                    <SelectItem value="CCP-01">CCP-01 (열처리)</SelectItem>
+                    <SelectItem value="CCP-02">CCP-02 (냉각)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              <div className="form-group">
-                <label>검색 개수 (Top K)</label>
-                <input
+              <div>
+                <Label htmlFor="top-k">검색 개수</Label>
+                <Input
+                  id="top-k"
                   type="number"
                   min="1"
                   max="10"
@@ -159,93 +217,105 @@ const CcpDemo: React.FC = () => {
               </div>
             </div>
 
-            <div className="form-row">
-              <div className="form-group full-width">
-                <label>검색어</label>
-                <input
-                  type="text"
+            <div>
+              <Label htmlFor="search-query">검색어</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="search-query"
                   placeholder="예: 관리 기준 시정조치"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 />
+                <Button onClick={handleSearch} disabled={searchLoading || !searchQuery}>
+                  {searchLoading ? '검색 중...' : <Search className="w-4 h-4" />}
+                </Button>
               </div>
             </div>
 
-            <button
-              className="btn-primary"
-              onClick={handleSearch}
-              disabled={searchLoading || !searchQuery}
-            >
-              {searchLoading ? '검색 중...' : '검색'}
-            </button>
-          </div>
+            {searchError && (
+              <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md text-sm">
+                {searchError}
+              </div>
+            )}
 
-          {searchError && (
-            <div className="error-message">{searchError}</div>
-          )}
-
-          {searchResults.length > 0 && (
-            <div className="search-results">
-              <h3>검색 결과 ({searchResults.length}건)</h3>
-              {searchResults.map((doc, index) => (
-                <div key={doc.id} className="doc-card">
-                  <div className="doc-header">
-                    <span className="doc-rank">#{index + 1}</span>
-                    <span className="doc-ccp">{doc.ccp_id}</span>
-                    <span className="doc-score">BM25: {doc.score.toFixed(2)}</span>
-                  </div>
-                  <h4>{doc.title}</h4>
-                  <p className="doc-section">{doc.section_type}</p>
-                  <p className="doc-content">{doc.content}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+            {searchResults.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold">검색 결과 ({searchResults.length}건)</h3>
+                {searchResults.map((doc, index) => (
+                  <Card key={doc.id} className="bg-muted/50">
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">#{index + 1}</Badge>
+                        <Badge variant="outline">{doc.ccp_id}</Badge>
+                        <Badge className="ml-auto">BM25: {doc.score.toFixed(2)}</Badge>
+                      </div>
+                      <h4 className="font-semibold">{doc.title}</h4>
+                      <p className="text-xs text-muted-foreground">{doc.section_type}</p>
+                      <p className="text-sm">{doc.content}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Judgment Section */}
-        <section className="judgment-section">
-          <h2>⚖️ CCP 상태 판단 (하이브리드)</h2>
-
-          <div className="judgment-form">
-            <div className="form-row">
-              <div className="form-group">
-                <label>회사</label>
-                <select
-                  value={judgmentCompany}
-                  onChange={(e) => setJudgmentCompany(e.target.value)}
-                >
-                  <option value="COMP_A">COMP_A</option>
-                  <option value="COMP_B">COMP_B</option>
-                </select>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              CCP 상태 판단
+            </CardTitle>
+            <CardDescription>
+              Rule-based + LLM 하이브리드 판단
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="judgment-company">회사</Label>
+                <Select value={judgmentCompany} onValueChange={setJudgmentCompany}>
+                  <SelectTrigger id="judgment-company">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="COMP_A">COMP_A</SelectItem>
+                    <SelectItem value="COMP_B">COMP_B</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              <div className="form-group">
-                <label>CCP 코드</label>
-                <select
-                  value={judgmentCcp}
-                  onChange={(e) => setJudgmentCcp(e.target.value)}
-                >
-                  <option value="CCP-01">CCP-01 (열처리)</option>
-                  <option value="CCP-02">CCP-02 (냉각)</option>
-                </select>
+              <div>
+                <Label htmlFor="judgment-ccp">CCP 코드</Label>
+                <Select value={judgmentCcp} onValueChange={setJudgmentCcp}>
+                  <SelectTrigger id="judgment-ccp">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CCP-01">CCP-01 (열처리)</SelectItem>
+                    <SelectItem value="CCP-02">CCP-02 (냉각)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>시작 날짜</label>
-                <input
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="date-from">시작 날짜</Label>
+                <Input
+                  id="date-from"
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
                 />
               </div>
 
-              <div className="form-group">
-                <label>종료 날짜</label>
-                <input
+              <div>
+                <Label htmlFor="date-to">종료 날짜</Label>
+                <Input
+                  id="date-to"
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
@@ -253,79 +323,98 @@ const CcpDemo: React.FC = () => {
               </div>
             </div>
 
-            <button
-              className="btn-primary"
-              onClick={handleJudgment}
-              disabled={judgmentLoading}
-            >
+            <Button className="w-full" onClick={handleJudgment} disabled={judgmentLoading}>
               {judgmentLoading ? '판단 중...' : '판단 실행'}
-            </button>
-          </div>
+            </Button>
 
-          {judgmentError && (
-            <div className="error-message">{judgmentError}</div>
-          )}
-
-          {judgmentResult && (
-            <div className="judgment-results">
-              {/* Statistics Cards */}
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <h4>총 점검 횟수</h4>
-                  <p className="stat-value">{judgmentResult.stats.total_logs}회</p>
-                </div>
-                <div className="stat-card">
-                  <h4>NG 발생</h4>
-                  <p className="stat-value">{judgmentResult.stats.ng_count}회</p>
-                </div>
-                <div className="stat-card">
-                  <h4>NG 비율</h4>
-                  <p className="stat-value">{(judgmentResult.stats.ng_rate * 100).toFixed(1)}%</p>
-                </div>
-                <div className="stat-card">
-                  <h4>평균 측정값</h4>
-                  <p className="stat-value">{judgmentResult.stats.avg_value.toFixed(1)}</p>
-                </div>
+            {judgmentError && (
+              <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md text-sm">
+                {judgmentError}
               </div>
+            )}
 
-              {/* Risk Level Badge */}
-              <div className="risk-level" style={{ backgroundColor: getRiskColor(judgmentResult.risk_level) }}>
-                <h3>위험도: {judgmentResult.risk_level}</h3>
-                <p>{judgmentResult.rule_reason}</p>
-              </div>
+            {judgmentResult && (
+              <div className="space-y-4 mt-6">
+                {/* Statistics Cards */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Card className="bg-muted/50">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">총 점검 횟수</p>
+                      <p className="text-2xl font-bold">{judgmentResult.stats.total_logs}회</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-muted/50">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">NG 발생</p>
+                      <p className="text-2xl font-bold">{judgmentResult.stats.ng_count}회</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-muted/50">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">NG 비율</p>
+                      <p className="text-2xl font-bold">{(judgmentResult.stats.ng_rate * 100).toFixed(1)}%</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-muted/50">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">평균 측정값</p>
+                      <p className="text-2xl font-bold">{judgmentResult.stats.avg_value.toFixed(1)}</p>
+                    </CardContent>
+                  </Card>
+                </div>
 
-              {/* LLM Summary */}
-              <div className="llm-summary">
-                <h3>🤖 AI 요약</h3>
-                <p>{judgmentResult.llm_summary}</p>
-              </div>
-
-              {/* Evidence Documents */}
-              {judgmentResult.evidence_docs.length > 0 && (
-                <div className="evidence-docs">
-                  <h3>📚 참고 문서 ({judgmentResult.evidence_docs.length}건)</h3>
-                  {judgmentResult.evidence_docs.map((doc, index) => (
-                    <div key={doc.id} className="evidence-card">
-                      <div className="evidence-header">
-                        <span className="evidence-rank">#{index + 1}</span>
-                        <span className="evidence-ccp">{doc.ccp_id}</span>
-                        <span className="evidence-score">BM25: {doc.score.toFixed(2)}</span>
-                      </div>
-                      <h4>{doc.title}</h4>
-                      <p className="evidence-section">{doc.section_type}</p>
-                      <p className="evidence-content">{doc.content}</p>
+                {/* Risk Level Badge */}
+                <Card style={{ backgroundColor: getRiskColor(judgmentResult.risk_level), color: 'white' }}>
+                  <CardContent className="p-4 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      {judgmentResult.risk_level === 'HIGH' && <XCircle className="w-5 h-5" />}
+                      {judgmentResult.risk_level === 'MEDIUM' && <AlertTriangle className="w-5 h-5" />}
+                      {judgmentResult.risk_level === 'LOW' && <CheckCircle2 className="w-5 h-5" />}
+                      <h3 className="text-lg font-bold">위험도: {judgmentResult.risk_level}</h3>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <p className="text-sm opacity-90">{judgmentResult.rule_reason}</p>
+                  </CardContent>
+                </Card>
 
-              {/* Judgment ID */}
-              <div className="judgment-id">
-                <small>판단 ID: {judgmentResult.judgment_id}</small>
+                {/* LLM Summary */}
+                <Card className="bg-amber-50 border-amber-200">
+                  <CardHeader>
+                    <CardTitle className="text-sm">AI 요약</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm whitespace-pre-wrap">{judgmentResult.llm_summary}</p>
+                  </CardContent>
+                </Card>
+
+                {/* Evidence Documents */}
+                {judgmentResult.evidence_docs.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold">참고 문서 ({judgmentResult.evidence_docs.length}건)</h3>
+                    {judgmentResult.evidence_docs.map((doc, index) => (
+                      <Card key={doc.id} className="bg-muted/30">
+                        <CardContent className="p-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">#{index + 1}</Badge>
+                            <Badge variant="outline" className="text-xs">{doc.ccp_id}</Badge>
+                            <Badge className="ml-auto text-xs">BM25: {doc.score.toFixed(2)}</Badge>
+                          </div>
+                          <h4 className="font-semibold text-sm">{doc.title}</h4>
+                          <p className="text-xs text-muted-foreground">{doc.section_type}</p>
+                          <p className="text-xs">{doc.content}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {/* Judgment ID */}
+                <p className="text-xs text-center text-muted-foreground font-mono">
+                  판단 ID: {judgmentResult.judgment_id}
+                </p>
               </div>
-            </div>
-          )}
-        </section>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
