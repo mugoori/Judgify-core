@@ -1,5 +1,4 @@
 use serde_json::Value;
-use std::collections::HashMap;
 
 /// AST 기반 안전한 Rule 평가 엔진 (eval() 금지!)
 ///

@@ -3,7 +3,7 @@
 // 목적: Context7 MCP 호출 비용 최적화 (70% 토큰 절감)
 // 전략: Redis 30분 TTL 캐싱으로 반복 조회 최적화
 
-use redis::{Client, AsyncCommands, RedisError};
+use redis::{Client, AsyncCommands};
 use anyhow::{Result, Context as AnyhowContext};
 
 /// Context7 문서 캐싱 서비스

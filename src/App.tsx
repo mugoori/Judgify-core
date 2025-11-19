@@ -12,6 +12,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const WorkflowBuilder = lazy(() => import('./pages/WorkflowBuilder'))
 const BiInsights = lazy(() => import('./pages/BiInsights'))
 const Settings = lazy(() => import('./pages/Settings'))
+const CcpDemo = lazy(() => import('./pages/CcpDemo'))
 
 // Layout (eager loaded - needed immediately)
 import Sidebar from './components/layout/Sidebar'
@@ -155,6 +156,20 @@ function AnimatedRoutes() {
               transition={pageTransition}
             >
               <Settings />
+            </motion.div>
+          }
+        />
+        <Route
+          path="/ccp-demo"
+          element={
+            <motion.div
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              variants={pageVariants}
+              transition={pageTransition}
+            >
+              <CcpDemo />
             </motion.div>
           }
         />

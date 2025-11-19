@@ -157,6 +157,10 @@ pub fn run() {
             backup::restore_backup,
             backup::list_backups,
             backup::get_backup_info,
+
+            // CCP Demo Commands (RAG + Rule-based Judgment)
+            ccp::search_ccp_docs,
+            ccp::judge_ccp_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

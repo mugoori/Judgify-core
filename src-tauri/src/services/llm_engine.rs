@@ -199,6 +199,50 @@ impl LLMEngine {
         Ok(prompt)
     }
 
+    /// 일반적인 텍스트 생성 메서드 (CCP 데모용 요약 생성)
+    pub async fn generate_text(&self, prompt: &str) -> anyhow::Result<String> {
+        let messages = vec![Message {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        }];
+
+        let request = serde_json::json!({
+            "model": "claude-sonnet-4-5-20250929",
+            "messages": messages,
+            "temperature": 0.7,
+            "max_tokens": 2048,
+        });
+
+        let http_response = self
+            .client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("Content-Type", "application/json")
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("Claude API 호출 실패: {}", e))?;
+
+        let status = http_response.status();
+        if !status.is_success() {
+            return Err(anyhow::anyhow!("Claude API 에러 ({})", status.as_u16()));
+        }
+
+        let response_body: ClaudeResponse = http_response
+            .json()
+            .await
+            .map_err(|e| anyhow::anyhow!("응답 파싱 실패: {}", e))?;
+
+        let text = response_body
+            .content
+            .first()
+            .map(|c| c.text.clone())
+            .ok_or_else(|| anyhow::anyhow!("응답 내용이 비어있습니다"))?;
+
+        Ok(text)
+    }
+
     fn parse_llm_response(&self, response: &str) -> anyhow::Result<(bool, f64, String)> {
         let result = response.contains("합격") && !response.contains("불합격");
 
