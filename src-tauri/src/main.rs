@@ -161,6 +161,8 @@ pub fn run() {
             // CCP Demo Commands (RAG + Rule-based Judgment)
             ccp::search_ccp_docs,
             ccp::judge_ccp_status,
+            ccp::debug_ccp_database,
+            ccp::rebuild_fts5_index,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
