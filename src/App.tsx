@@ -11,6 +11,7 @@ const ChatInterface = lazy(() => import('./pages/ChatInterface'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const BiInsights = lazy(() => import('./pages/BiInsights'))
 const Settings = lazy(() => import('./pages/Settings'))
+const WorkflowBuilderV2 = lazy(() => import('./pages/WorkflowBuilderV2'))
 
 // Layout (eager loaded - needed immediately)
 import Sidebar from './components/layout/Sidebar'
@@ -19,7 +20,6 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { Toaster } from './components/ui/toaster'
 import { Skeleton } from './components/ui/skeleton'
 import OfflineDetector from './components/OfflineDetector'
-import NotImplemented from './components/NotImplemented'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -126,7 +126,7 @@ function AnimatedRoutes() {
               variants={pageVariants}
               transition={pageTransition}
             >
-              <NotImplemented message="Phase 9 제조업 워크플로우 빌더 준비 중입니다..." />
+              <WorkflowBuilderV2 />
             </motion.div>
           }
         />
