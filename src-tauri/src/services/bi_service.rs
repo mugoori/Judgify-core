@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::env;
 use crate::database::Database;
 use tauri::{AppHandle, Manager};
-use chrono::Utc;
 
 // ========== Phase 1: LLM 분석 엔진 데이터 구조 ==========
 

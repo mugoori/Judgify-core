@@ -8,6 +8,7 @@ use std::env;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager};
 use uuid::Uuid;
+use crate::utils::security::{sanitize_for_xml, detect_injection_attempt};
 use crate::services::cache_service::{CacheService, ChatMessage as CachedMessage};
 
 /// 사용자 의도 분류 (LLM 기반)
@@ -205,9 +206,14 @@ impl ChatService {
 Classify the user's message into one of the following intents:
 - workflow_management: User wants to create, modify, delete, or view workflows
 - judgment_execution: User wants to execute a judgment/decision on data
-- data_visualization: User wants to see charts, dashboards, or BI insights
+- data_visualization: User wants to see charts, dashboards, or BI insights (trends, success rates, analysis)
 - settings_change: User wants to modify system settings (MCP servers, API keys, etc.)
-- general_query: General questions about the system, help, or usage
+- general_query: General questions, data queries, help, or usage
+
+IMPORTANT:
+- If the user is asking to "see data", "show data", "데이터 보여줘", "데이터 조회" → classify as general_query
+- Only classify as data_visualization when user explicitly asks for insights, trends, analysis, or charts
+- Raw data queries should be general_query, not data_visualization
 
 Respond in JSON format:
 {
@@ -219,12 +225,26 @@ Respond in JSON format:
 Examples:
 - "워크플로우 만들어줘" → workflow_management
 - "재고 데이터로 판단 실행해줘" → judgment_execution
-- "지난 주 성공률 보여줘" → data_visualization
+- "지난 주 성공률 분석해줘" → data_visualization (asking for analysis/insights)
+- "온도가 90도 이상인 데이터 보여줘" → general_query (asking for raw data)
+- "불량률 트렌드 보여줘" → data_visualization (asking for trends)
 - "MCP 서버 연결 설정 변경" → settings_change
 - "TriFlow 사용법 알려줘" → general_query
+- "데이터 조회해줘" → general_query (raw data query)
 "#;
 
-        let user_prompt = format!("User message: \"{}\"", message);
+        // 프롬프트 인젝션 탐지 (로깅용)
+        if detect_injection_attempt(message) {
+            eprintln!("⚠️ Intent 분석에서 의심스러운 패턴 감지됨");
+        }
+
+        // XML 태그로 안전하게 구조화
+        let user_prompt = format!(
+            r#"<user_message trust_level="medium">
+{}
+</user_message>"#,
+            sanitize_for_xml(message)
+        );
 
         // API 키 마스킹 로그
         let masked_key = if self.claude_api_key.len() > 20 {
@@ -792,6 +812,7 @@ Capabilities you can help with:
 - Workflow management (워크플로우 관리): Create, modify, and manage workflows
 - Data visualization (데이터 시각화): Display charts, dashboards, and metrics
 - BI insights (비즈니스 인사이트): Generate AI-powered business insights
+- MES/ERP Data queries (데이터 조회): Query uploaded manufacturing or enterprise data
 
 Response guidelines:
 - Be conversational, friendly, and helpful
@@ -801,33 +822,43 @@ Response guidelines:
 - Keep responses concise (2-4 sentences)
 - If user asks how to do something, give step-by-step guidance
 - Reference conversation history when relevant
+- When user asks for data queries (데이터 보여줘, 데이터 조회), acknowledge it as a data query request
 
 Examples:
 - User: "안녕" → "안녕하세요! TriFlow AI 어시스턴트입니다. 판단 실행, 워크플로우 관리, 데이터 분석 등을 도와드릴 수 있어요. 무엇을 도와드릴까요?"
-- User: "뭘 할 수 있어?" → "저는 워크플로우 기반 판단 실행, 실시간 데이터 분석, BI 인사이트 생성 등을 할 수 있어요. 예를 들어 '재고 데이터로 판단해줘' 또는 '지난 주 불량률 분석해줘'처럼 말씀해주시면 됩니다!"
+- User: "뭘 할 수 있어?" → "저는 워크플로우 기반 판단 실행, 실시간 데이터 분석, BI 인사이트 생성, MES/ERP 데이터 조회 등을 할 수 있어요. 예를 들어 '재고 데이터로 판단해줘' 또는 '온도가 90도 이상인 데이터 보여줘'처럼 말씀해주시면 됩니다!"
 - User: "워크플로우 어떻게 만들어?" → "워크플로우는 채팅에서 '워크플로우 만들어줘'라고 말씀하시거나, 워크플로우 페이지에서 직접 생성하실 수 있어요. 필요하신 워크플로우 종류를 말씀해주시면 더 자세히 안내해드릴게요!"
+- User: "온도 데이터 보여줘" → "온도 데이터를 조회해드릴게요. 업로드된 MES/ERP 데이터에서 온도 관련 정보를 찾아보겠습니다."
 "#;
 
-        // 대화 이력을 컨텍스트로 변환 (최근 5개)
+        // 대화 이력을 안전하게 처리 (최근 5개)
         let mut conversation_context = String::new();
         if !history.is_empty() {
-            conversation_context.push_str("\n\nRecent conversation:\n");
+            conversation_context.push_str("\n<conversation_history trust_level=\"medium\">\n");
             for msg in history.iter().take(5) {
+                // 각 메시지에서 프롬프트 인젝션 탐지
+                if detect_injection_attempt(&msg.content) {
+                    eprintln!("⚠️ 대화 이력에서 의심스러운 패턴 감지됨");
+                }
+
                 conversation_context.push_str(&format!(
                     "{}: {}\n",
                     if msg.role == "user" { "User" } else { "Assistant" },
-                    msg.content
+                    sanitize_for_xml(&msg.content)  // XML 이스케이프 적용
                 ));
             }
+            conversation_context.push_str("</conversation_history>\n");
         }
 
         let user_prompt = format!(
             "{}{}",
             conversation_context,
             if !conversation_context.is_empty() {
-                format!("\n\nUser's new message: \"{}\"", message)
+                format!("\n\n<user_new_message trust_level=\"medium\">\n{}\n</user_new_message>",
+                    sanitize_for_xml(message))
             } else {
-                format!("User message: \"{}\"", message)
+                format!("<user_message trust_level=\"medium\">\n{}\n</user_message>",
+                    sanitize_for_xml(message))
             }
         );
 

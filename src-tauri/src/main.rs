@@ -100,7 +100,17 @@ fn mask_api_key(api_key: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Database 인스턴스 생성
+    let database = match database::Database::new() {
+        Ok(db) => db,
+        Err(e) => {
+            eprintln!("❌ Failed to initialize database: {}", e);
+            panic!("Database initialization failed");
+        }
+    };
+
     tauri::Builder::default()
+        .manage(database) // Database state 등록
         .system_tray(tray::create_tray())
         .on_system_tray_event(tray::handle_tray_event)
         .on_window_event(|event| {
@@ -157,6 +167,23 @@ pub fn run() {
             backup::restore_backup,
             backup::list_backups,
             backup::get_backup_info,
+
+            // CCP Demo Commands (RAG + Rule-based Judgment)
+            ccp::search_ccp_docs,
+            ccp::judge_ccp_status,
+            ccp::debug_ccp_database,
+            ccp::rebuild_fts5_index,
+
+            // MES/ERP RAG Commands (Phase 8: Generic CSV Upload & Query)
+            mes::upload_mes_data,
+            mes::query_mes_data,
+            mes::delete_mes_session,
+            mes::get_mes_session_stats,
+
+            // Database Viewer Commands
+            commands::database::get_database_tables,
+            commands::database::query_table_data,
+            commands::database::execute_custom_query,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

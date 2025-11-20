@@ -70,7 +70,9 @@ export class ErrorBoundary extends Component<Props, State> {
               {this.state.error && import.meta.env.DEV && (
                 <div className="bg-muted p-4 rounded-md">
                   <p className="font-semibold text-sm mb-2">에러 메시지:</p>
-                  <p className="text-sm font-mono text-destructive">{this.state.error.message}</p>
+                  <p className="text-sm font-mono text-destructive">
+                    {this.state.error?.message || '에러 메시지 없음'}
+                  </p>
                 </div>
               )}
               <div className="flex gap-2">

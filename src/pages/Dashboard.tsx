@@ -234,7 +234,7 @@ export default function Dashboard() {
     } catch (error) {
       toast({
         title: '샘플 데이터 생성 실패',
-        description: String(error),
+        description: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다',
         variant: 'destructive',
       });
     } finally {
