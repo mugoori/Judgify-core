@@ -5,10 +5,10 @@ Judgify-core 버전 관리 (Single Source of Truth)
 버전 변경시 이 파일만 수정하고, scripts/bump_version.py를 실행하세요.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __stage__ = "beta"  # alpha → beta → rc → stable
-__release_date__ = "2025-11-17"
-__description__ = "NSIS 인스톨러 마이그레이션 (MSI → NSIS, 자동 업데이트 중복 설치 문제 해결)"
+__release_date__ = "2025-11-20"
+__description__ = "에러 메시지 개선 및 CCP 데모 제거"
 
 # 9개 마이크로서비스 구현 상태 추적
 MICROSERVICES_STATUS = {
