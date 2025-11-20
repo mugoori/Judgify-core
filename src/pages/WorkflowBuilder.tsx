@@ -213,7 +213,7 @@ export default function WorkflowBuilder() {
       queryClient.invalidateQueries({ queryKey: ['recent-judgments'] });
     },
     onError: (error: Error) => {
-      alert(`실행 오류: ${error.message}`);
+      alert(`실행 오류: ${error?.message || '워크플로우 실행 중 알 수 없는 오류가 발생했습니다'}`);
     },
   });
 
@@ -244,7 +244,7 @@ export default function WorkflowBuilder() {
       toast({
         variant: "destructive",
         title: "삭제 실패",
-        description: error.message,
+        description: error?.message || '워크플로우 삭제 중 오류가 발생했습니다',
         duration: 5000,
       });
     },
@@ -491,7 +491,7 @@ export default function WorkflowBuilder() {
         fullError: error
       });
 
-      const errorMessage = error.message || '워크플로우 생성 중 오류가 발생했습니다.';
+      const errorMessage = error?.message || '워크플로우 생성 중 오류가 발생했습니다.';
 
       // 에러 타입별 처리
       let description = errorMessage;

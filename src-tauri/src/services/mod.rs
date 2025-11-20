@@ -10,3 +10,4 @@ pub mod prompt_engine;
 pub mod complexity_analyzer;
 pub mod context7_cache;
 pub mod ccp_service;
+pub mod mes_data_service;

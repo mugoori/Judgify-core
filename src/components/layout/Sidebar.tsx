@@ -8,7 +8,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  FlaskConical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -38,11 +37,6 @@ const navigation = [
     name: 'BI 인사이트',
     href: '/bi',
     icon: Sparkles,
-  },
-  {
-    name: 'CCP 데모',
-    href: '/ccp-demo',
-    icon: FlaskConical,
   },
   {
     name: '설정',

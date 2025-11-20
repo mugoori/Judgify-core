@@ -202,7 +202,45 @@ impl Database {
             ON ccp_judgments(company_id, created_at DESC);
 
             CREATE INDEX IF NOT EXISTS idx_ccp_judgments_ccp
-            ON ccp_judgments(company_id, ccp_id, created_at DESC);"
+            ON ccp_judgments(company_id, ccp_id, created_at DESC);
+
+            -- ============================================================
+            -- MES/ERP RAG 테이블 (Phase 8: Generic CSV Upload & Query)
+            -- ============================================================
+
+            -- MES 데이터 로그 테이블
+            CREATE TABLE IF NOT EXISTS mes_data_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                file_name TEXT NOT NULL,
+                row_index INTEGER NOT NULL,
+                raw_json TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            -- FTS5 전문검색 인덱스 (BM25 알고리즘)
+            CREATE VIRTUAL TABLE IF NOT EXISTS mes_data_logs_fts
+            USING fts5(content, tokenize='porter unicode61');
+
+            -- FTS5 자동 동기화 트리거
+            CREATE TRIGGER IF NOT EXISTS mes_data_logs_ai AFTER INSERT ON mes_data_logs
+            BEGIN
+                INSERT INTO mes_data_logs_fts(rowid, content) VALUES (new.id, new.content);
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS mes_data_logs_ad AFTER DELETE ON mes_data_logs
+            BEGIN
+                DELETE FROM mes_data_logs_fts WHERE rowid = old.id;
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS mes_data_logs_au AFTER UPDATE ON mes_data_logs
+            BEGIN
+                UPDATE mes_data_logs_fts SET content = new.content WHERE rowid = new.id;
+            END;
+
+            CREATE INDEX IF NOT EXISTS idx_mes_data_logs_session
+            ON mes_data_logs(session_id, created_at DESC);"
         )?;
 
         // Seed sample data for demo (only if database is empty)

@@ -63,11 +63,18 @@ export interface ChatMessageRequest {
   session_id?: string;
 }
 
+export interface TableData {
+  columns: string[];
+  rows: any[][];
+  total_count?: number;
+}
+
 export interface ChatMessageResponse {
   response: string;
   session_id: string;
   intent: string;
   action_result?: any;
+  table_data?: TableData;
 }
 
 export const sendChatMessage = (request: ChatMessageRequest): Promise<ChatMessageResponse> =>
