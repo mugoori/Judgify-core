@@ -1,0 +1,73 @@
+name: Version Consistency Check
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+
+jobs:
+  check-versions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check version consistency across all files
+        run: |
+          echo "🔍 Checking version consistency..."
+          echo "=========================================="
+
+          # Extract versions from each file
+          VERSION_PY=$(grep '__version__' version.py | cut -d'"' -f2)
+          PACKAGE_JSON=$(grep '"version"' package.json | head -1 | cut -d'"' -f4)
+          CARGO_TOML=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | cut -d'"' -f2)
+          TAURI_CONF=$(grep '"version"' src-tauri/tauri.conf.json | head -1 | cut -d'"' -f4)
+
+          # Display current versions
+          echo "📦 Current versions:"
+          echo "   version.py:        $VERSION_PY"
+          echo "   package.json:      $PACKAGE_JSON"
+          echo "   Cargo.toml:        $CARGO_TOML"
+          echo "   tauri.conf.json:   $TAURI_CONF"
+          echo "=========================================="
+
+          # Check if all versions match
+          if [ "$VERSION_PY" != "$PACKAGE_JSON" ] || \
+             [ "$VERSION_PY" != "$CARGO_TOML" ] || \
+             [ "$VERSION_PY" != "$TAURI_CONF" ]; then
+            echo "❌ ERROR: Version mismatch detected!"
+            echo ""
+            echo "🛠️  How to fix:"
+            echo "   1. DO NOT manually edit version files"
+            echo "   2. Run: python scripts/bump_version.py patch"
+            echo "   3. Commit all 4 files together"
+            echo ""
+            echo "📋 Files that must be synced:"
+            echo "   - version.py"
+            echo "   - package.json"
+            echo "   - src-tauri/Cargo.toml"
+            echo "   - src-tauri/tauri.conf.json"
+            echo ""
+            echo "⚠️  Special note: tauri.conf.json is critical!"
+            echo "   Tauri updater reads version from this file."
+            echo "   Version mismatch will cause \"update required\" errors."
+            echo ""
+            exit 1
+          fi
+
+          echo "✅ All versions are in sync: $VERSION_PY"
+          echo "🎉 Version consistency check passed!"
+
+      - name: Validate version format (SemVer)
+        run: |
+          VERSION=$(grep '__version__' version.py | cut -d'"' -f2)
+
+          # Check SemVer format (0.x.x for initial development)
+          if ! echo "$VERSION" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$' > /dev/null; then
+            echo "❌ ERROR: Invalid version format: $VERSION"
+            echo "Expected SemVer format: 0.MINOR.PATCH (e.g., 0.3.1)"
+            exit 1
+          fi
+
+          echo "✅ Version format is valid: $VERSION"

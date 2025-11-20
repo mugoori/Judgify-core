@@ -211,6 +211,32 @@ MICROSERVICES_STATUS = {
 
 ## 4. 사용 가이드
 
+### ⚠️ 필수 규칙: 버전 변경시 bump_version.py 사용!
+
+**문제 사례**: v0.3.1 배포시 `tauri.conf.json`이 0.3.0으로 남아있어서 Tauri 업데이트 체커가 계속 "업데이트 필요" 메시지 표시
+
+#### 잘못된 방법 (금지!)
+
+```bash
+❌ package.json 직접 수정
+❌ Cargo.toml 직접 수정
+❌ tauri.conf.json 직접 수정
+❌ version.py 직접 수정
+```
+
+**결과**: 파일 간 버전 불일치 → 업데이트 체커 오작동!
+
+#### 올바른 방법 (필수!)
+
+```bash
+✅ python scripts/bump_version.py patch|minor|major
+✅ 자동으로 4개 파일 동기화:
+   - version.py
+   - package.json
+   - src-tauri/Cargo.toml
+   - src-tauri/tauri.conf.json  ← 핵심! Tauri 업데이트 체커가 참조
+```
+
 ### 4.1 버전 증가 (수동)
 
 ```bash
@@ -225,17 +251,56 @@ python scripts/bump_version.py minor
 # ✅ version.py → 0.2.0
 # ✅ package.json → 0.2.0
 # ✅ Cargo.toml → 0.2.0
+# ✅ tauri.conf.json → 0.2.0  ← 새로 추가됨!
 
 # 2. 버그 수정시 (PATCH 증가)
 python scripts/bump_version.py patch
 
-# 3. Git 커밋
-git add version.py package.json src-tauri/Cargo.toml CHANGELOG.md
+# 3. Git 커밋 (4개 파일 모두 확인!)
+git add version.py package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json CHANGELOG.md
 git commit -m "chore: Bump version to 0.2.0"
 
 # 4. Git 태그 (주요 마일스톤만)
 git tag -a v0.2.0 -m "Release v0.2.0: Judgment Service 첫 구현"
 git push origin develop --tags
+```
+
+### 4.2 배포 체크리스트 (필수!)
+
+**배포 전 반드시 확인**:
+```bash
+1. [ ] bump_version.py 실행 (수동 수정 금지!)
+2. [ ] 4개 파일 모두 변경되었는지 확인:
+       git diff version.py
+       git diff package.json
+       git diff src-tauri/Cargo.toml
+       git diff src-tauri/tauri.conf.json  ← 누락 금지!
+3. [ ] 커밋 메시지: "chore: Bump version to X.Y.Z"
+4. [ ] 태그 생성: git tag -a vX.Y.Z
+5. [ ] 푸시: git push origin develop --tags
+```
+
+### 4.3 버전 불일치 방지 규칙
+
+| 파일 | 역할 | Tauri 업데이트 체커 영향 |
+|------|------|-------------------------|
+| **version.py** | Single Source of Truth | ❌ 간접 영향 없음 |
+| **package.json** | npm 패키지 메타데이터 | ❌ 간접 영향 없음 |
+| **Cargo.toml** | Rust 크레이트 메타데이터 | ❌ 간접 영향 없음 |
+| **tauri.conf.json** | **Tauri 앱 설정** | ✅ **직접 사용됨!** |
+
+**핵심**: `tauri.conf.json`의 `package.version`이 **업데이트 체커의 현재 버전 소스**!
+
+**업데이트 체크 로직**:
+```rust
+// src-tauri/src/commands/update.rs
+pub async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
+    let current_version = app.package_info().version.to_string();
+    // ↑ tauri.conf.json의 package.version 읽기!
+
+    // GitHub Pages latest.json과 비교
+    // current_version != latest.json → "업데이트 필요" 메시지
+}
 ```
 
 ### 4.2 현재 상태 확인
