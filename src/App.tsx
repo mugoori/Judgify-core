@@ -9,7 +9,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 // Pages (lazy loaded for code splitting)
 const ChatInterface = lazy(() => import('./pages/ChatInterface'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
-const WorkflowBuilder = lazy(() => import('./pages/WorkflowBuilder'))
 const BiInsights = lazy(() => import('./pages/BiInsights'))
 const Settings = lazy(() => import('./pages/Settings'))
 
@@ -20,6 +19,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { Toaster } from './components/ui/toaster'
 import { Skeleton } from './components/ui/skeleton'
 import OfflineDetector from './components/OfflineDetector'
+import NotImplemented from './components/NotImplemented'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -126,7 +126,7 @@ function AnimatedRoutes() {
               variants={pageVariants}
               transition={pageTransition}
             >
-              <WorkflowBuilder />
+              <NotImplemented message="Phase 9 제조업 워크플로우 빌더 준비 중입니다..." />
             </motion.div>
           }
         />

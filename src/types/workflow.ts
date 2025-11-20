@@ -4,7 +4,26 @@
  * 노드 타입을 4가지에서 7가지로 확장하되, 기존 v1 워크플로우와의 하위 호환성 유지
  */
 
-import { Node, Edge } from 'reactflow';
+/**
+ * 노드 기본 인터페이스 (React Flow 의존성 제거)
+ */
+export interface Node<T = any> {
+  id: string;
+  type?: string;
+  data: T;
+  position?: { x: number; y: number }; // Optional for backward compatibility
+}
+
+/**
+ * 엣지 기본 인터페이스 (React Flow 의존성 제거)
+ */
+export interface Edge {
+  id: string;
+  source: string;
+  target: string;
+  type?: string;
+  label?: string;
+}
 
 /**
  * 노드 타입 Enum (v2)
