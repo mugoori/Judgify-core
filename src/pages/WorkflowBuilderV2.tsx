@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Save, Play, Settings, FolderOpen, Trash2, History, Clock, CheckCircle, XCircle, AlertCircle, Timer, Power, PowerOff } from 'lucide-react'
+import { Plus, Save, Play, Settings, FolderOpen, Trash2, History, Clock, CheckCircle, XCircle, AlertCircle, Timer, Power, PowerOff, FileText } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { invoke } from '@tauri-apps/api/tauri'
 import { Button } from '@/components/ui/button'
@@ -115,6 +115,9 @@ export default function WorkflowBuilderV2() {
   const [cronExpression, setCronExpression] = useState('0 * * * *')
   const [isScheduleActive, setIsScheduleActive] = useState(false)
   const [isScheduleLoading, setIsScheduleLoading] = useState(false)
+
+  // 템플릿 상태
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false)
 
   // 워크플로우 목록 상태
   const [workflowList, setWorkflowList] = useState<Array<{
@@ -491,6 +494,60 @@ export default function WorkflowBuilderV2() {
     }
   }
 
+  // 워크플로우 템플릿 정의
+  const workflowTemplates = [
+    {
+      id: 'defect-rate-monitoring',
+      name: '불량률 모니터링',
+      description: '생산라인 불량률이 임계값 초과시 알림',
+      steps: [
+        { id: 'trigger_1', type: 'TRIGGER' as const, label: '불량률 임계값 감지', config: { triggerType: 'threshold', metric: '불량률', threshold: 3 } },
+        { id: 'query_1', type: 'QUERY' as const, label: '최근 불량 데이터 조회', config: { table: 'defects', period: '1h' } },
+        { id: 'calc_1', type: 'CALC' as const, label: '불량률 계산', config: { formula: '(불량수/총생산수)*100' } },
+        { id: 'judgment_1', type: 'JUDGMENT' as const, label: '불량률 판정', config: { condition: '> 3%', action: 'alert' } },
+        { id: 'alert_1', type: 'ALERT' as const, label: '팀장 알림', config: { channel: 'slack', recipient: '품질팀장' } },
+      ]
+    },
+    {
+      id: 'equipment-anomaly',
+      name: '설비 이상 감지',
+      description: '센서 데이터 기반 설비 이상 탐지',
+      steps: [
+        { id: 'trigger_1', type: 'TRIGGER' as const, label: '센서 데이터 수신', config: { triggerType: 'event', source: 'sensor' } },
+        { id: 'query_1', type: 'QUERY' as const, label: '센서 이력 조회', config: { table: 'sensor_data', limit: 100 } },
+        { id: 'calc_1', type: 'CALC' as const, label: '표준편차 계산', config: { formula: 'std_dev(temperature)' } },
+        { id: 'judgment_1', type: 'JUDGMENT' as const, label: 'AI 이상 탐지', config: { model: 'anomaly_detection', threshold: 0.8 } },
+        { id: 'approval_1', type: 'APPROVAL' as const, label: '담당자 확인', config: { approver: '설비담당자', timeout: '30m' } },
+        { id: 'alert_1', type: 'ALERT' as const, label: '유지보수 요청', config: { channel: 'email', recipient: '유지보수팀' } },
+      ]
+    },
+    {
+      id: 'quality-inspection',
+      name: '품질 검사 워크플로우',
+      description: '제품 품질 검사 및 등급 분류',
+      steps: [
+        { id: 'trigger_1', type: 'TRIGGER' as const, label: '검사 요청 수신', config: { triggerType: 'manual' } },
+        { id: 'query_1', type: 'QUERY' as const, label: '검사 데이터 조회', config: { table: 'inspection_data' } },
+        { id: 'judgment_1', type: 'JUDGMENT' as const, label: '품질 등급 판정', config: { rules: ['A등급: 95+', 'B등급: 85+', 'C등급: 70+'] } },
+        { id: 'alert_1', type: 'ALERT' as const, label: '검사 결과 통보', config: { channel: 'system', recipient: '품질관리팀' } },
+      ]
+    },
+  ]
+
+  // 템플릿 로드 핸들러
+  const handleLoadTemplate = (templateId: string) => {
+    const template = workflowTemplates.find(t => t.id === templateId)
+    if (template) {
+      setSteps(template.steps)
+      setMetadata({ ...metadata, name: template.name, description: template.description })
+      setShowTemplateDialog(false)
+      toast({
+        title: '템플릿 로드 완료',
+        description: `"${template.name}" 템플릿이 적용되었습니다.`,
+      })
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header Section */}
@@ -505,6 +562,14 @@ export default function WorkflowBuilderV2() {
               placeholder="워크플로우 이름을 입력하세요"
             />
             <div className="flex gap-2 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTemplateDialog(true)}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                템플릿
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -1055,6 +1120,48 @@ export default function WorkflowBuilderV2() {
                 워크플로우에 스텝을 추가해야 스케줄을 등록할 수 있습니다.
               </p>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 템플릿 선택 Dialog */}
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>워크플로우 템플릿</DialogTitle>
+            <DialogDescription>
+              미리 정의된 템플릿을 선택하여 빠르게 워크플로우를 구성하세요.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            {workflowTemplates.map((template) => (
+              <Card
+                key={template.id}
+                className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                onClick={() => handleLoadTemplate(template.id)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{template.name}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {template.description}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                        {template.steps.length}개 스텝
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {template.steps.map(s => s.type).join(' → ')}
+                      </span>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm">
+                    적용
+                  </Button>
+                </div>
+              </Card>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
