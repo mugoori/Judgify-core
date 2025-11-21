@@ -508,8 +508,8 @@ Delete_Workflow:
       description: "Cannot delete workflow with active executions"
 
 # POST /api/v1/workflows/{id}/simulate
-Simulate_Workflow:
-  Description: "워크플로우 시뮬레이션 실행"
+Simulate_Workflow_V2:
+  Description: "워크플로우 시뮬레이션 실행 (Ver2.0 - 6개 NodeType 지원 + 실행 이력 저장)"
   Parameters:
     - name: id
       in: path
@@ -543,7 +543,7 @@ Simulate_Workflow:
       required: [input_data]
   Response:
     200:
-      description: "Simulation completed successfully"
+      description: "Simulation completed successfully (execution history saved)"
       schema:
         type: object
         properties:
@@ -555,16 +555,195 @@ Simulate_Workflow:
             format: uuid
           input_data:
             type: object
-          result:
+          final_result:
             type: object
-          steps:
+            description: "최종 판단 결과 (JUDGMENT 노드 결과 or null)"
+          steps_executed:
             type: array
             items:
               type: object
               properties:
-                step_name:
+                step_id:
                   type: string
                 step_type:
+                  type: string
+                  enum: [TRIGGER, QUERY, CALC, JUDGMENT, APPROVAL, ALERT]
+                label:
+                  type: string
+                input:
+                  type: object
+                output:
+                  type: object
+                  description: "단계별 실행 결과 (step_type 키 포함)"
+                execution_time_ms:
+                  type: integer
+          total_execution_time_ms:
+            type: integer
+          status:
+            type: string
+            enum: [success, failed, partial]
+            description: "success: 모든 단계 성공, failed: 에러 발생, partial: 일부 성공"
+          execution_id:
+            type: string
+            description: "workflow_executions 테이블에 저장된 실행 이력 ID"
+          confidence_score:
+            type: number
+            format: float
+            description: "JUDGMENT 노드 신뢰도 (존재하는 경우)"
+          explanation:
+            type: string
+            description: "실행 요약 설명"
+    400:
+      description: "Invalid simulation request"
+    404:
+      description: "Workflow not found"
+    408:
+      description: "Simulation timeout"
+    500:
+      description: "Simulation execution failed"
+      schema:
+        type: object
+        properties:
+          error:
+            type: string
+          failed_step:
+            type: string
+          execution_id:
+            type: string
+            description: "부분 실행 이력 ID (저장된 경우)"
+
+# GET /api/v1/workflows/{id}/executions
+Get_Workflow_Executions:
+  Description: "워크플로우 실행 이력 목록 조회 (Ver2.0)"
+  Parameters:
+    - name: id
+      in: path
+      type: string
+      format: uuid
+      required: true
+      description: "워크플로우 ID"
+    - name: limit
+      in: query
+      type: integer
+      default: 10
+      maximum: 100
+      description: "조회할 최대 이력 수"
+    - name: offset
+      in: query
+      type: integer
+      default: 0
+      description: "건너뛸 이력 수"
+    - name: status
+      in: query
+      type: string
+      enum: [success, failed, partial]
+      description: "실행 상태 필터"
+    - name: date_from
+      in: query
+      type: string
+      format: date
+      description: "시작 날짜 (YYYY-MM-DD)"
+    - name: date_to
+      in: query
+      type: string
+      format: date
+      description: "종료 날짜 (YYYY-MM-DD)"
+    - name: sort
+      in: query
+      type: string
+      enum: [created_at, execution_time_ms]
+      default: created_at
+      description: "정렬 기준"
+    - name: order
+      in: query
+      type: string
+      enum: [asc, desc]
+      default: desc
+      description: "정렬 순서"
+  Response:
+    200:
+      description: "Execution history retrieved successfully"
+      schema:
+        type: object
+        properties:
+          workflow_id:
+            type: string
+            format: uuid
+          total_count:
+            type: integer
+            description: "전체 실행 이력 수"
+          executions:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: "실행 이력 ID"
+                workflow_id:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [success, failed, partial]
+                execution_time_ms:
+                  type: integer
+                created_at:
+                  type: string
+                  format: date-time
+                steps_count:
+                  type: integer
+                  description: "실행된 단계 수"
+                has_judgment:
+                  type: boolean
+                  description: "JUDGMENT 노드 존재 여부"
+          pagination:
+            type: object
+            properties:
+              limit:
+                type: integer
+              offset:
+                type: integer
+              has_more:
+                type: boolean
+    404:
+      description: "Workflow not found"
+
+# GET /api/v1/workflows/executions/{execution_id}
+Get_Workflow_Execution_Detail:
+  Description: "워크플로우 실행 이력 상세 조회 (Ver2.0)"
+  Parameters:
+    - name: execution_id
+      in: path
+      type: string
+      required: true
+      description: "실행 이력 ID"
+  Response:
+    200:
+      description: "Execution detail retrieved successfully"
+      schema:
+        type: object
+        properties:
+          id:
+            type: string
+            description: "실행 이력 ID"
+          workflow_id:
+            type: string
+            format: uuid
+          status:
+            type: string
+            enum: [success, failed, partial]
+          steps_executed:
+            type: array
+            description: "실행된 단계 목록 (JSON)"
+            items:
+              type: object
+              properties:
+                step_id:
+                  type: string
+                step_type:
+                  type: string
+                label:
                   type: string
                 input:
                   type: object
@@ -572,19 +751,18 @@ Simulate_Workflow:
                   type: object
                 execution_time_ms:
                   type: integer
-          total_execution_time_ms:
+          final_result:
+            type: object
+            description: "최종 판단 결과 (JUDGMENT 노드 결과 or null)"
+          execution_time_ms:
             type: integer
-          confidence_score:
-            type: number
-            format: float
-          explanation:
+            description: "총 실행 시간"
+          created_at:
             type: string
-    400:
-      description: "Invalid simulation request"
+            format: date-time
+            description: "실행 시각"
     404:
-      description: "Workflow not found"
-    408:
-      description: "Simulation timeout"
+      description: "Execution not found"
 ```
 
 ### 3.2 워크플로우 버전 관리 API
