@@ -1174,8 +1174,9 @@ pub async fn get_workflow_executions(
 
     let executions = stmt
         .query_map(params![workflow_id, limit_value], |row| {
+            let id: i64 = row.get(0)?;
             Ok(WorkflowExecutionListItem {
-                id: row.get(0)?,
+                id: id.to_string(),
                 workflow_id: row.get(1)?,
                 status: row.get(2)?,
                 execution_time_ms: row.get(3)?,
@@ -1219,8 +1220,9 @@ pub async fn get_workflow_execution_detail(
             let final_result: serde_json::Value = serde_json::from_str(&final_result_json)
                 .map_err(|e| rusqlite::Error::InvalidQuery)?;
 
+            let id: i64 = row.get(0)?;
             Ok(WorkflowExecutionDetail {
-                id: row.get(0)?,
+                id: id.to_string(),
                 workflow_id: row.get(1)?,
                 status: row.get(2)?,
                 steps_executed,
@@ -2232,7 +2234,7 @@ mod tests {
             config: json!({
                 "dataSource": "database",
                 "queryType": "SELECT",
-                "query": "SELECT * FROM products WHERE defect_rate > 0.05"
+                "query": "SELECT * FROM judgments LIMIT 5"
             }),
         };
 
