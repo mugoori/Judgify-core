@@ -136,7 +136,7 @@ pub fn run() {
             chat::get_chat_history,
             chat::test_claude_api,
 
-            // Workflow Service Commands
+            // Workflow Service Commands (v1 - React Flow 기반)
             // workflow::create_workflow,
             // workflow::get_workflow,
             // workflow::get_all_workflows,
@@ -146,6 +146,24 @@ pub fn run() {
             // workflow::validate_rule_expression,
             workflow::generate_workflow_with_llm,  // Phase 32: LLM workflow generation
             workflow::simulate_workflow_step,      // Week 5 Task 4: Step-by-step simulation
+
+            // Workflow Service Commands (v2 - Phase 9 Vertical List UI)
+            workflow_v2::save_workflow_v2,         // Phase 3-2: 워크플로우 저장
+            workflow_v2::load_workflow_v2,         // Phase 3-3: 워크플로우 불러오기
+            workflow_v2::list_workflows_v2,        // Phase 3-2: 워크플로우 목록 조회
+            workflow_v2::delete_workflow_v2,       // Phase 3-2: 워크플로우 삭제
+            workflow_v2::simulate_workflow_v2,     // Phase 3-4: 워크플로우 시뮬레이션
+            workflow_v2::get_workflow_executions,  // Phase 4-2: 워크플로우 실행 이력 목록 조회
+            workflow_v2::get_workflow_execution_detail, // Phase 4-2: 워크플로우 실행 이력 상세 조회
+            workflow_v2::generate_workflow_draft,  // Phase 9-2: AI 워크플로우 생성
+            workflow_v2::get_pending_approvals,    // Phase 9-3: 대기 중인 승인 요청 목록
+            workflow_v2::process_approval,         // Phase 9-3: 승인/거부 처리
+            workflow_v2::get_approval_request,     // Phase 9-3: 승인 요청 상세 조회
+            workflow_v2::get_workflow_schedules,   // Phase 9-4: 스케줄 목록 조회
+            workflow_v2::create_workflow_schedule, // Phase 9-4: 스케줄 생성
+            workflow_v2::toggle_workflow_schedule, // Phase 9-4: 스케줄 활성화/비활성화
+            workflow_v2::delete_workflow_schedule, // Phase 9-4: 스케줄 삭제
+            workflow_v2::validate_cron_expression, // Phase 9-4: Cron 표현식 검증
 
             // System Commands
             system::get_system_status,

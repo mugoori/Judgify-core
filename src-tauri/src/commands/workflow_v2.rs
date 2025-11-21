@@ -480,18 +480,33 @@ async fn execute_query_step(
 
     match data_source {
         "database" => {
-            // 데이터베이스 조회 (Mock 데이터)
+            // 실제 SQLite 데이터베이스 조회
             let query_type = config["queryType"].as_str().unwrap_or("sql");
 
-            let mock_data = json!([
-                {"id": 1, "equipment_id": "EQ-001", "temperature": 85.5, "status": "normal"},
-                {"id": 2, "equipment_id": "EQ-002", "temperature": 92.3, "status": "warning"},
-                {"id": 3, "equipment_id": "EQ-003", "temperature": 78.1, "status": "normal"},
-            ]);
+            // DB 경로 가져오기
+            let app_data = std::env::var("APPDATA")
+                .or_else(|_| std::env::var("HOME"))
+                .map_err(|e| format!("환경변수 오류: {}", e))?;
+            let db_path = std::path::PathBuf::from(app_data).join("Judgify").join("judgify.db");
+
+            // DB 연결
+            let conn = Connection::open(&db_path)
+                .map_err(|e| format!("DB 연결 실패: {}", e))?;
+
+            // 쿼리 실행
+            let query_result = if query.is_empty() {
+                // 기본 쿼리: 최근 judgments 조회
+                execute_default_query(&conn)?
+            } else {
+                // 사용자 지정 쿼리 실행 (SELECT만 허용)
+                execute_custom_query(&conn, query)?
+            };
+
+            let row_count = query_result.as_array().map(|a| a.len()).unwrap_or(0);
 
             let mut output_data = input_data.clone();
             if let Some(obj) = output_data.as_object_mut() {
-                obj.insert("query_result".to_string(), mock_data.clone());
+                obj.insert("query_result".to_string(), query_result.clone());
             }
 
             Ok((
@@ -499,9 +514,9 @@ async fn execute_query_step(
                     "step_type": "QUERY",
                     "data_source": "database",
                     "query_type": query_type,
-                    "query": query,
-                    "data": mock_data,
-                    "message": format!("데이터베이스 조회 완료 ({}개 결과)", 3)
+                    "query": if query.is_empty() { "SELECT * FROM judgments LIMIT 10" } else { query },
+                    "data": query_result,
+                    "message": format!("데이터베이스 조회 완료 ({}개 결과)", row_count)
                 }),
                 output_data,
             ))
@@ -769,6 +784,10 @@ async fn execute_judgment_step(
 }
 
 /// APPROVAL 스텝 실행
+///
+/// 시뮬레이션 모드 vs 실제 모드:
+/// - 시뮬레이션: 항상 즉시 승인 처리 (테스트용)
+/// - 실제: DB에 승인 요청 저장 후 대기 상태 반환
 async fn execute_approval_step(
     step: &WorkflowStep,
     input_data: &serde_json::Value,
@@ -776,9 +795,16 @@ async fn execute_approval_step(
     let config = &step.config;
     let approval_type = config["approvalType"].as_str().unwrap_or("manual");
 
+    // 시뮬레이션 모드 체크 (기본값: true = 시뮬레이션)
+    let is_simulation = config["isSimulation"].as_bool().unwrap_or(true);
+
+    // 워크플로우 정보 (실제 승인 요청 생성시 사용)
+    let workflow_id = config["workflowId"].as_str().unwrap_or("unknown");
+    let workflow_name = config["workflowName"].as_str().unwrap_or("Unknown Workflow");
+
     match approval_type {
         "auto" => {
-            // 자동 승인
+            // 자동 승인 - 항상 즉시 통과
             Ok((
                 json!({
                     "step_type": "APPROVAL",
@@ -814,6 +840,7 @@ async fn execute_approval_step(
                     };
 
                     if auto_approved {
+                        // 조건 충족 → 자동 승인
                         Ok((
                             json!({
                                 "step_type": "APPROVAL",
@@ -825,8 +852,8 @@ async fn execute_approval_step(
                             }),
                             input_data.clone(),
                         ))
-                    } else {
-                        // 조건 미충족 → 수동 승인 대기 (시뮬레이션에서는 자동 승인)
+                    } else if is_simulation {
+                        // 시뮬레이션 모드: 조건 미충족이어도 자동 승인
                         let approvers = config["approvers"]
                             .as_str()
                             .unwrap_or("admin@example.com")
@@ -840,7 +867,34 @@ async fn execute_approval_step(
                                 "auto_approved": false,
                                 "approvers": approvers,
                                 "condition": condition,
-                                "message": format!("조건 미충족 → 수동 승인 처리 (Mock): {}", condition)
+                                "is_simulation": true,
+                                "message": format!("조건 미충족 → 수동 승인 처리 (시뮬레이션 모드): {}", condition)
+                            }),
+                            input_data.clone(),
+                        ))
+                    } else {
+                        // 실제 모드: DB에 승인 요청 생성
+                        let approval_request = create_approval_request(
+                            workflow_id,
+                            workflow_name,
+                            step,
+                            input_data,
+                            "conditional",
+                            Some(condition),
+                        )?;
+
+                        Ok((
+                            json!({
+                                "step_type": "APPROVAL",
+                                "approval_type": "conditional",
+                                "approved": false,
+                                "pending": true,
+                                "request_id": approval_request.id,
+                                "approvers": approval_request.approvers,
+                                "condition": condition,
+                                "timeout_minutes": approval_request.timeout_minutes,
+                                "expires_at": approval_request.expires_at,
+                                "message": format!("조건 미충족 → 승인 대기 중 (ID: {})", approval_request.id)
                             }),
                             input_data.clone(),
                         ))
@@ -853,24 +907,53 @@ async fn execute_approval_step(
             }
         }
         "manual" => {
-            // 수동 승인 (시뮬레이션에서는 항상 승인)
+            // 수동 승인
             let approvers = config["approvers"]
                 .as_str()
                 .unwrap_or("admin@example.com")
                 .to_string();
             let timeout_minutes = config["timeoutMinutes"].as_u64().unwrap_or(60);
 
-            Ok((
-                json!({
-                    "step_type": "APPROVAL",
-                    "approval_type": "manual",
-                    "approved": true,
-                    "approvers": approvers,
-                    "timeout_minutes": timeout_minutes,
-                    "message": format!("수동 승인 대기 중 (시뮬레이션: 자동 승인) - 승인자: {}", approvers)
-                }),
-                input_data.clone(),
-            ))
+            if is_simulation {
+                // 시뮬레이션 모드: 항상 즉시 승인
+                Ok((
+                    json!({
+                        "step_type": "APPROVAL",
+                        "approval_type": "manual",
+                        "approved": true,
+                        "approvers": approvers,
+                        "timeout_minutes": timeout_minutes,
+                        "is_simulation": true,
+                        "message": format!("수동 승인 대기 중 (시뮬레이션: 자동 승인) - 승인자: {}", approvers)
+                    }),
+                    input_data.clone(),
+                ))
+            } else {
+                // 실제 모드: DB에 승인 요청 생성
+                let approval_request = create_approval_request(
+                    workflow_id,
+                    workflow_name,
+                    step,
+                    input_data,
+                    "manual",
+                    None,
+                )?;
+
+                Ok((
+                    json!({
+                        "step_type": "APPROVAL",
+                        "approval_type": "manual",
+                        "approved": false,
+                        "pending": true,
+                        "request_id": approval_request.id,
+                        "approvers": approval_request.approvers,
+                        "timeout_minutes": approval_request.timeout_minutes,
+                        "expires_at": approval_request.expires_at,
+                        "message": format!("승인 대기 중 (ID: {}) - 승인자: {}", approval_request.id, approval_request.approvers)
+                    }),
+                    input_data.clone(),
+                ))
+            }
         }
         _ => Err(format!("지원하지 않는 승인 타입: {}", approval_type)),
     }
@@ -912,7 +995,7 @@ async fn execute_alert_step(
         }
     }
 
-    // 실제 발송 대신 로그만 출력 (Mock)
+    // 실제 발송 로직 (Slack Webhook, Email SMTP Proxy, Notion API)
     eprintln!("📧 ALERT 발송:");
     eprintln!("  채널: {}", channels.join(", "));
     eprintln!("  수신자: {}", recipients);
@@ -925,23 +1008,75 @@ async fn execute_alert_step(
     }
 
     let mut sent_channels = Vec::new();
+    let http_client = reqwest::Client::new();
+
     for channel in &channels {
         match channel.as_str() {
             "email" => {
-                eprintln!("  ✅ 이메일 발송: {} → {}", subject, recipients);
-                sent_channels.push(json!({"channel": "email", "status": "sent", "recipient": recipients}));
+                // 이메일: 환경변수에서 SMTP 프록시 URL 확인
+                let result = match std::env::var("JUDGIFY_EMAIL_WEBHOOK") {
+                    Ok(webhook_url) => {
+                        send_email_webhook(&http_client, &webhook_url, recipients, subject, &message).await
+                    }
+                    Err(_) => {
+                        eprintln!("  ⚠️ JUDGIFY_EMAIL_WEBHOOK 미설정 - Mock 모드");
+                        Ok("mock".to_string())
+                    }
+                };
+                match result {
+                    Ok(status) => {
+                        eprintln!("  ✅ 이메일 발송: {} → {} ({})", subject, recipients, status);
+                        sent_channels.push(json!({"channel": "email", "status": "sent", "recipient": recipients}));
+                    }
+                    Err(e) => {
+                        eprintln!("  ❌ 이메일 발송 실패: {}", e);
+                        sent_channels.push(json!({"channel": "email", "status": "failed", "error": e}));
+                    }
+                }
             }
             "slack" => {
-                eprintln!("  ✅ Slack 발송: {}", message);
-                sent_channels.push(json!({"channel": "slack", "status": "sent", "recipient": recipients}));
+                // Slack: 환경변수에서 Webhook URL 확인
+                let result = match std::env::var("JUDGIFY_SLACK_WEBHOOK") {
+                    Ok(webhook_url) => {
+                        send_slack_webhook(&http_client, &webhook_url, subject, &message, priority).await
+                    }
+                    Err(_) => {
+                        eprintln!("  ⚠️ JUDGIFY_SLACK_WEBHOOK 미설정 - Mock 모드");
+                        Ok("mock".to_string())
+                    }
+                };
+                match result {
+                    Ok(status) => {
+                        eprintln!("  ✅ Slack 발송: {} ({})", message, status);
+                        sent_channels.push(json!({"channel": "slack", "status": "sent", "recipient": recipients}));
+                    }
+                    Err(e) => {
+                        eprintln!("  ❌ Slack 발송 실패: {}", e);
+                        sent_channels.push(json!({"channel": "slack", "status": "failed", "error": e}));
+                    }
+                }
             }
-            "teams" => {
-                eprintln!("  ✅ Teams 발송: {}", message);
-                sent_channels.push(json!({"channel": "teams", "status": "sent", "recipient": recipients}));
-            }
-            "webhook" => {
-                eprintln!("  ✅ Webhook 발송 (Mock)");
-                sent_channels.push(json!({"channel": "webhook", "status": "sent"}));
+            "notion" => {
+                // Notion: 환경변수에서 API 키 및 Database ID 확인
+                let result = match (std::env::var("NOTION_API_KEY"), std::env::var("NOTION_DATABASE_ID")) {
+                    (Ok(api_key), Ok(db_id)) => {
+                        send_notion_page(&http_client, &api_key, &db_id, subject, &message, priority).await
+                    }
+                    _ => {
+                        eprintln!("  ⚠️ NOTION_API_KEY/NOTION_DATABASE_ID 미설정 - Mock 모드");
+                        Ok("mock".to_string())
+                    }
+                };
+                match result {
+                    Ok(status) => {
+                        eprintln!("  ✅ Notion 발송: {} ({})", message, status);
+                        sent_channels.push(json!({"channel": "notion", "status": "sent", "recipient": recipients}));
+                    }
+                    Err(e) => {
+                        eprintln!("  ❌ Notion 발송 실패: {}", e);
+                        sent_channels.push(json!({"channel": "notion", "status": "failed", "error": e}));
+                    }
+                }
             }
             _ => {
                 eprintln!("  ⚠️  알 수 없는 채널: {}", channel);
@@ -1102,6 +1237,720 @@ pub async fn get_workflow_execution_detail(
     println!("🔍 [WorkflowV2] 실행 이력 상세 조회: {}", execution_id);
 
     Ok(result)
+}
+
+// ================== QUERY 노드 헬퍼 함수 ==================
+
+/// 기본 쿼리 실행 (judgments 테이블 조회)
+fn execute_default_query(conn: &Connection) -> Result<serde_json::Value, String> {
+    let mut stmt = conn
+        .prepare("SELECT id, workflow_id, input_data, result, confidence, method_used, explanation, created_at FROM judgments ORDER BY created_at DESC LIMIT 10")
+        .map_err(|e| format!("쿼리 준비 실패: {}", e))?;
+
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(json!({
+                "id": row.get::<_, String>(0)?,
+                "workflow_id": row.get::<_, String>(1)?,
+                "input_data": row.get::<_, String>(2)?,
+                "result": row.get::<_, i32>(3)?,
+                "confidence": row.get::<_, f64>(4)?,
+                "method_used": row.get::<_, String>(5)?,
+                "explanation": row.get::<_, Option<String>>(6)?,
+                "created_at": row.get::<_, String>(7)?
+            }))
+        })
+        .map_err(|e| format!("쿼리 실행 실패: {}", e))?;
+
+    let results: Vec<serde_json::Value> = rows
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(json!(results))
+}
+
+/// 사용자 지정 쿼리 실행 (SELECT만 허용)
+fn execute_custom_query(conn: &Connection, query: &str) -> Result<serde_json::Value, String> {
+    // 보안: SELECT 문만 허용
+    let query_upper = query.trim().to_uppercase();
+    if !query_upper.starts_with("SELECT") {
+        return Err("보안상 SELECT 쿼리만 허용됩니다".to_string());
+    }
+
+    // 위험한 키워드 차단
+    let dangerous_keywords = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE"];
+    for keyword in dangerous_keywords {
+        if query_upper.contains(keyword) {
+            return Err(format!("보안상 {} 키워드는 허용되지 않습니다", keyword));
+        }
+    }
+
+    let mut stmt = conn
+        .prepare(query)
+        .map_err(|e| format!("쿼리 준비 실패: {}", e))?;
+
+    // 컬럼 정보 가져오기
+    let column_count = stmt.column_count();
+    let column_names: Vec<String> = (0..column_count)
+        .map(|i| stmt.column_name(i).unwrap_or("unknown").to_string())
+        .collect();
+
+    let rows = stmt
+        .query_map([], |row| {
+            let mut obj = serde_json::Map::new();
+            for (i, col_name) in column_names.iter().enumerate() {
+                // 타입 추론하여 적절한 JSON 값으로 변환
+                let value: serde_json::Value = match row.get_ref(i) {
+                    Ok(rusqlite::types::ValueRef::Null) => serde_json::Value::Null,
+                    Ok(rusqlite::types::ValueRef::Integer(i)) => json!(i),
+                    Ok(rusqlite::types::ValueRef::Real(f)) => json!(f),
+                    Ok(rusqlite::types::ValueRef::Text(t)) => {
+                        json!(String::from_utf8_lossy(t).to_string())
+                    }
+                    Ok(rusqlite::types::ValueRef::Blob(b)) => {
+                        json!(format!("[BLOB: {} bytes]", b.len()))
+                    }
+                    Err(_) => serde_json::Value::Null,
+                };
+                obj.insert(col_name.clone(), value);
+            }
+            Ok(serde_json::Value::Object(obj))
+        })
+        .map_err(|e| format!("쿼리 실행 실패: {}", e))?;
+
+    let results: Vec<serde_json::Value> = rows
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(json!(results))
+}
+
+// ================== ALERT 노드 발송 헬퍼 함수 ==================
+
+/// Slack Webhook으로 메시지 발송
+async fn send_slack_webhook(
+    client: &reqwest::Client,
+    webhook_url: &str,
+    title: &str,
+    message: &str,
+    priority: &str,
+) -> Result<String, String> {
+    let emoji = match priority {
+        "high" => "🚨",
+        "medium" => "⚠️",
+        "low" => "ℹ️",
+        _ => "📌",
+    };
+
+    let payload = json!({
+        "blocks": [
+            {
+                "type": "header",
+                "text": {"type": "plain_text", "text": format!("{} {}", emoji, title)}
+            },
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": message}
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {"type": "mrkdwn", "text": format!("*Priority:* {} | *From:* Judgify Workflow", priority)}
+                ]
+            }
+        ]
+    });
+
+    let response = client
+        .post(webhook_url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| format!("Slack 요청 실패: {}", e))?;
+
+    if response.status().is_success() {
+        Ok("sent".to_string())
+    } else {
+        Err(format!("Slack 응답 오류: {}", response.status()))
+    }
+}
+
+/// 이메일 Webhook (SendGrid, Mailgun 등 호환)
+async fn send_email_webhook(
+    client: &reqwest::Client,
+    webhook_url: &str,
+    to: &str,
+    subject: &str,
+    body: &str,
+) -> Result<String, String> {
+    let payload = json!({
+        "to": to,
+        "subject": subject,
+        "body": body,
+        "from": "noreply@judgify.app"
+    });
+
+    let response = client
+        .post(webhook_url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| format!("Email 요청 실패: {}", e))?;
+
+    if response.status().is_success() {
+        Ok("sent".to_string())
+    } else {
+        Err(format!("Email 응답 오류: {}", response.status()))
+    }
+}
+
+/// Notion Database에 페이지 생성
+async fn send_notion_page(
+    client: &reqwest::Client,
+    api_key: &str,
+    database_id: &str,
+    title: &str,
+    content: &str,
+    priority: &str,
+) -> Result<String, String> {
+    let payload = json!({
+        "parent": {"database_id": database_id},
+        "properties": {
+            "Name": {"title": [{"text": {"content": title}}]},
+            "Priority": {"select": {"name": priority}},
+            "Status": {"select": {"name": "New"}}
+        },
+        "children": [
+            {
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{"type": "text", "text": {"content": content}}]
+                }
+            }
+        ]
+    });
+
+    let response = client
+        .post("https://api.notion.com/v1/pages")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Notion-Version", "2022-06-28")
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| format!("Notion 요청 실패: {}", e))?;
+
+    if response.status().is_success() {
+        Ok("sent".to_string())
+    } else {
+        let error_text = response.text().await.unwrap_or_default();
+        Err(format!("Notion 응답 오류: {}", error_text))
+    }
+}
+
+// ============================================================
+// APPROVAL 노드 실제 승인 플로우 (Phase 9-3)
+// ============================================================
+
+/// 승인 요청 상태
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ApprovalRequest {
+    pub id: String,
+    pub workflow_id: String,
+    pub workflow_name: String,
+    pub step_id: String,
+    pub step_name: String,
+    pub approval_type: String,
+    pub status: String, // pending, approved, rejected, expired
+    pub approvers: String,
+    pub input_data: serde_json::Value,
+    pub condition: Option<String>,
+    pub timeout_minutes: i64,
+    pub decided_by: Option<String>,
+    pub decided_at: Option<String>,
+    pub comment: Option<String>,
+    pub created_at: String,
+    pub expires_at: Option<String>,
+}
+
+/// 승인/거부 요청
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApprovalDecision {
+    pub request_id: String,
+    pub decision: String, // "approved" or "rejected"
+    pub decided_by: String,
+    pub comment: Option<String>,
+}
+
+/// 승인 요청 생성 (내부 헬퍼)
+fn create_approval_request(
+    workflow_id: &str,
+    workflow_name: &str,
+    step: &WorkflowStep,
+    input_data: &serde_json::Value,
+    approval_type: &str,
+    condition: Option<&str>,
+) -> Result<ApprovalRequest, String> {
+    let config = &step.config;
+    let approvers = config["approvers"].as_str().unwrap_or("admin@example.com").to_string();
+    let timeout_minutes = config["timeoutMinutes"].as_i64().unwrap_or(60);
+
+    let request_id = format!("apr-{}", uuid::Uuid::new_v4().to_string().split('-').next().unwrap_or("000"));
+    let now = chrono::Utc::now();
+    let expires_at = now + chrono::Duration::minutes(timeout_minutes);
+
+    // DB에 승인 요청 저장
+    let app_data = std::env::var("APPDATA")
+        .or_else(|_| std::env::var("HOME"))
+        .map_err(|e| format!("환경변수 오류: {}", e))?;
+    let db_path = std::path::PathBuf::from(app_data).join("Judgify").join("judgify.db");
+
+    let conn = Connection::open(&db_path)
+        .map_err(|e| format!("DB 연결 실패: {}", e))?;
+
+    conn.execute(
+        "INSERT INTO approval_requests (id, workflow_id, workflow_name, step_id, step_name, approval_type, status, approvers, input_data, condition, timeout_minutes, created_at, expires_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'pending', ?7, ?8, ?9, ?10, ?11, ?12)",
+        params![
+            &request_id,
+            workflow_id,
+            workflow_name,
+            &step.id,
+            &step.label,
+            approval_type,
+            &approvers,
+            serde_json::to_string(input_data).unwrap_or_default(),
+            condition,
+            timeout_minutes,
+            now.to_rfc3339(),
+            expires_at.to_rfc3339(),
+        ],
+    ).map_err(|e| format!("승인 요청 저장 실패: {}", e))?;
+
+    println!("📋 [APPROVAL] 승인 요청 생성: {} (만료: {}분)", request_id, timeout_minutes);
+
+    Ok(ApprovalRequest {
+        id: request_id,
+        workflow_id: workflow_id.to_string(),
+        workflow_name: workflow_name.to_string(),
+        step_id: step.id.clone(),
+        step_name: step.label.clone(),
+        approval_type: approval_type.to_string(),
+        status: "pending".to_string(),
+        approvers,
+        input_data: input_data.clone(),
+        condition: condition.map(|s| s.to_string()),
+        timeout_minutes,
+        decided_by: None,
+        decided_at: None,
+        comment: None,
+        created_at: now.to_rfc3339(),
+        expires_at: Some(expires_at.to_rfc3339()),
+    })
+}
+
+/// 대기 중인 승인 요청 목록 조회
+#[tauri::command]
+pub async fn get_pending_approvals() -> Result<Vec<ApprovalRequest>, String> {
+    println!("📋 [APPROVAL] 대기 중인 승인 요청 조회");
+
+    let app_data = std::env::var("APPDATA")
+        .or_else(|_| std::env::var("HOME"))
+        .map_err(|e| format!("환경변수 오류: {}", e))?;
+    let db_path = std::path::PathBuf::from(app_data).join("Judgify").join("judgify.db");
+
+    let conn = Connection::open(&db_path)
+        .map_err(|e| format!("DB 연결 실패: {}", e))?;
+
+    // 만료된 요청 자동 처리
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE approval_requests SET status = 'expired' WHERE status = 'pending' AND expires_at < ?1",
+        params![&now],
+    ).map_err(|e| format!("만료 처리 실패: {}", e))?;
+
+    // 대기 중인 요청 조회
+    let mut stmt = conn.prepare(
+        "SELECT id, workflow_id, workflow_name, step_id, step_name, approval_type, status, approvers, input_data, condition, timeout_minutes, decided_by, decided_at, comment, created_at, expires_at
+         FROM approval_requests WHERE status = 'pending' ORDER BY created_at DESC"
+    ).map_err(|e| format!("쿼리 준비 실패: {}", e))?;
+
+    let requests = stmt.query_map([], |row| {
+        let input_data_str: String = row.get(8)?;
+        let input_data: serde_json::Value = serde_json::from_str(&input_data_str).unwrap_or(json!({}));
+
+        Ok(ApprovalRequest {
+            id: row.get(0)?,
+            workflow_id: row.get(1)?,
+            workflow_name: row.get(2)?,
+            step_id: row.get(3)?,
+            step_name: row.get(4)?,
+            approval_type: row.get(5)?,
+            status: row.get(6)?,
+            approvers: row.get(7)?,
+            input_data,
+            condition: row.get(9)?,
+            timeout_minutes: row.get(10)?,
+            decided_by: row.get(11)?,
+            decided_at: row.get(12)?,
+            comment: row.get(13)?,
+            created_at: row.get(14)?,
+            expires_at: row.get(15)?,
+        })
+    }).map_err(|e| format!("쿼리 실행 실패: {}", e))?;
+
+    let result: Vec<ApprovalRequest> = requests.filter_map(|r| r.ok()).collect();
+    println!("📋 [APPROVAL] 대기 중인 요청: {}건", result.len());
+
+    Ok(result)
+}
+
+/// 승인/거부 처리
+#[tauri::command]
+pub async fn process_approval(decision: ApprovalDecision) -> Result<serde_json::Value, String> {
+    println!("📋 [APPROVAL] 승인 처리: {} → {}", decision.request_id, decision.decision);
+
+    if decision.decision != "approved" && decision.decision != "rejected" {
+        return Err("decision은 'approved' 또는 'rejected'만 가능합니다".to_string());
+    }
+
+    let app_data = std::env::var("APPDATA")
+        .or_else(|_| std::env::var("HOME"))
+        .map_err(|e| format!("환경변수 오류: {}", e))?;
+    let db_path = std::path::PathBuf::from(app_data).join("Judgify").join("judgify.db");
+
+    let conn = Connection::open(&db_path)
+        .map_err(|e| format!("DB 연결 실패: {}", e))?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let affected = conn.execute(
+        "UPDATE approval_requests SET status = ?1, decided_by = ?2, decided_at = ?3, comment = ?4 WHERE id = ?5 AND status = 'pending'",
+        params![&decision.decision, &decision.decided_by, &now, &decision.comment, &decision.request_id],
+    ).map_err(|e| format!("승인 처리 실패: {}", e))?;
+
+    if affected == 0 {
+        return Err(format!("승인 요청을 찾을 수 없거나 이미 처리되었습니다: {}", decision.request_id));
+    }
+
+    println!("✅ [APPROVAL] 승인 처리 완료: {} by {}", decision.decision, decision.decided_by);
+
+    Ok(json!({
+        "request_id": decision.request_id,
+        "decision": decision.decision,
+        "decided_by": decision.decided_by,
+        "decided_at": now,
+        "message": format!("승인 요청이 {}되었습니다", if decision.decision == "approved" { "승인" } else { "거부" })
+    }))
+}
+
+/// 승인 요청 상세 조회
+#[tauri::command]
+pub async fn get_approval_request(request_id: String) -> Result<ApprovalRequest, String> {
+    println!("📋 [APPROVAL] 승인 요청 상세 조회: {}", request_id);
+
+    let app_data = std::env::var("APPDATA")
+        .or_else(|_| std::env::var("HOME"))
+        .map_err(|e| format!("환경변수 오류: {}", e))?;
+    let db_path = std::path::PathBuf::from(app_data).join("Judgify").join("judgify.db");
+
+    let conn = Connection::open(&db_path)
+        .map_err(|e| format!("DB 연결 실패: {}", e))?;
+
+    let mut stmt = conn.prepare(
+        "SELECT id, workflow_id, workflow_name, step_id, step_name, approval_type, status, approvers, input_data, condition, timeout_minutes, decided_by, decided_at, comment, created_at, expires_at
+         FROM approval_requests WHERE id = ?1"
+    ).map_err(|e| format!("쿼리 준비 실패: {}", e))?;
+
+    stmt.query_row(params![&request_id], |row| {
+        let input_data_str: String = row.get(8)?;
+        let input_data: serde_json::Value = serde_json::from_str(&input_data_str).unwrap_or(json!({}));
+
+        Ok(ApprovalRequest {
+            id: row.get(0)?,
+            workflow_id: row.get(1)?,
+            workflow_name: row.get(2)?,
+            step_id: row.get(3)?,
+            step_name: row.get(4)?,
+            approval_type: row.get(5)?,
+            status: row.get(6)?,
+            approvers: row.get(7)?,
+            input_data,
+            condition: row.get(9)?,
+            timeout_minutes: row.get(10)?,
+            decided_by: row.get(11)?,
+            decided_at: row.get(12)?,
+            comment: row.get(13)?,
+            created_at: row.get(14)?,
+            expires_at: row.get(15)?,
+        })
+    }).map_err(|e| format!("승인 요청을 찾을 수 없습니다: {}", e))
+}
+
+// ============================================================
+// 워크플로우 스케줄러 (Phase 9-4: Cron-based Scheduler)
+// ============================================================
+
+/// 스케줄 설정
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WorkflowSchedule {
+    pub id: String,
+    pub workflow_id: String,
+    pub workflow_name: String,
+    pub cron_expression: String,
+    pub timezone: String,
+    pub is_active: bool,
+    pub input_data: serde_json::Value,
+    pub last_run_at: Option<String>,
+    pub next_run_at: Option<String>,
+    pub run_count: i64,
+    pub last_status: Option<String>,
+    pub last_error: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// 스케줄 생성 요청
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateScheduleRequest {
+    pub workflow_id: String,
+    pub workflow_name: String,
+    pub cron_expression: String,
+    pub timezone: Option<String>,
+    pub input_data: Option<serde_json::Value>,
+}
+
+/// Row를 WorkflowSchedule로 변환하는 헬퍼
+fn row_to_schedule(row: &rusqlite::Row) -> Result<WorkflowSchedule, rusqlite::Error> {
+    let input_data_str: String = row.get(6)?;
+    let input_data: serde_json::Value = serde_json::from_str(&input_data_str).unwrap_or(json!({}));
+    Ok(WorkflowSchedule {
+        id: row.get(0)?,
+        workflow_id: row.get(1)?,
+        workflow_name: row.get(2)?,
+        cron_expression: row.get(3)?,
+        timezone: row.get(4)?,
+        is_active: row.get::<_, i32>(5)? != 0,
+        input_data,
+        last_run_at: row.get(7)?,
+        next_run_at: row.get(8)?,
+        run_count: row.get(9)?,
+        last_status: row.get(10)?,
+        last_error: row.get(11)?,
+        created_at: row.get(12)?,
+        updated_at: row.get(13)?,
+    })
+}
+
+/// 스케줄 목록 조회
+#[tauri::command]
+pub async fn get_workflow_schedules(
+    workflow_id: Option<String>,
+    active_only: Option<bool>,
+) -> Result<Vec<WorkflowSchedule>, String> {
+    println!("📅 [SCHEDULER] 스케줄 목록 조회");
+
+    let conn = get_db_connection()?;
+    let active_filter = active_only.unwrap_or(false);
+
+    let mut result: Vec<WorkflowSchedule> = Vec::new();
+
+    if let Some(wf_id) = workflow_id {
+        let query = if active_filter {
+            "SELECT id, workflow_id, workflow_name, cron_expression, timezone, is_active, input_data, last_run_at, next_run_at, run_count, last_status, last_error, created_at, updated_at FROM workflow_schedules WHERE workflow_id = ?1 AND is_active = 1 ORDER BY created_at DESC"
+        } else {
+            "SELECT id, workflow_id, workflow_name, cron_expression, timezone, is_active, input_data, last_run_at, next_run_at, run_count, last_status, last_error, created_at, updated_at FROM workflow_schedules WHERE workflow_id = ?1 ORDER BY created_at DESC"
+        };
+        let mut stmt = conn.prepare(query).map_err(|e| format!("쿼리 준비 실패: {}", e))?;
+        let schedules = stmt.query_map(params![wf_id], row_to_schedule)
+            .map_err(|e| format!("쿼리 실행 실패: {}", e))?;
+        result = schedules.filter_map(|r| r.ok()).collect();
+    } else {
+        let query = if active_filter {
+            "SELECT id, workflow_id, workflow_name, cron_expression, timezone, is_active, input_data, last_run_at, next_run_at, run_count, last_status, last_error, created_at, updated_at FROM workflow_schedules WHERE is_active = 1 ORDER BY created_at DESC"
+        } else {
+            "SELECT id, workflow_id, workflow_name, cron_expression, timezone, is_active, input_data, last_run_at, next_run_at, run_count, last_status, last_error, created_at, updated_at FROM workflow_schedules ORDER BY created_at DESC"
+        };
+        let mut stmt = conn.prepare(query).map_err(|e| format!("쿼리 준비 실패: {}", e))?;
+        let schedules = stmt.query_map([], row_to_schedule)
+            .map_err(|e| format!("쿼리 실행 실패: {}", e))?;
+        result = schedules.filter_map(|r| r.ok()).collect();
+    }
+
+    println!("📅 [SCHEDULER] 조회된 스케줄: {}건", result.len());
+    Ok(result)
+}
+
+/// 스케줄 생성
+#[tauri::command]
+pub async fn create_workflow_schedule(
+    request: CreateScheduleRequest,
+) -> Result<WorkflowSchedule, String> {
+    println!("📅 [SCHEDULER] 스케줄 생성: {} ({})", request.workflow_name, request.cron_expression);
+
+    // Cron 표현식 유효성 검사
+    use cron::Schedule;
+    use std::str::FromStr;
+
+    let _schedule = Schedule::from_str(&request.cron_expression)
+        .map_err(|e| format!("잘못된 Cron 표현식: {} - {}", request.cron_expression, e))?;
+
+    let schedule_id = format!("sch-{}", uuid::Uuid::new_v4().to_string().split('-').next().unwrap_or("000"));
+    let timezone = request.timezone.unwrap_or_else(|| "Asia/Seoul".to_string());
+    let input_data = request.input_data.unwrap_or(json!({}));
+    let now = chrono::Utc::now().to_rfc3339();
+
+    // 다음 실행 시간 계산
+    let next_run = _schedule.upcoming(chrono::Utc).next()
+        .map(|dt| dt.to_rfc3339());
+
+    let conn = get_db_connection()?;
+
+    conn.execute(
+        "INSERT INTO workflow_schedules (id, workflow_id, workflow_name, cron_expression, timezone, is_active, input_data, next_run_at, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7, ?8, ?8)",
+        params![
+            &schedule_id,
+            &request.workflow_id,
+            &request.workflow_name,
+            &request.cron_expression,
+            &timezone,
+            &serde_json::to_string(&input_data).unwrap_or_default(),
+            &next_run,
+            &now
+        ],
+    ).map_err(|e| format!("스케줄 생성 실패: {}", e))?;
+
+    println!("✅ [SCHEDULER] 스케줄 생성 완료: {} (다음 실행: {:?})", schedule_id, next_run);
+
+    Ok(WorkflowSchedule {
+        id: schedule_id,
+        workflow_id: request.workflow_id,
+        workflow_name: request.workflow_name,
+        cron_expression: request.cron_expression,
+        timezone,
+        is_active: true,
+        input_data,
+        last_run_at: None,
+        next_run_at: next_run,
+        run_count: 0,
+        last_status: None,
+        last_error: None,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+/// 스케줄 활성화/비활성화 토글
+#[tauri::command]
+pub async fn toggle_workflow_schedule(
+    schedule_id: String,
+    is_active: bool,
+) -> Result<serde_json::Value, String> {
+    println!("📅 [SCHEDULER] 스케줄 토글: {} → {}", schedule_id, if is_active { "활성화" } else { "비활성화" });
+
+    let conn = get_db_connection()?;
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let affected = conn.execute(
+        "UPDATE workflow_schedules SET is_active = ?1, updated_at = ?2 WHERE id = ?3",
+        params![is_active as i32, &now, &schedule_id],
+    ).map_err(|e| format!("스케줄 업데이트 실패: {}", e))?;
+
+    if affected == 0 {
+        return Err(format!("스케줄을 찾을 수 없습니다: {}", schedule_id));
+    }
+
+    Ok(json!({
+        "schedule_id": schedule_id,
+        "is_active": is_active,
+        "message": format!("스케줄이 {}되었습니다", if is_active { "활성화" } else { "비활성화" })
+    }))
+}
+
+/// 스케줄 삭제
+#[tauri::command]
+pub async fn delete_workflow_schedule(schedule_id: String) -> Result<serde_json::Value, String> {
+    println!("📅 [SCHEDULER] 스케줄 삭제: {}", schedule_id);
+
+    let conn = get_db_connection()?;
+
+    let affected = conn.execute(
+        "DELETE FROM workflow_schedules WHERE id = ?1",
+        params![&schedule_id],
+    ).map_err(|e| format!("스케줄 삭제 실패: {}", e))?;
+
+    if affected == 0 {
+        return Err(format!("스케줄을 찾을 수 없습니다: {}", schedule_id));
+    }
+
+    println!("✅ [SCHEDULER] 스케줄 삭제 완료: {}", schedule_id);
+
+    Ok(json!({
+        "schedule_id": schedule_id,
+        "message": "스케줄이 삭제되었습니다"
+    }))
+}
+
+/// Cron 표현식 유효성 검사 및 다음 실행 시간 미리보기
+#[tauri::command]
+pub async fn validate_cron_expression(
+    cron_expression: String,
+    count: Option<usize>,
+) -> Result<serde_json::Value, String> {
+    use cron::Schedule;
+    use std::str::FromStr;
+
+    let schedule = Schedule::from_str(&cron_expression)
+        .map_err(|e| format!("잘못된 Cron 표현식: {}", e))?;
+
+    let count = count.unwrap_or(5);
+    let upcoming: Vec<String> = schedule
+        .upcoming(chrono::Utc)
+        .take(count)
+        .map(|dt| dt.to_rfc3339())
+        .collect();
+
+    Ok(json!({
+        "valid": true,
+        "expression": cron_expression,
+        "next_runs": upcoming,
+        "message": format!("유효한 Cron 표현식입니다. 다음 {}회 실행 예정", count)
+    }))
+}
+
+/// 스케줄 실행 기록 업데이트 (내부용)
+fn update_schedule_run_status(
+    conn: &Connection,
+    schedule_id: &str,
+    status: &str,
+    error: Option<&str>,
+) -> Result<(), String> {
+    use cron::Schedule;
+    use std::str::FromStr;
+
+    let now = chrono::Utc::now().to_rfc3339();
+
+    // 현재 스케줄의 cron expression 가져오기
+    let cron_expr: String = conn.query_row(
+        "SELECT cron_expression FROM workflow_schedules WHERE id = ?1",
+        params![schedule_id],
+        |row| row.get(0),
+    ).map_err(|e| format!("스케줄 조회 실패: {}", e))?;
+
+    // 다음 실행 시간 계산
+    let next_run = Schedule::from_str(&cron_expr)
+        .ok()
+        .and_then(|s| s.upcoming(chrono::Utc).next())
+        .map(|dt| dt.to_rfc3339());
+
+    conn.execute(
+        "UPDATE workflow_schedules SET last_run_at = ?1, last_status = ?2, last_error = ?3, next_run_at = ?4, run_count = run_count + 1, updated_at = ?1 WHERE id = ?5",
+        params![&now, status, error, &next_run, schedule_id],
+    ).map_err(|e| format!("스케줄 상태 업데이트 실패: {}", e))?;
+
+    Ok(())
 }
 
 #[cfg(test)]

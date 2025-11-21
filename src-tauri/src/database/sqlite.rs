@@ -240,7 +240,90 @@ impl Database {
             END;
 
             CREATE INDEX IF NOT EXISTS idx_mes_data_logs_session
-            ON mes_data_logs(session_id, created_at DESC);"
+            ON mes_data_logs(session_id, created_at DESC);
+
+            -- ============================================================
+            -- Workflow 승인 요청 테이블 (Phase 9: APPROVAL Node)
+            -- ============================================================
+
+            CREATE TABLE IF NOT EXISTS approval_requests (
+                id TEXT PRIMARY KEY,
+                workflow_id TEXT NOT NULL,
+                workflow_name TEXT NOT NULL,
+                step_id TEXT NOT NULL,
+                step_name TEXT NOT NULL,
+                approval_type TEXT NOT NULL CHECK(approval_type IN ('manual', 'conditional')),
+                status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected', 'expired')),
+                approvers TEXT NOT NULL,
+                input_data TEXT NOT NULL,
+                condition TEXT,
+                timeout_minutes INTEGER DEFAULT 60,
+                decided_by TEXT,
+                decided_at TEXT,
+                comment TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                expires_at TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_approval_requests_status
+            ON approval_requests(status, created_at DESC);
+
+            CREATE INDEX IF NOT EXISTS idx_approval_requests_workflow
+            ON approval_requests(workflow_id, status);
+
+            -- ============================================================
+            -- Workflow 스케줄러 테이블 (Phase 9: Cron-based Scheduler)
+            -- ============================================================
+
+            CREATE TABLE IF NOT EXISTS workflow_schedules (
+                id TEXT PRIMARY KEY,
+                workflow_id TEXT NOT NULL,
+                workflow_name TEXT NOT NULL,
+                cron_expression TEXT NOT NULL,
+                timezone TEXT NOT NULL DEFAULT 'Asia/Seoul',
+                is_active INTEGER NOT NULL DEFAULT 1,
+                input_data TEXT NOT NULL DEFAULT '{}',
+                last_run_at TEXT,
+                next_run_at TEXT,
+                run_count INTEGER NOT NULL DEFAULT 0,
+                last_status TEXT CHECK(last_status IN ('success', 'failed', 'running')),
+                last_error TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_workflow_schedules_active
+            ON workflow_schedules(is_active, next_run_at);
+
+            CREATE INDEX IF NOT EXISTS idx_workflow_schedules_workflow
+            ON workflow_schedules(workflow_id);
+
+            -- Workflow 실행 이력 테이블 (Phase 9: Execution History)
+            CREATE TABLE IF NOT EXISTS workflow_executions (
+                id TEXT PRIMARY KEY,
+                workflow_id TEXT NOT NULL,
+                workflow_name TEXT NOT NULL,
+                schedule_id TEXT,
+                trigger_type TEXT NOT NULL CHECK(trigger_type IN ('manual', 'scheduled', 'api')),
+                status TEXT NOT NULL CHECK(status IN ('running', 'completed', 'failed', 'cancelled')),
+                input_data TEXT NOT NULL,
+                output_data TEXT,
+                steps_executed INTEGER NOT NULL DEFAULT 0,
+                steps_total INTEGER NOT NULL DEFAULT 0,
+                error_message TEXT,
+                started_at TEXT NOT NULL DEFAULT (datetime('now')),
+                completed_at TEXT,
+                duration_ms INTEGER
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_workflow_executions_workflow
+            ON workflow_executions(workflow_id, started_at DESC);
+
+            CREATE INDEX IF NOT EXISTS idx_workflow_executions_status
+            ON workflow_executions(status, started_at DESC);
+
+            CREATE INDEX IF NOT EXISTS idx_workflow_executions_schedule
+            ON workflow_executions(schedule_id, started_at DESC);"
         )?;
 
         // Seed sample data for demo (only if database is empty)

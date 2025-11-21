@@ -2,7 +2,6 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Slider } from '@/components/ui/slider'
 
 /**
  * JUDGMENT 노드 설정 폼
@@ -115,13 +114,14 @@ export default function JudgmentForm({ config, onChange }: JudgmentFormProps) {
             <Label htmlFor="temperature">
               Temperature: {config.temperature || 0.7}
             </Label>
-            <Slider
+            <Input
+              type="range"
               id="temperature"
               min={0}
               max={2}
               step={0.1}
-              value={[config.temperature || 0.7]}
-              onValueChange={(value) => updateConfig('temperature', value[0])}
+              value={config.temperature || 0.7}
+              onChange={(e) => updateConfig('temperature', parseFloat(e.target.value))}
             />
             <p className="text-xs text-muted-foreground">
               낮을수록 일관된 답변, 높을수록 창의적 답변
@@ -135,13 +135,14 @@ export default function JudgmentForm({ config, onChange }: JudgmentFormProps) {
         <Label htmlFor="confidenceThreshold">
           신뢰도 임계값: {config.confidenceThreshold || 0.7}
         </Label>
-        <Slider
+        <Input
+          type="range"
           id="confidenceThreshold"
           min={0}
           max={1}
           step={0.05}
-          value={[config.confidenceThreshold || 0.7]}
-          onValueChange={(value) => updateConfig('confidenceThreshold', value[0])}
+          value={config.confidenceThreshold || 0.7}
+          onChange={(e) => updateConfig('confidenceThreshold', parseFloat(e.target.value))}
         />
         <p className="text-xs text-muted-foreground">
           하이브리드 모드: Rule 신뢰도가 이 값 이하면 AI 실행

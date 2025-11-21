@@ -2,7 +2,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 
 /**
  * ALERT 노드 설정 폼
@@ -46,7 +46,7 @@ export default function AlertForm({ config, onChange }: AlertFormProps) {
         <Label>알림 채널</Label>
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
-            <Checkbox
+            <Switch
               id="channel-email"
               checked={(config.channels || []).includes('email')}
               onCheckedChange={() => toggleChannel('email')}
@@ -56,7 +56,7 @@ export default function AlertForm({ config, onChange }: AlertFormProps) {
             </Label>
           </div>
           <div className="flex items-center space-x-2">
-            <Checkbox
+            <Switch
               id="channel-slack"
               checked={(config.channels || []).includes('slack')}
               onCheckedChange={() => toggleChannel('slack')}
@@ -66,7 +66,7 @@ export default function AlertForm({ config, onChange }: AlertFormProps) {
             </Label>
           </div>
           <div className="flex items-center space-x-2">
-            <Checkbox
+            <Switch
               id="channel-teams"
               checked={(config.channels || []).includes('teams')}
               onCheckedChange={() => toggleChannel('teams')}
@@ -76,7 +76,7 @@ export default function AlertForm({ config, onChange }: AlertFormProps) {
             </Label>
           </div>
           <div className="flex items-center space-x-2">
-            <Checkbox
+            <Switch
               id="channel-webhook"
               checked={(config.channels || []).includes('webhook')}
               onCheckedChange={() => toggleChannel('webhook')}
@@ -147,7 +147,7 @@ export default function AlertForm({ config, onChange }: AlertFormProps) {
 
       {/* 옵션 */}
       <div className="flex items-center space-x-2">
-        <Checkbox
+        <Switch
           id="includeData"
           checked={config.includeData || false}
           onCheckedChange={(checked) => updateConfig('includeData', checked)}

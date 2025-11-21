@@ -2,7 +2,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 
 /**
  * APPROVAL 노드 설정 폼
@@ -103,7 +103,7 @@ export default function ApprovalForm({ config, onChange }: ApprovalFormProps) {
       {/* 옵션 체크박스들 */}
       <div className="space-y-3">
         <div className="flex items-center space-x-2">
-          <Checkbox
+          <Switch
             id="requireComment"
             checked={config.requireComment || false}
             onCheckedChange={(checked) => updateConfig('requireComment', checked)}
@@ -117,7 +117,7 @@ export default function ApprovalForm({ config, onChange }: ApprovalFormProps) {
         </div>
 
         <div className="flex items-center space-x-2">
-          <Checkbox
+          <Switch
             id="notifyOnPending"
             checked={config.notifyOnPending || false}
             onCheckedChange={(checked) => updateConfig('notifyOnPending', checked)}
