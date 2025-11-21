@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Save, Play, Settings, FolderOpen, Trash2, FileText, ChevronDown, ChevronRight, History, Clock, CheckCircle, XCircle, AlertCircle, GitBranch } from 'lucide-react'
+import { Plus, Save, Play, Settings, FolderOpen, Trash2, FileText, ChevronDown, ChevronRight, History, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { invoke } from '@tauri-apps/api/tauri'
 import { Button } from '@/components/ui/button'
@@ -114,10 +114,6 @@ export default function WorkflowBuilderV2() {
   const [selectedExecution, setSelectedExecution] = useState<WorkflowExecution | null>(null)
   const [showExecutionDetail, setShowExecutionDetail] = useState(false)
 
-  // 버전 관리 상태 (Phase 9-5)
-  const [currentVersion, setCurrentVersion] = useState<number>(1)
-  const [showVersionDialog, setShowVersionDialog] = useState(false)
-
   // 스텝 추가 핸들러
   const handleAddStep = (type: WorkflowStep['type']) => {
     const newStep: WorkflowStep = {
@@ -208,12 +204,9 @@ export default function WorkflowBuilderV2() {
         }
       )
 
-      // Phase 9-5: 저장 후 버전 업데이트
-      setCurrentVersion(response.version || 1)
-
       toast({
         title: '저장 성공',
-        description: `${response.message} (v${response.version})`,
+        description: response.message,
       })
 
       console.log('✅ 워크플로우 저장 완료:', response)
@@ -267,12 +260,11 @@ export default function WorkflowBuilderV2() {
 
       setMetadata(response.metadata)
       setSteps(response.steps)
-      setCurrentVersion(response.version || 1) // Phase 9-5: 버전 연동
       setShowLoadDialog(false)
 
       toast({
         title: '불러오기 성공',
-        description: `"${response.metadata.name}" v${response.version || 1} 워크플로우를 불러왔습니다.`,
+        description: `"${response.metadata.name}" 워크플로우를 불러왔습니다.`,
       })
 
       console.log('✅ 워크플로우 불러오기 완료:', response)
@@ -503,14 +495,6 @@ export default function WorkflowBuilderV2() {
               >
                 <History className="w-4 h-4 mr-2" />
                 {isLoadingHistory ? '조회 중...' : '실행 이력'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowVersionDialog(true)}
-              >
-                <GitBranch className="w-4 h-4 mr-2" />
-                v{currentVersion}
               </Button>
               <Button
                 variant="outline"
@@ -1063,62 +1047,6 @@ export default function WorkflowBuilderV2() {
         </DialogContent>
       </Dialog>
 
-      {/* 버전 관리 Dialog (Phase 9-5) */}
-      <Dialog open={showVersionDialog} onOpenChange={setShowVersionDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>버전 관리</DialogTitle>
-            <DialogDescription>
-              워크플로우 버전 이력을 확인하고 관리하세요.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold">현재 버전</h4>
-                  <p className="text-2xl font-bold text-primary">v{currentVersion}</p>
-                </div>
-                <GitBranch className="w-8 h-8 text-muted-foreground" />
-              </div>
-            </Card>
-
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">버전 이력</h4>
-              <Card className="p-3 border-primary/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span className="font-medium">v{currentVersion}</span>
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">현재</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">방금 전</span>
-                </div>
-              </Card>
-              <p className="text-xs text-muted-foreground text-center py-4">
-                저장시 자동으로 버전이 증가합니다.
-              </p>
-            </div>
-
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setCurrentVersion(prev => prev + 1)
-                  toast({
-                    title: '새 버전 생성',
-                    description: `v${currentVersion + 1}이 생성되었습니다.`,
-                  })
-                }}
-              >
-                새 버전 생성
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
