@@ -88,7 +88,7 @@ export default function WorkflowBuilderV2() {
   const [isSimulating, setIsSimulating] = useState(false)
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null)
   const [showSimulationDialog, setShowSimulationDialog] = useState(false)
-  const [testData] = useState<string>('{ "defect_rate": 5 }')
+  const [testData, setTestData] = useState<string>('{\n  "defect_rate": 5,\n  "temperature": 25,\n  "production_count": 100\n}')
 
   // 저장 중 상태
   const [isSaving, setIsSaving] = useState(false)
@@ -515,7 +515,10 @@ export default function WorkflowBuilderV2() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleRunSimulation}
+                onClick={() => {
+                  setSimulationResult(null)
+                  setShowSimulationDialog(true)
+                }}
                 disabled={steps.length === 0 || isSimulating}
               >
                 <Play className="w-4 h-4 mr-2" />
@@ -725,6 +728,32 @@ export default function WorkflowBuilderV2() {
               각 스텝의 실행 결과를 확인하세요.
             </DialogDescription>
           </DialogHeader>
+
+          {/* 테스트 데이터 입력 영역 */}
+          {!simulationResult && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">테스트 데이터 (JSON)</label>
+                <textarea
+                  className="w-full h-40 p-3 font-mono text-sm border rounded-md bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={testData}
+                  onChange={(e) => setTestData(e.target.value)}
+                  placeholder='{ "defect_rate": 5, "temperature": 25 }'
+                />
+                <p className="text-xs text-muted-foreground">
+                  워크플로우에서 사용할 테스트 데이터를 JSON 형식으로 입력하세요.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowSimulationDialog(false)}>
+                  취소
+                </Button>
+                <Button onClick={handleRunSimulation} disabled={isSimulating}>
+                  {isSimulating ? '실행 중...' : '시뮬레이션 실행'}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {simulationResult && (
             <div className="space-y-4">
