@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Save, Play, Settings, FolderOpen, Trash2, FileText, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Save, Play, Settings, FolderOpen, Trash2, FileText, ChevronDown, ChevronRight, History, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { invoke } from '@tauri-apps/api/tauri'
 import { Button } from '@/components/ui/button'
@@ -58,6 +58,16 @@ interface SimulationResult {
   status: 'success' | 'partial_success' | 'error'
 }
 
+interface WorkflowExecution {
+  id: string
+  workflow_id: string
+  status: 'running' | 'completed' | 'failed'
+  started_at: string
+  completed_at: string | null
+  result: any | null
+  error_message: string | null
+}
+
 export default function WorkflowBuilderV2() {
   const { toast } = useToast()
 
@@ -96,6 +106,11 @@ export default function WorkflowBuilderV2() {
   }>>([])
   const [isLoadingList, setIsLoadingList] = useState(false)
   const [showLoadDialog, setShowLoadDialog] = useState(false)
+
+  // 실행 이력 상태 (Phase 9-3)
+  const [executionHistory, setExecutionHistory] = useState<WorkflowExecution[]>([])
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
 
   // 스텝 추가 핸들러
   const handleAddStep = (type: WorkflowStep['type']) => {
@@ -287,6 +302,27 @@ export default function WorkflowBuilderV2() {
     }
   }
 
+  // 실행 이력 조회 핸들러 (Phase 9-3)
+  const handleLoadExecutionHistory = async () => {
+    try {
+      setIsLoadingHistory(true)
+      const history = await invoke<WorkflowExecution[]>('get_workflow_executions', {
+        limit: 50
+      })
+      setExecutionHistory(history)
+      setShowHistoryDialog(true)
+    } catch (error) {
+      console.error('❌ 실행 이력 조회 실패:', error)
+      toast({
+        title: '실행 이력 조회 실패',
+        description: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }
+
   // 시뮬레이션 실행 핸들러
   const handleRunSimulation = async () => {
     try {
@@ -447,6 +483,15 @@ export default function WorkflowBuilderV2() {
               >
                 <FolderOpen className="w-4 h-4 mr-2" />
                 {isLoadingList ? '불러오는 중...' : '불러오기'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLoadExecutionHistory}
+                disabled={isLoadingHistory}
+              >
+                <History className="w-4 h-4 mr-2" />
+                {isLoadingHistory ? '조회 중...' : '실행 이력'}
               </Button>
               <Button
                 variant="outline"
@@ -825,6 +870,68 @@ export default function WorkflowBuilderV2() {
                 </div>
               </Card>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 실행 이력 Dialog (Phase 9-3) */}
+      <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>워크플로우 실행 이력</DialogTitle>
+            <DialogDescription>
+              최근 실행된 워크플로우 이력을 확인하세요.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {executionHistory.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>실행 이력이 없습니다.</p>
+                <p className="text-sm mt-2">워크플로우를 시뮬레이션하면 이력이 기록됩니다.</p>
+              </div>
+            ) : (
+              executionHistory.map((execution) => (
+                <Card
+                  key={execution.id}
+                  className={`p-4 ${
+                    execution.status === 'completed' ? 'border-green-500/30' :
+                    execution.status === 'failed' ? 'border-red-500/30' :
+                    'border-yellow-500/30'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        {execution.status === 'completed' && <CheckCircle className="w-5 h-5 text-green-500" />}
+                        {execution.status === 'failed' && <XCircle className="w-5 h-5 text-red-500" />}
+                        {execution.status === 'running' && <AlertCircle className="w-5 h-5 text-yellow-500 animate-pulse" />}
+                        <span className="font-semibold">
+                          {execution.status === 'completed' ? '완료' :
+                           execution.status === 'failed' ? '실패' : '실행 중'}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ID: {execution.id.slice(0, 8)}...
+                        </span>
+                      </div>
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        <p>워크플로우 ID: {execution.workflow_id}</p>
+                        <p>시작: {new Date(execution.started_at).toLocaleString('ko-KR')}</p>
+                        {execution.completed_at && (
+                          <p>완료: {new Date(execution.completed_at).toLocaleString('ko-KR')}</p>
+                        )}
+                      </div>
+                      {execution.error_message && (
+                        <div className="mt-2 p-2 bg-red-500/10 rounded text-sm text-red-600">
+                          {execution.error_message}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>
