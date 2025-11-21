@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Plus, Save, Play, Settings, FolderOpen, Trash2, History, Clock, CheckCircle, XCircle, AlertCircle, Timer, Power, PowerOff, FileText } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, Save, Play, Settings, FolderOpen, Trash2, FileText, ChevronDown, ChevronRight } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { invoke } from '@tauri-apps/api/tauri'
 import { Button } from '@/components/ui/button'
@@ -58,27 +58,6 @@ interface SimulationResult {
   status: 'success' | 'partial_success' | 'error'
 }
 
-// 실행 이력 인터페이스
-interface WorkflowExecution {
-  id: string
-  workflow_id: string
-  status: 'success' | 'partial_success' | 'error'
-  steps_executed: number
-  final_result: any
-  execution_time_ms: number
-  created_at: string
-}
-
-interface WorkflowExecutionDetail {
-  id: string
-  workflow_id: string
-  status: string
-  steps_executed: StepExecutionResult[]
-  final_result: any
-  execution_time_ms: number
-  created_at: string
-}
-
 export default function WorkflowBuilderV2() {
   const { toast } = useToast()
 
@@ -99,22 +78,10 @@ export default function WorkflowBuilderV2() {
   const [isSimulating, setIsSimulating] = useState(false)
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null)
   const [showSimulationDialog, setShowSimulationDialog] = useState(false)
-  const [testData, setTestData] = useState<string>('{}')
+  const [testData] = useState<string>('{ "defect_rate": 5 }')
 
   // 저장 중 상태
   const [isSaving, setIsSaving] = useState(false)
-
-  // 실행 이력 상태
-  const [executionHistory, setExecutionHistory] = useState<WorkflowExecution[]>([])
-  const [selectedExecution, setSelectedExecution] = useState<WorkflowExecutionDetail | null>(null)
-  const [showHistoryDialog, setShowHistoryDialog] = useState(false)
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
-
-  // 스케줄러 상태
-  const [showSchedulerDialog, setShowSchedulerDialog] = useState(false)
-  const [cronExpression, setCronExpression] = useState('0 * * * *')
-  const [isScheduleActive, setIsScheduleActive] = useState(false)
-  const [isScheduleLoading, setIsScheduleLoading] = useState(false)
 
   // 템플릿 상태
   const [showTemplateDialog, setShowTemplateDialog] = useState(false)
@@ -355,7 +322,7 @@ export default function WorkflowBuilderV2() {
           workflow_id: 'test-workflow-' + Date.now(),
           steps: steps.map(step => ({
             id: step.id,
-            step_type: step.type,
+            type: step.type,
             label: step.label,
             config: step.config
           })),
@@ -396,104 +363,6 @@ export default function WorkflowBuilderV2() {
     })
   }
 
-  // 실행 이력 조회 핸들러
-  const handleLoadExecutionHistory = async () => {
-    try {
-      setIsLoadingHistory(true)
-      const history = await invoke<WorkflowExecution[]>('get_workflow_executions', {
-        workflowId: metadata.name,
-        limit: 20
-      })
-      setExecutionHistory(history)
-      setShowHistoryDialog(true)
-      setSelectedExecution(null)
-    } catch (error) {
-      console.error('❌ 실행 이력 조회 실패:', error)
-      toast({
-        title: '이력 조회 실패',
-        description: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsLoadingHistory(false)
-    }
-  }
-
-  // 실행 이력 상세 조회 핸들러
-  const handleLoadExecutionDetail = async (executionId: string) => {
-    try {
-      const detail = await invoke<WorkflowExecutionDetail>('get_workflow_execution_detail', {
-        executionId
-      })
-      setSelectedExecution(detail)
-    } catch (error) {
-      console.error('❌ 실행 이력 상세 조회 실패:', error)
-      toast({
-        title: '상세 조회 실패',
-        description: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  // 스케줄 등록 핸들러
-  const handleRegisterSchedule = async () => {
-    if (!metadata.name.trim()) {
-      toast({
-        title: '스케줄 등록 실패',
-        description: '워크플로우 이름을 먼저 입력해주세요.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    try {
-      setIsScheduleLoading(true)
-      await invoke('register_workflow_schedule', {
-        workflowId: metadata.name,
-        cronExpression: cronExpression
-      })
-      setIsScheduleActive(true)
-      toast({
-        title: '스케줄 등록 완료',
-        description: `"${metadata.name}" 워크플로우가 스케줄에 등록되었습니다.`,
-      })
-    } catch (error) {
-      console.error('❌ 스케줄 등록 실패:', error)
-      toast({
-        title: '스케줄 등록 실패',
-        description: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsScheduleLoading(false)
-    }
-  }
-
-  // 스케줄 해제 핸들러
-  const handleUnregisterSchedule = async () => {
-    try {
-      setIsScheduleLoading(true)
-      await invoke('unregister_workflow_schedule', {
-        workflowId: metadata.name
-      })
-      setIsScheduleActive(false)
-      toast({
-        title: '스케줄 해제 완료',
-        description: `"${metadata.name}" 워크플로우의 스케줄이 해제되었습니다.`,
-      })
-    } catch (error) {
-      console.error('❌ 스케줄 해제 실패:', error)
-      toast({
-        title: '스케줄 해제 실패',
-        description: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsScheduleLoading(false)
-    }
-  }
-
   // 워크플로우 템플릿 정의
   const workflowTemplates = [
     {
@@ -501,10 +370,10 @@ export default function WorkflowBuilderV2() {
       name: '불량률 모니터링',
       description: '생산라인 불량률이 임계값 초과시 알림',
       steps: [
-        { id: 'trigger_1', type: 'TRIGGER' as const, label: '불량률 임계값 감지', config: { triggerType: 'threshold', metric: '불량률', threshold: 3 } },
+        { id: 'trigger_1', type: 'TRIGGER' as const, label: '불량률 임계값 감지', config: { triggerType: 'threshold', condition: 'defect_rate > 3', threshold: 3 } },
         { id: 'query_1', type: 'QUERY' as const, label: '최근 불량 데이터 조회', config: { table: 'defects', period: '1h' } },
-        { id: 'calc_1', type: 'CALC' as const, label: '불량률 계산', config: { formula: '(불량수/총생산수)*100' } },
-        { id: 'judgment_1', type: 'JUDGMENT' as const, label: '불량률 판정', config: { condition: '> 3%', action: 'alert' } },
+        { id: 'calc_1', type: 'CALC' as const, label: '불량률 계산', config: { formula: 'defect_rate * 2', description: '불량률 x 2 계산' } },
+        { id: 'judgment_1', type: 'JUDGMENT' as const, label: '불량률 판정', config: { ruleExpression: 'result > 3', judgmentMethod: 'rule', condition: '> 3%', action: 'alert' } },
         { id: 'alert_1', type: 'ALERT' as const, label: '팀장 알림', config: { channel: 'slack', recipient: '품질팀장' } },
       ]
     },
@@ -582,23 +451,6 @@ export default function WorkflowBuilderV2() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleLoadExecutionHistory}
-                disabled={isLoadingHistory}
-              >
-                <History className="w-4 h-4 mr-2" />
-                {isLoadingHistory ? '조회 중...' : '실행 이력'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSchedulerDialog(true)}
-              >
-                <Timer className="w-4 h-4 mr-2" />
-                스케줄러
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
                 onClick={handleRunSimulation}
                 disabled={steps.length === 0 || isSimulating}
               >
@@ -647,7 +499,7 @@ export default function WorkflowBuilderV2() {
             /* Step List with Drag and Drop */
             <DragDropContext onDragEnd={handleDragEnd}>
               <Droppable droppableId="workflow-steps">
-                {(provided, snapshot) => (
+                {(provided) => (
                   <div
                     {...provided.droppableProps}
                     ref={provided.innerRef}
@@ -659,7 +511,7 @@ export default function WorkflowBuilderV2() {
                         draggableId={step.id}
                         index={index}
                       >
-                        {(provided, snapshot) => (
+                        {(provided) => (
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
@@ -877,23 +729,33 @@ export default function WorkflowBuilderV2() {
                         </div>
                       </div>
 
-                      {/* 입력 데이터 */}
-                      <div>
-                        <p className="text-sm font-medium mb-1">입력:</p>
-                        <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                          {JSON.stringify(step.input, null, 2)}
-                        </pre>
-                      </div>
+                      {/* 입력/출력 토글 */}
+                      <details className="group">
+                        <summary className="flex items-center gap-1 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                          <ChevronRight className="w-4 h-4 group-open:hidden" />
+                          <ChevronDown className="w-4 h-4 hidden group-open:block" />
+                          입력/출력 보기
+                        </summary>
+                        <div className="mt-2 space-y-2">
+                          {/* 입력 데이터 */}
+                          <div>
+                            <p className="text-sm font-medium mb-1">입력:</p>
+                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
+                              {JSON.stringify(step.input, null, 2)}
+                            </pre>
+                          </div>
 
-                      {/* 출력 데이터 */}
-                      {step.output && (
-                        <div>
-                          <p className="text-sm font-medium mb-1">출력:</p>
-                          <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                            {JSON.stringify(step.output, null, 2)}
-                          </pre>
+                          {/* 출력 데이터 */}
+                          {step.output && (
+                            <div>
+                              <p className="text-sm font-medium mb-1">출력:</p>
+                              <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
+                                {JSON.stringify(step.output, null, 2)}
+                              </pre>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </details>
 
                       {/* 에러 메시지 */}
                       {step.error && (
@@ -909,218 +771,19 @@ export default function WorkflowBuilderV2() {
 
               {/* 최종 결과 */}
               <Card className="p-4 bg-muted/50">
-                <div>
-                  <h3 className="font-semibold mb-2">최종 결과 데이터</h3>
-                  <pre className="text-xs bg-background p-3 rounded overflow-x-auto">
+                <details className="group">
+                  <summary className="flex items-center gap-1 cursor-pointer font-semibold hover:text-primary">
+                    <ChevronRight className="w-4 h-4 group-open:hidden" />
+                    <ChevronDown className="w-4 h-4 hidden group-open:block" />
+                    최종 결과 데이터
+                  </summary>
+                  <pre className="mt-2 text-xs bg-background p-3 rounded overflow-x-auto max-h-48 overflow-y-auto">
                     {JSON.stringify(simulationResult.final_result, null, 2)}
                   </pre>
-                </div>
+                </details>
               </Card>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* 실행 이력 Dialog */}
-      <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle>워크플로우 실행 이력</DialogTitle>
-            <DialogDescription>
-              과거 시뮬레이션 및 실행 결과를 확인하세요.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex gap-4">
-            {/* 실행 이력 목록 */}
-            <div className="w-1/3 space-y-2 border-r pr-4">
-              <h3 className="font-semibold text-sm mb-2">실행 목록</h3>
-              {executionHistory.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">실행 이력이 없습니다.</p>
-                </div>
-              ) : (
-                executionHistory.map((exec) => (
-                  <Card
-                    key={exec.id}
-                    className={`p-3 cursor-pointer hover:bg-accent transition-colors ${
-                      selectedExecution?.id === exec.id ? 'bg-accent border-primary' : ''
-                    }`}
-                    onClick={() => handleLoadExecutionDetail(exec.id)}
-                  >
-                    <div className="flex items-center gap-2">
-                      {exec.status === 'success' && <CheckCircle className="w-4 h-4 text-green-500" />}
-                      {exec.status === 'error' && <XCircle className="w-4 h-4 text-red-500" />}
-                      {exec.status === 'partial_success' && <AlertCircle className="w-4 h-4 text-yellow-500" />}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate">{exec.workflow_id}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(exec.created_at).toLocaleString('ko-KR')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
-                      <span>{exec.steps_executed}개 스텝</span>
-                      <span>{exec.execution_time_ms}ms</span>
-                    </div>
-                  </Card>
-                ))
-              )}
-            </div>
-
-            {/* 실행 상세 정보 */}
-            <div className="flex-1">
-              {selectedExecution ? (
-                <div className="space-y-4">
-                  {/* 상세 요약 */}
-                  <Card className="p-4 bg-muted/50">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold">
-                          실행 상태: {
-                            selectedExecution.status === 'success' ? '✅ 성공' :
-                            selectedExecution.status === 'partial_success' ? '⚠️ 부분 성공' :
-                            '❌ 실패'
-                          }
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          실행 시간: {selectedExecution.execution_time_ms}ms
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(selectedExecution.created_at).toLocaleString('ko-KR')}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* 스텝별 결과 */}
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-sm">스텝별 결과</h3>
-                    {Array.isArray(selectedExecution.steps_executed) ? (
-                      selectedExecution.steps_executed.map((step, idx) => (
-                        <Card key={step.step_id} className={`p-3 ${
-                          step.status === 'success' ? 'border-green-500/50' :
-                          step.status === 'error' ? 'border-red-500/50' : ''
-                        }`}>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{idx + 1}. {step.label}</span>
-                            <span className={`text-xs px-1.5 py-0.5 rounded ${
-                              step.status === 'success' ? 'bg-green-500/20 text-green-700' :
-                              step.status === 'error' ? 'bg-red-500/20 text-red-700' : ''
-                            }`}>
-                              {step.step_type}
-                            </span>
-                            <span className="ml-auto text-xs text-muted-foreground">
-                              {step.execution_time_ms}ms
-                            </span>
-                          </div>
-                          {step.error && (
-                            <p className="text-xs text-red-600 mt-1">{step.error}</p>
-                          )}
-                        </Card>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">스텝 상세 정보 없음</p>
-                    )}
-                  </div>
-
-                  {/* 최종 결과 */}
-                  <Card className="p-3">
-                    <h3 className="font-semibold text-sm mb-2">최종 결과</h3>
-                    <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-h-32">
-                      {JSON.stringify(selectedExecution.final_result, null, 2)}
-                    </pre>
-                  </Card>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  <div className="text-center">
-                    <History className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                    <p>실행 이력을 선택하세요</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* 스케줄러 Dialog */}
-      <Dialog open={showSchedulerDialog} onOpenChange={setShowSchedulerDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>워크플로우 스케줄러</DialogTitle>
-            <DialogDescription>
-              Cron 표현식으로 워크플로우 자동 실행을 설정하세요.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* 스케줄 상태 */}
-            <Card className={`p-4 ${isScheduleActive ? 'bg-green-500/10 border-green-500/50' : 'bg-muted/50'}`}>
-              <div className="flex items-center gap-3">
-                {isScheduleActive ? (
-                  <Power className="w-5 h-5 text-green-500" />
-                ) : (
-                  <PowerOff className="w-5 h-5 text-muted-foreground" />
-                )}
-                <div>
-                  <p className="font-medium">
-                    {isScheduleActive ? '스케줄 활성화됨' : '스케줄 비활성화'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {isScheduleActive ? `Cron: ${cronExpression}` : '스케줄이 등록되지 않았습니다.'}
-                  </p>
-                </div>
-              </div>
-            </Card>
-
-            {/* Cron 표현식 입력 */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Cron 표현식</label>
-              <Input
-                value={cronExpression}
-                onChange={(e) => setCronExpression(e.target.value)}
-                placeholder="0 * * * *"
-                disabled={isScheduleActive}
-              />
-              <p className="text-xs text-muted-foreground">
-                예시: "0 * * * *" (매시 정각), "*/5 * * * *" (5분마다), "0 9 * * *" (매일 9시)
-              </p>
-            </div>
-
-            {/* 버튼 */}
-            <div className="flex gap-2">
-              {isScheduleActive ? (
-                <Button
-                  variant="destructive"
-                  className="flex-1"
-                  onClick={handleUnregisterSchedule}
-                  disabled={isScheduleLoading}
-                >
-                  <PowerOff className="w-4 h-4 mr-2" />
-                  {isScheduleLoading ? '처리 중...' : '스케줄 해제'}
-                </Button>
-              ) : (
-                <Button
-                  variant="default"
-                  className="flex-1"
-                  onClick={handleRegisterSchedule}
-                  disabled={isScheduleLoading || steps.length === 0}
-                >
-                  <Power className="w-4 h-4 mr-2" />
-                  {isScheduleLoading ? '처리 중...' : '스케줄 등록'}
-                </Button>
-              )}
-            </div>
-
-            {steps.length === 0 && (
-              <p className="text-xs text-center text-destructive">
-                워크플로우에 스텝을 추가해야 스케줄을 등록할 수 있습니다.
-              </p>
-            )}
-          </div>
         </DialogContent>
       </Dialog>
 

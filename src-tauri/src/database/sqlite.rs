@@ -300,30 +300,17 @@ impl Database {
 
             -- Workflow 실행 이력 테이블 (Phase 9: Execution History)
             CREATE TABLE IF NOT EXISTS workflow_executions (
-                id TEXT PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 workflow_id TEXT NOT NULL,
-                workflow_name TEXT NOT NULL,
-                schedule_id TEXT,
-                trigger_type TEXT NOT NULL CHECK(trigger_type IN ('manual', 'scheduled', 'api')),
-                status TEXT NOT NULL CHECK(status IN ('running', 'completed', 'failed', 'cancelled')),
-                input_data TEXT NOT NULL,
-                output_data TEXT,
-                steps_executed INTEGER NOT NULL DEFAULT 0,
-                steps_total INTEGER NOT NULL DEFAULT 0,
-                error_message TEXT,
-                started_at TEXT NOT NULL DEFAULT (datetime('now')),
-                completed_at TEXT,
-                duration_ms INTEGER
+                status TEXT NOT NULL,
+                steps_executed TEXT NOT NULL,
+                final_result TEXT NOT NULL,
+                execution_time_ms INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
 
             CREATE INDEX IF NOT EXISTS idx_workflow_executions_workflow
-            ON workflow_executions(workflow_id, started_at DESC);
-
-            CREATE INDEX IF NOT EXISTS idx_workflow_executions_status
-            ON workflow_executions(status, started_at DESC);
-
-            CREATE INDEX IF NOT EXISTS idx_workflow_executions_schedule
-            ON workflow_executions(schedule_id, started_at DESC);"
+            ON workflow_executions(workflow_id, created_at DESC);"
         )?;
 
         // Seed sample data for demo (only if database is empty)

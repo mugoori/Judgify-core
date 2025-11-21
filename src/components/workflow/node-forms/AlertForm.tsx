@@ -57,32 +57,22 @@ export default function AlertForm({ config, onChange }: AlertFormProps) {
           </div>
           <div className="flex items-center space-x-2">
             <Switch
+              id="channel-notion"
+              checked={(config.channels || []).includes('notion')}
+              onCheckedChange={() => toggleChannel('notion')}
+            />
+            <Label htmlFor="channel-notion" className="text-sm font-normal cursor-pointer">
+              📝 Notion
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
               id="channel-slack"
               checked={(config.channels || []).includes('slack')}
               onCheckedChange={() => toggleChannel('slack')}
             />
             <Label htmlFor="channel-slack" className="text-sm font-normal cursor-pointer">
               💬 Slack
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="channel-teams"
-              checked={(config.channels || []).includes('teams')}
-              onCheckedChange={() => toggleChannel('teams')}
-            />
-            <Label htmlFor="channel-teams" className="text-sm font-normal cursor-pointer">
-              👥 Microsoft Teams
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="channel-webhook"
-              checked={(config.channels || []).includes('webhook')}
-              onCheckedChange={() => toggleChannel('webhook')}
-            />
-            <Label htmlFor="channel-webhook" className="text-sm font-normal cursor-pointer">
-              🔗 Webhook
             </Label>
           </div>
         </div>
@@ -93,7 +83,7 @@ export default function AlertForm({ config, onChange }: AlertFormProps) {
         <Label htmlFor="recipients">수신자</Label>
         <Textarea
           id="recipients"
-          placeholder="이메일 주소 또는 Slack 채널을 쉼표로 구분&#10;예: admin@company.com, #manufacturing-alerts"
+          placeholder="이메일 주소, Notion 페이지, Slack 채널을 쉼표로 구분&#10;예: admin@company.com, #manufacturing-alerts, notion-page-id"
           value={config.recipients || ''}
           onChange={(e) => updateConfig('recipients', e.target.value)}
           className="min-h-[80px]"
