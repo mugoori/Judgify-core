@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Save, Play, Settings, FolderOpen, Trash2, History, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { Plus, Save, Play, Settings, FolderOpen, Trash2, History, Clock, CheckCircle, XCircle, AlertCircle, Timer, Power, PowerOff } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { invoke } from '@tauri-apps/api/tauri'
 import { Button } from '@/components/ui/button'
@@ -109,6 +109,12 @@ export default function WorkflowBuilderV2() {
   const [selectedExecution, setSelectedExecution] = useState<WorkflowExecutionDetail | null>(null)
   const [showHistoryDialog, setShowHistoryDialog] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+
+  // 스케줄러 상태
+  const [showSchedulerDialog, setShowSchedulerDialog] = useState(false)
+  const [cronExpression, setCronExpression] = useState('0 * * * *')
+  const [isScheduleActive, setIsScheduleActive] = useState(false)
+  const [isScheduleLoading, setIsScheduleLoading] = useState(false)
 
   // 워크플로우 목록 상태
   const [workflowList, setWorkflowList] = useState<Array<{
@@ -427,6 +433,64 @@ export default function WorkflowBuilderV2() {
     }
   }
 
+  // 스케줄 등록 핸들러
+  const handleRegisterSchedule = async () => {
+    if (!metadata.name.trim()) {
+      toast({
+        title: '스케줄 등록 실패',
+        description: '워크플로우 이름을 먼저 입력해주세요.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setIsScheduleLoading(true)
+      await invoke('register_workflow_schedule', {
+        workflowId: metadata.name,
+        cronExpression: cronExpression
+      })
+      setIsScheduleActive(true)
+      toast({
+        title: '스케줄 등록 완료',
+        description: `"${metadata.name}" 워크플로우가 스케줄에 등록되었습니다.`,
+      })
+    } catch (error) {
+      console.error('❌ 스케줄 등록 실패:', error)
+      toast({
+        title: '스케줄 등록 실패',
+        description: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsScheduleLoading(false)
+    }
+  }
+
+  // 스케줄 해제 핸들러
+  const handleUnregisterSchedule = async () => {
+    try {
+      setIsScheduleLoading(true)
+      await invoke('unregister_workflow_schedule', {
+        workflowId: metadata.name
+      })
+      setIsScheduleActive(false)
+      toast({
+        title: '스케줄 해제 완료',
+        description: `"${metadata.name}" 워크플로우의 스케줄이 해제되었습니다.`,
+      })
+    } catch (error) {
+      console.error('❌ 스케줄 해제 실패:', error)
+      toast({
+        title: '스케줄 해제 실패',
+        description: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsScheduleLoading(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header Section */}
@@ -458,6 +522,14 @@ export default function WorkflowBuilderV2() {
               >
                 <History className="w-4 h-4 mr-2" />
                 {isLoadingHistory ? '조회 중...' : '실행 이력'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSchedulerDialog(true)}
+              >
+                <Timer className="w-4 h-4 mr-2" />
+                스케줄러
               </Button>
               <Button
                 variant="outline"
@@ -905,6 +977,84 @@ export default function WorkflowBuilderV2() {
                 </div>
               )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 스케줄러 Dialog */}
+      <Dialog open={showSchedulerDialog} onOpenChange={setShowSchedulerDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>워크플로우 스케줄러</DialogTitle>
+            <DialogDescription>
+              Cron 표현식으로 워크플로우 자동 실행을 설정하세요.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* 스케줄 상태 */}
+            <Card className={`p-4 ${isScheduleActive ? 'bg-green-500/10 border-green-500/50' : 'bg-muted/50'}`}>
+              <div className="flex items-center gap-3">
+                {isScheduleActive ? (
+                  <Power className="w-5 h-5 text-green-500" />
+                ) : (
+                  <PowerOff className="w-5 h-5 text-muted-foreground" />
+                )}
+                <div>
+                  <p className="font-medium">
+                    {isScheduleActive ? '스케줄 활성화됨' : '스케줄 비활성화'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {isScheduleActive ? `Cron: ${cronExpression}` : '스케줄이 등록되지 않았습니다.'}
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Cron 표현식 입력 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Cron 표현식</label>
+              <Input
+                value={cronExpression}
+                onChange={(e) => setCronExpression(e.target.value)}
+                placeholder="0 * * * *"
+                disabled={isScheduleActive}
+              />
+              <p className="text-xs text-muted-foreground">
+                예시: "0 * * * *" (매시 정각), "*/5 * * * *" (5분마다), "0 9 * * *" (매일 9시)
+              </p>
+            </div>
+
+            {/* 버튼 */}
+            <div className="flex gap-2">
+              {isScheduleActive ? (
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={handleUnregisterSchedule}
+                  disabled={isScheduleLoading}
+                >
+                  <PowerOff className="w-4 h-4 mr-2" />
+                  {isScheduleLoading ? '처리 중...' : '스케줄 해제'}
+                </Button>
+              ) : (
+                <Button
+                  variant="default"
+                  className="flex-1"
+                  onClick={handleRegisterSchedule}
+                  disabled={isScheduleLoading || steps.length === 0}
+                >
+                  <Power className="w-4 h-4 mr-2" />
+                  {isScheduleLoading ? '처리 중...' : '스케줄 등록'}
+                </Button>
+              )}
+            </div>
+
+            {steps.length === 0 && (
+              <p className="text-xs text-center text-destructive">
+                워크플로우에 스텝을 추가해야 스케줄을 등록할 수 있습니다.
+              </p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
