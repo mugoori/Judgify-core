@@ -1011,6 +1011,68 @@ Examples:
 
         Ok((action, params))
     }
+
+    // ========================================================================
+    // Phase 9-2: AI Workflow Generator
+    // ========================================================================
+
+    /// 워크플로우 생성 요청 (자연어 → JSON 워크플로우)
+    ///
+    /// # Arguments
+    /// * `system_prompt` - Manufacturing DSL 가이드
+    /// * `user_prompt` - 사용자 자연어 입력
+    ///
+    /// # Returns
+    /// * `Ok(String)` - JSON 워크플로우 문자열 (markdown 제거됨)
+    /// * `Err(anyhow::Error)` - API 호출 또는 파싱 에러
+    ///
+    /// # Example
+    /// ```rust
+    /// let workflow_json = chat_service.generate_workflow_from_prompt(
+    ///     &system_prompt,
+    ///     "1호선 불량률 3% 초과시 알림"
+    /// ).await?;
+    /// ```
+    pub async fn generate_workflow_from_prompt(
+        &self,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> Result<String> {
+        let request_body = json!({
+            "model": "claude-sonnet-4-5-20250929",
+            "system": system_prompt,
+            "messages": [
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.3,  // 정확한 JSON 생성을 위해 낮은 temperature
+            "max_tokens": 4096   // 긴 워크플로우 대응
+        });
+
+        let response = self
+            .http_client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.claude_api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await?;
+            anyhow::bail!("Claude API error ({}): {}", status, error_text);
+        }
+
+        let response_json: serde_json::Value = response.json().await?;
+        let content = response_json["content"][0]["text"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("Missing content in Claude response"))?;
+
+        // Markdown code block 제거
+        let clean_content = strip_markdown_code_block(content);
+        Ok(clean_content.to_string())
+    }
 }
 
 #[cfg(test)]
@@ -1270,3 +1332,5 @@ mod tests {
         }
     }
 }
+
+// ========================================================================
