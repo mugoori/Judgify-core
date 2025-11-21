@@ -164,6 +164,8 @@ pub fn run() {
             workflow_v2::toggle_workflow_schedule, // Phase 9-4: 스케줄 활성화/비활성화
             workflow_v2::delete_workflow_schedule, // Phase 9-4: 스케줄 삭제
             workflow_v2::validate_cron_expression, // Phase 9-4: Cron 표현식 검증
+            workflow_v2::get_workflow_versions,    // Phase 9-5: 버전 이력 조회
+            workflow_v2::update_workflow_version,  // Phase 9-5: 버전 업데이트
 
             // System Commands
             system::get_system_status,

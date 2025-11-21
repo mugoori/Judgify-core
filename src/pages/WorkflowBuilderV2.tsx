@@ -208,9 +208,12 @@ export default function WorkflowBuilderV2() {
         }
       )
 
+      // Phase 9-5: 저장 후 버전 업데이트
+      setCurrentVersion(response.version || 1)
+
       toast({
         title: '저장 성공',
-        description: `${response.message} (ID: ${response.id})`,
+        description: `${response.message} (v${response.version})`,
       })
 
       console.log('✅ 워크플로우 저장 완료:', response)
@@ -259,15 +262,17 @@ export default function WorkflowBuilderV2() {
         id: string
         metadata: WorkflowMetadata
         steps: WorkflowStep[]
+        version: number
       }>('load_workflow_v2', { workflowId })
 
       setMetadata(response.metadata)
       setSteps(response.steps)
+      setCurrentVersion(response.version || 1) // Phase 9-5: 버전 연동
       setShowLoadDialog(false)
 
       toast({
         title: '불러오기 성공',
-        description: `"${response.metadata.name}" 워크플로우를 불러왔습니다.`,
+        description: `"${response.metadata.name}" v${response.version || 1} 워크플로우를 불러왔습니다.`,
       })
 
       console.log('✅ 워크플로우 불러오기 완료:', response)

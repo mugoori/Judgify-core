@@ -2981,3 +2981,99 @@ Output:
 
 Now, generate a workflow based on the user's request."##.to_string()
 }
+
+// ============================================================================
+// Phase 9-5: 버전 관리 API
+// ============================================================================
+
+/// 워크플로우 버전 이력 항목
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkflowVersionItem {
+    pub id: String,
+    pub version: i32,
+    pub name: String,
+    pub is_active: bool,
+    pub created_at: String,
+    pub step_count: usize,
+}
+
+/// 워크플로우 버전 이력 조회 Tauri Command
+#[tauri::command]
+pub async fn get_workflow_versions(workflow_id: String) -> Result<Vec<WorkflowVersionItem>, String> {
+    println!("📜 [WorkflowV2] 버전 이력 조회: {}", workflow_id);
+
+    let service = WorkflowService::new()
+        .map_err(|e| format!("WorkflowService 초기화 실패: {}", e))?;
+
+    // 현재는 단일 버전만 지원, 향후 버전 테이블 분리시 확장
+    let workflow = service
+        .get_workflow(&workflow_id)
+        .map_err(|e| format!("워크플로우 조회 실패: {}", e))?
+        .ok_or_else(|| format!("워크플로우를 찾을 수 없습니다: {}", workflow_id))?;
+
+    let definition: serde_json::Value = serde_json::from_str(&workflow.definition)
+        .map_err(|e| format!("definition 파싱 실패: {}", e))?;
+
+    let step_count = definition["steps"].as_array().map(|arr| arr.len()).unwrap_or(0);
+
+    let versions = vec![WorkflowVersionItem {
+        id: workflow.id.clone(),
+        version: workflow.version,
+        name: workflow.name,
+        is_active: workflow.is_active,
+        created_at: workflow.created_at.to_rfc3339(),
+        step_count,
+    }];
+
+    println!("✅ [WorkflowV2] 버전 이력 조회 완료: {}개", versions.len());
+
+    Ok(versions)
+}
+
+/// 워크플로우 버전 업데이트 (저장시 버전 증가)
+#[tauri::command]
+pub async fn update_workflow_version(
+    workflow_id: String,
+    metadata: WorkflowMetadata,
+    steps: Vec<WorkflowStep>,
+) -> Result<SaveWorkflowResponse, String> {
+    println!("📝 [WorkflowV2] 워크플로우 버전 업데이트: {}", workflow_id);
+
+    let service = WorkflowService::new()
+        .map_err(|e| format!("WorkflowService 초기화 실패: {}", e))?;
+
+    // 기존 워크플로우 조회
+    let existing = service
+        .get_workflow(&workflow_id)
+        .map_err(|e| format!("워크플로우 조회 실패: {}", e))?
+        .ok_or_else(|| format!("워크플로우를 찾을 수 없습니다: {}", workflow_id))?;
+
+    let new_version = existing.version + 1;
+
+    // 새 definition 생성
+    let definition = json!({
+        "metadata": metadata,
+        "steps": steps,
+        "version": "2.0",
+        "format": "vertical-list"
+    });
+
+    // 업데이트
+    let updated = service
+        .update_workflow(
+            workflow_id.clone(),
+            Some(metadata.name.clone()),
+            Some(definition),
+            None,
+            Some(metadata.is_active),
+        )
+        .map_err(|e| format!("워크플로우 업데이트 실패: {}", e))?;
+
+    println!("✅ [WorkflowV2] 버전 업데이트 완료: {} → v{}", workflow_id, updated.version);
+
+    Ok(SaveWorkflowResponse {
+        id: updated.id,
+        version: updated.version,
+        message: format!("워크플로우가 v{}로 업데이트되었습니다.", new_version),
+    })
+}
