@@ -111,6 +111,8 @@ export default function WorkflowBuilderV2() {
   const [executionHistory, setExecutionHistory] = useState<WorkflowExecution[]>([])
   const [showHistoryDialog, setShowHistoryDialog] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [selectedExecution, setSelectedExecution] = useState<WorkflowExecution | null>(null)
+  const [showExecutionDetail, setShowExecutionDetail] = useState(false)
 
   // 스텝 추가 핸들러
   const handleAddStep = (type: WorkflowStep['type']) => {
@@ -928,11 +930,90 @@ export default function WorkflowBuilderV2() {
                         </div>
                       )}
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedExecution(execution)
+                        setShowExecutionDetail(true)
+                      }}
+                    >
+                      상세 보기
+                    </Button>
                   </div>
                 </Card>
               ))
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 실행 이력 상세 Dialog (Phase 9-4) */}
+      <Dialog open={showExecutionDetail} onOpenChange={setShowExecutionDetail}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>실행 상세 정보</DialogTitle>
+            <DialogDescription>
+              실행 ID: {selectedExecution?.id || '-'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedExecution && (
+            <div className="space-y-4">
+              {/* 상태 요약 */}
+              <Card className="p-4">
+                <h4 className="font-semibold mb-3">실행 상태</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">상태:</span>
+                    <span className={`ml-2 font-medium ${
+                      selectedExecution.status === 'completed' ? 'text-green-600' :
+                      selectedExecution.status === 'failed' ? 'text-red-600' : 'text-yellow-600'
+                    }`}>
+                      {selectedExecution.status === 'completed' ? '✅ 완료' :
+                       selectedExecution.status === 'failed' ? '❌ 실패' : '⏳ 실행 중'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">워크플로우 ID:</span>
+                    <span className="ml-2 font-mono text-xs">{selectedExecution.workflow_id}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">시작 시간:</span>
+                    <span className="ml-2">{new Date(selectedExecution.started_at).toLocaleString('ko-KR')}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">완료 시간:</span>
+                    <span className="ml-2">
+                      {selectedExecution.completed_at
+                        ? new Date(selectedExecution.completed_at).toLocaleString('ko-KR')
+                        : '-'}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 에러 메시지 */}
+              {selectedExecution.error_message && (
+                <Card className="p-4 border-red-500/30">
+                  <h4 className="font-semibold mb-2 text-red-600">에러 메시지</h4>
+                  <pre className="text-sm bg-red-500/10 p-3 rounded overflow-auto">
+                    {selectedExecution.error_message}
+                  </pre>
+                </Card>
+              )}
+
+              {/* 실행 결과 */}
+              {selectedExecution.result && (
+                <Card className="p-4">
+                  <h4 className="font-semibold mb-2">실행 결과</h4>
+                  <pre className="text-sm bg-muted p-3 rounded overflow-auto max-h-[300px]">
+                    {JSON.stringify(selectedExecution.result, null, 2)}
+                  </pre>
+                </Card>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
