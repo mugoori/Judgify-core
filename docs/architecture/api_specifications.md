@@ -856,6 +856,157 @@ Activate_Workflow_Version:
       description: "Workflow or version not found"
 ```
 
+### 3.3 AI 워크플로우 생성 API (Phase 9-2)
+```yaml
+# POST /api/v2/workflows/generate-draft
+Generate_Workflow_Draft:
+  Description: "자연어 입력으로 워크플로우 자동 생성 (AI 기반)"
+  Tags: [Phase 9-2, AI Generator]
+  Request:
+    Content-Type: application/json
+    Body:
+      type: object
+      properties:
+        user_prompt:
+          type: string
+          minLength: 10
+          maxLength: 1000
+          example: "1호선 불량률이 3% 초과하면 팀장에게 알림 보내기"
+          description: "사용자 자연어 요청 (한글/영문)"
+      required: [user_prompt]
+  Response:
+    200:
+      description: "Workflow draft generated successfully"
+      schema:
+        type: object
+        properties:
+          steps:
+            type: array
+            description: "생성된 워크플로우 스텝 배열"
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "trigger_1"
+                  description: "스텝 고유 ID"
+                type:
+                  type: string
+                  enum: [TRIGGER, QUERY, CALC, JUDGMENT, APPROVAL, ALERT]
+                  example: "TRIGGER"
+                  description: "노드 타입 (Manufacturing DSL 6종)"
+                label:
+                  type: string
+                  example: "불량률 3% 초과 감지"
+                  description: "사용자 친화적 레이블"
+                config:
+                  type: object
+                  example:
+                    triggerType: "threshold"
+                    metric: "불량률"
+                    condition: "> 3%"
+                  description: "노드별 설정 (동적 JSON)"
+          metadata:
+            type: object
+            properties:
+              generated_at:
+                type: string
+                format: date-time
+                example: "2025-11-21T10:30:00Z"
+              model_used:
+                type: string
+                example: "claude-sonnet-4-5-20250929"
+              prompt_tokens:
+                type: integer
+                example: 1523
+              completion_tokens:
+                type: integer
+                example: 387
+    400:
+      description: "Invalid user prompt (너무 짧거나 명확하지 않음)"
+      schema:
+        type: object
+        properties:
+          error:
+            type: string
+            example: "Prompt must be at least 10 characters"
+    500:
+      description: "Claude API 호출 실패 또는 JSON 파싱 에러"
+      schema:
+        type: object
+        properties:
+          error:
+            type: string
+            example: "Failed to parse Claude response as valid JSON"
+
+  Implementation_Notes:
+    - Backend: Tauri 커맨드 `generate_workflow_draft` (src-tauri/src/commands/workflow_v2.rs)
+    - Service: ChatService::generate_workflow_from_prompt (src-tauri/src/services/chat_service.rs)
+    - LLM Model: Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+    - Temperature: 0.3 (일관된 구조화 출력)
+    - Max Tokens: 4096
+    - System Prompt: Manufacturing DSL 가이드 + 5개 Few-shot 예시 포함
+    - Response Processing: Markdown code block 자동 제거 (```json ... ```)
+    - Validation: serde_json으로 WorkflowStep 배열 파싱 검증
+
+  Manufacturing_DSL_NodeTypes:
+    TRIGGER:
+      description: "워크플로우 시작 조건"
+      examples:
+        - "일정 기반 (cron)"
+        - "임계값 초과 감지"
+        - "이벤트 수신"
+    QUERY:
+      description: "데이터베이스 조회"
+      examples:
+        - "MES 데이터 조회"
+        - "센서 데이터 조회"
+        - "불량 이력 조회"
+    CALC:
+      description: "계산 및 집계"
+      examples:
+        - "평균 계산"
+        - "표준편차 계산"
+        - "비율 계산"
+    JUDGMENT:
+      description: "규칙 기반 또는 AI 판단"
+      examples:
+        - "불량 여부 판정"
+        - "품질 등급 분류"
+        - "이상 탐지"
+    APPROVAL:
+      description: "사람 승인 대기"
+      examples:
+        - "팀장 승인"
+        - "품질 책임자 승인"
+        - "생산 책임자 승인"
+    ALERT:
+      description: "알림 전송"
+      examples:
+        - "Slack 메시지"
+        - "이메일 전송"
+        - "SMS 발송"
+
+  Frontend_Integration:
+    - Component: AiGenerator.tsx (src/components/workflow/v2/AiGenerator.tsx)
+    - Usage: WorkflowBuilderV2.tsx에 통합
+    - User Flow:
+      1. 사용자가 자연어 입력 (예: "불량률 모니터링")
+      2. AI 생성 버튼 클릭
+      3. Claude API 호출 (loading indicator 표시)
+      4. 생성된 WorkflowStep 배열 수신
+      5. 워크플로우 빌더에 자동 추가 (드래그앤드롭 가능)
+
+  Testing:
+    - Unit Tests: src-tauri/src/commands/tests/workflow_ai_tests.rs
+    - Test Coverage:
+      - System prompt 검증 (6개 NodeType, 5개 Few-shot 포함)
+      - JSON 파싱 검증 (단순/복잡 워크플로우)
+      - Markdown code block 제거 로직
+      - 유효하지 않은 JSON 에러 처리
+    - Test Results: 22/22 passing ✅
+```
+
 ## 🧠 4. Judgment Service API (Port 8002)
 
 ### 4.1 판단 실행 API
