@@ -21,7 +21,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  window.location = originalLocation;
+  (window as any).location = originalLocation;
 });
 
 // Component that throws error on demand
