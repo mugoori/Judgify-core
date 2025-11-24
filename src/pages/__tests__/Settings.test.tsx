@@ -39,6 +39,7 @@ describe('Settings', () => {
       claude_configured: true,
       version: '0.1.0',
       database_path: '/path/to/data/judgify.db',
+      uptime_seconds: 3600,
     });
 
     vi.mocked(tauriApi.getDataDirectory).mockResolvedValue('/path/to/data');
@@ -71,6 +72,7 @@ describe('Settings', () => {
         claude_configured: true,
         version: '0.1.0',
         database_path: '/path/to/data/judgify.db',
+        uptime_seconds: 3600,
       });
 
       // 리렌더링
@@ -88,6 +90,7 @@ describe('Settings', () => {
         claude_configured: true,
         version: '0.1.0',
         database_path: '/path/to/data/judgify.db',
+        uptime_seconds: 3600,
       });
 
       renderWithQueryClient(<Settings />);
@@ -104,6 +107,7 @@ describe('Settings', () => {
         claude_configured: false,
         version: '0.1.0',
         database_path: '/path/to/data/judgify.db',
+        uptime_seconds: 3600,
       });
 
       renderWithQueryClient(<Settings />);

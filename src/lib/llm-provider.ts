@@ -18,14 +18,21 @@ export interface WorkflowGenerationResponse {
   nodes: Array<{
     id: string;
     type: string;
-    label: string;
-    config: Record<string, any>;
+    label?: string;
+    config?: Record<string, any>;
     position?: { x: number; y: number };
+    data?: {
+      label: string;
+      description?: string;
+      config?: Record<string, any>;
+    };
   }>;
   edges: Array<{
     id: string;
     source: string;
     target: string;
+    sourceHandle?: string;
+    targetHandle?: string;
   }>;
   metadata?: {
     provider: string;

@@ -108,12 +108,6 @@ export const JsonViewerModal: React.FC<JsonViewerModalProps> = ({
           <JsonView
             data={data}
             shouldExpandNode={(level) => level < 3}
-            style={{
-              container: {
-                background: 'transparent',
-                fontSize: '13px'
-              }
-            }}
           />
         </div>
       </div>

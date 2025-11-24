@@ -19,7 +19,7 @@ const isTauriEnvironment = () => {
 };
 
 // Dynamic import for Tauri API
-let tauriInvoke: any = null;
+let tauriInvoke: (<T>(cmd: string, args?: Record<string, unknown>) => Promise<T>) | null = null;
 if (isTauriEnvironment()) {
   import('@tauri-apps/api/tauri').then(module => {
     tauriInvoke = module.invoke;
@@ -291,7 +291,7 @@ export class ClaudeProvider implements LLMProvider {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         console.log('[Claude] Mock response generated:', {
-          model: mockResponse.metadata.model,
+          model: mockResponse.metadata?.model,
           duration: Date.now() - startTime,
           nodeCount: mockResponse.nodes.length,
           edgeCount: mockResponse.edges.length,
@@ -337,4 +337,13 @@ export class ClaudeProvider implements LLMProvider {
     }
   }
 
+  getErrorMessage(error: unknown): string {
+    if (error instanceof LLMProviderError) {
+      return `[${error.provider}] ${error.message}`;
+    }
+    if (error instanceof Error) {
+      return `Unexpected error: ${error.message}`;
+    }
+    return `Unknown error: ${String(error)}`;
+  }
 }
