@@ -9,9 +9,9 @@ import { AnimatePresence, motion } from 'framer-motion'
 // Pages (lazy loaded for code splitting)
 const ChatInterface = lazy(() => import('./pages/ChatInterface'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
-const WorkflowBuilder = lazy(() => import('./pages/WorkflowBuilder'))
 const BiInsights = lazy(() => import('./pages/BiInsights'))
 const Settings = lazy(() => import('./pages/Settings'))
+const WorkflowBuilderV2 = lazy(() => import('./pages/WorkflowBuilderV2'))
 
 // Layout (eager loaded - needed immediately)
 import Sidebar from './components/layout/Sidebar'
@@ -126,7 +126,7 @@ function AnimatedRoutes() {
               variants={pageVariants}
               transition={pageTransition}
             >
-              <WorkflowBuilder />
+              <WorkflowBuilderV2 />
             </motion.div>
           }
         />

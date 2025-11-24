@@ -1,31 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import App from '../App';
+import App from './App';
 
 // Mock lazy loaded pages
-vi.mock('../pages/ChatInterface', () => ({
+vi.mock('./pages/ChatInterface', () => ({
   default: () => <div>ChatInterface Page</div>,
 }));
 
-vi.mock('../pages/Dashboard', () => ({
+vi.mock('./pages/Dashboard', () => ({
   default: () => <div>Dashboard Page</div>,
 }));
 
-vi.mock('../pages/WorkflowBuilder', () => ({
+vi.mock('./pages/WorkflowBuilder', () => ({
   default: () => <div>WorkflowBuilder Page</div>,
 }));
 
-vi.mock('../pages/BiInsights', () => ({
+vi.mock('./pages/BiInsights', () => ({
   default: () => <div>BiInsights Page</div>,
 }));
 
-vi.mock('../pages/Settings', () => ({
+vi.mock('./pages/Settings', () => ({
   default: () => <div>Settings Page</div>,
 }));
 
 // Mock layout components
-vi.mock('../components/layout/Sidebar', () => ({
+vi.mock('./components/layout/Sidebar', () => ({
   default: ({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) => (
     <div data-testid="sidebar" data-open={isOpen}>
       <button onClick={onToggle} data-testid="sidebar-toggle">
@@ -35,22 +34,22 @@ vi.mock('../components/layout/Sidebar', () => ({
   ),
 }));
 
-vi.mock('../components/layout/Header', () => ({
+vi.mock('./components/layout/Header', () => ({
   default: () => <div data-testid="header">Header</div>,
 }));
 
 // Mock ErrorBoundary (to test App independently)
-vi.mock('../components/ErrorBoundary', () => ({
+vi.mock('./components/ErrorBoundary', () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 // Mock Toaster
-vi.mock('../components/ui/toaster', () => ({
+vi.mock('./components/ui/toaster', () => ({
   Toaster: () => <div data-testid="toaster">Toaster</div>,
 }));
 
 // Mock OfflineDetector
-vi.mock('../components/OfflineDetector', () => ({
+vi.mock('./components/OfflineDetector', () => ({
   default: () => <div data-testid="offline-detector">OfflineDetector</div>,
 }));
 

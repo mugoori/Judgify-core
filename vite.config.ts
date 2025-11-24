@@ -52,7 +52,6 @@ export default defineConfig({
           // UI primitives (changes rarely)
           'vendor-ui': ['@radix-ui/react-label', '@radix-ui/react-slot', 'lucide-react'],
           // Large visualization libraries (split for parallel loading)
-          'vendor-reactflow': ['reactflow'],
           'vendor-recharts': ['recharts'],
           // Data fetching (changes occasionally)
           'vendor-query': ['@tanstack/react-query'],
