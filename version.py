@@ -5,10 +5,10 @@ Judgify-core 버전 관리 (Single Source of Truth)
 버전 변경시 이 파일만 수정하고, scripts/bump_version.py를 실행하세요.
 """
 
-__version__ = "0.3.3"
+__version__ = "0.3.4"
 __stage__ = "beta"  # alpha → beta → rc → stable
-__release_date__ = "2025-11-24"
-__description__ = "버전 불일치 문제 해결 (tauri.conf.json 동기화)"
+__release_date__ = "2025-12-01"
+__description__ = "ERP/MES 스키마 재구성 및 시드 데이터 통합"
 
 # 9개 마이크로서비스 구현 상태 추적
 MICROSERVICES_STATUS = {
