@@ -1,4 +1,4 @@
-import { useState } from 'react'
+// useState not needed currently but kept for future expansion
 import { ChevronDown, ChevronRight, GripVertical, Trash2, Copy } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -66,7 +66,7 @@ const NODE_TYPE_CONFIG = {
 }
 
 export default function StepCard({
-  id,
+  id: _id,
   index,
   type,
   label,
@@ -78,6 +78,7 @@ export default function StepCard({
   onConfigChange,
   dragHandleProps
 }: StepCardProps) {
+  // _id is used for key prop by parent, kept in props for consistency
   const typeConfig = NODE_TYPE_CONFIG[type]
 
   // NodeType별 폼 컴포넌트 렌더링

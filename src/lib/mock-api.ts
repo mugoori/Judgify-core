@@ -313,7 +313,7 @@ export const deleteWorkflow = async (id: string): Promise<void> => {
   }
 };
 
-export const validateWorkflow = async (definition: any): Promise<boolean> => {
+export const validateWorkflow = async (_definition: unknown): Promise<boolean> => {
   console.warn('[Mock API] validateWorkflow called');
   // Mock: 항상 유효하다고 가정
   return true;

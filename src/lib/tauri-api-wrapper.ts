@@ -24,7 +24,7 @@ import * as MockAPI from './mock-api';
  * Tauri 환경이면 실제 API, 웹 브라우저면 Mock API 반환
  */
 export const api = new Proxy({} as typeof TauriAPI, {
-  get(target, prop: string) {
+  get(_target, prop: string) {
     if (isTauri()) {
       // Tauri 환경: 실제 백엔드 API 사용
       return (TauriAPI as any)[prop];
@@ -41,7 +41,7 @@ export const api = new Proxy({} as typeof TauriAPI, {
       );
 
       // 기본 Promise 반환 (에러 대신)
-      return async (...args: any[]) => {
+      return async (..._args: unknown[]) => {
         console.error(`[API Wrapper] Function "${prop}" not available in web browser mode.`);
         throw new Error(
           `API function "${prop}" requires Tauri environment. ` +

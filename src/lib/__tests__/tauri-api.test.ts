@@ -23,7 +23,7 @@ import {
   createWorkflow,
   getWorkflow,
   getAllWorkflows,
-  updateWorkflow,
+  // updateWorkflow, // Used for type reference only
   deleteWorkflow,
   validateWorkflow,
   type CreateWorkflowRequest,

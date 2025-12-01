@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Send, Bot, User, Trash2, TrendingUp, Play, FileQuestion, Activity, Paperclip, FileText, X } from 'lucide-react';
+import { Send, Bot, User, Trash2, TrendingUp, Play, FileQuestion, Activity, Paperclip, FileText, X, ChevronDown } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { toast } from '@/components/ui/use-toast';
 import type { MesUploadResult, MesQueryResult } from '@/types/mes';
@@ -55,42 +55,49 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
       >
         <p className="whitespace-pre-wrap">{message.content}</p>
 
-        {/* 테이블 데이터 표시 */}
+        {/* 테이블 데이터 표시 - 접을 수 있는 근거 자료 */}
         {message.tableData && (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-600">
-                  {message.tableData.columns.map((col, idx) => (
-                    <th
-                      key={idx}
-                      className="px-3 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
-                    >
-                      {col}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {message.tableData.rows.map((row, rowIdx) => (
-                  <tr key={rowIdx} className="border-b border-gray-700 hover:bg-gray-800/50">
-                    {message.tableData!.columns.map((col, colIdx) => (
-                      <td key={colIdx} className="px-3 py-2 text-sm text-gray-300">
-                        {row[col] === null || row[col] === undefined ? (
-                          <span className="text-gray-500 italic">NULL</span>
-                        ) : (
-                          String(row[col])
-                        )}
-                      </td>
+          <details className="mt-4 border border-gray-600 rounded-lg overflow-hidden group">
+            <summary className="px-3 py-2 bg-gray-800/50 border-b border-gray-600 text-xs text-gray-400 cursor-pointer hover:bg-gray-700/50 transition-colors flex items-center gap-2 list-none">
+              <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
+              <span>📊 근거 데이터 보기 ({message.tableData.rows.length}건)</span>
+            </summary>
+            {/* 스크롤 가능한 테이블 컨테이너 */}
+            <div className="max-h-[300px] overflow-auto">
+              <table className="min-w-full border-collapse">
+                <thead className="sticky top-0 bg-gray-800">
+                  <tr className="border-b border-gray-600">
+                    {message.tableData.columns.map((col, idx) => (
+                      <th
+                        key={idx}
+                        className="px-3 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider whitespace-nowrap"
+                      >
+                        {col}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {message.tableData.rows.map((row, rowIdx) => (
+                    <tr key={rowIdx} className="border-b border-gray-700 hover:bg-gray-800/50">
+                      {message.tableData!.columns.map((col, colIdx) => (
+                        <td key={colIdx} className="px-3 py-2 text-sm text-gray-300 whitespace-nowrap">
+                          {row[col] === null || row[col] === undefined ? (
+                            <span className="text-gray-500 italic">NULL</span>
+                          ) : (
+                            String(row[col])
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {message.tableData.rows.length === 0 && (
               <p className="text-center text-gray-500 py-4">데이터가 없습니다</p>
             )}
-          </div>
+          </details>
         )}
 
         {message.intent && (
@@ -113,7 +120,7 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>();
-  const [claudeApiKey, setClaudeApiKey] = useState<string>(''); // 🔧 API 키 상태
+  const [, setClaudeApiKey] = useState<string>(''); // 🔧 API 키 상태 (읽기는 불필요, 설정만 사용)
   const [showClearDialog, setShowClearDialog] = useState(false); // ✅ AlertDialog 상태
   const messagesRef = useRef<Message[]>([]); // 🔧 최신 messages 추적용 ref
   const textareaRef = useRef<HTMLTextAreaElement>(null);
