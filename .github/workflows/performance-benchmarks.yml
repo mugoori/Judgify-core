@@ -66,7 +66,7 @@ jobs:
       - name: Parse and analyze benchmark results
         id: benchmark-analysis
         run: |
-          node .github/scripts/benchmark-report.js
+          node .github/scripts/benchmark-report.cjs
 
       - name: Comment PR with benchmark results
         if: github.event_name == 'pull_request'
