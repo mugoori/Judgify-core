@@ -15,6 +15,17 @@ import {
 } from '@/components/ui/dialog'
 import StepCard from '@/components/workflow/StepCard'
 import { AiGenerator } from '@/components/workflow/AiGenerator'
+// 시뮬레이션 결과 컴포넌트
+import {
+  TriggerResult,
+  QueryResult,
+  CalcResult,
+  JudgmentResult,
+  ApprovalResult,
+  AlertResult,
+} from '@/components/simulation'
+import { generateMockDataForTemplate, TEMPLATE_NAMES } from '@/lib/mock-data/generators'
+import type { StepMockData } from '@/lib/mock-data/types'
 
 /**
  * Phase 9 Manufacturing Workflow Builder (Vertical List UI)
@@ -85,6 +96,12 @@ export default function WorkflowBuilderV2() {
 
   // 템플릿 상태
   const [showTemplateDialog, setShowTemplateDialog] = useState(false)
+  const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(null)
+
+  // Mock 데이터 (시뮬레이션용)
+  const [mockData, setMockData] = useState<StepMockData[]>([])
+  const [showVisualResults, setShowVisualResults] = useState(true)
+  const [isApproved, setIsApproved] = useState(false) // 승인 상태
 
   // 워크플로우 목록 상태
   const [workflowList, setWorkflowList] = useState<Array<{
@@ -317,6 +334,7 @@ export default function WorkflowBuilderV2() {
 
       setIsSimulating(true)
       setShowSimulationDialog(true)
+      setIsApproved(false) // 승인 상태 초기화
 
       // Tauri 백엔드 API 호출
       const result = await invoke<SimulationResult>('simulate_workflow_v2', {
@@ -1202,6 +1220,9 @@ SELECT 'EQ-004' as equip_cd, '살균기' as equip_nm,
       // 템플릿에 맞는 샘플 테스트 데이터 자동 설정
       const sampleData = templateSampleData[templateId] || {}
       setTestData(JSON.stringify(sampleData, null, 2))
+      // 시뮬레이션용 Mock 데이터 자동 생성
+      setCurrentTemplateId(templateId)
+      setMockData(generateMockDataForTemplate(templateId))
       setShowTemplateDialog(false)
       toast({
         title: '템플릿 로드 완료',
@@ -1247,6 +1268,7 @@ SELECT 'EQ-004' as equip_cd, '살균기' as equip_nm,
                 onClick={() => {
                   setSimulationResult(null)
                   setShowSimulationDialog(true)
+                  setIsApproved(false) // 승인 상태 초기화
                 }}
                 disabled={steps.length === 0 || isSimulating}
               >
@@ -1449,161 +1471,342 @@ SELECT 'EQ-004' as equip_cd, '살균기' as equip_nm,
       </Dialog>
 
       {/* 시뮬레이션 결과 Dialog */}
-      <Dialog open={showSimulationDialog} onOpenChange={setShowSimulationDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
+      <Dialog open={showSimulationDialog} onOpenChange={(open) => {
+        setShowSimulationDialog(open)
+        if (!open) {
+          // Dialog 닫을 때 Mock 데이터 새로 생성 (다음 실행시 다른 값 표시)
+          if (currentTemplateId) {
+            setMockData(generateMockDataForTemplate(currentTemplateId))
+          }
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle>워크플로우 시뮬레이션 결과</DialogTitle>
+            <DialogTitle className="flex items-center gap-3">
+              워크플로우 시뮬레이션 결과
+              {currentTemplateId && TEMPLATE_NAMES[currentTemplateId as keyof typeof TEMPLATE_NAMES] && (
+                <span className="text-sm font-normal text-muted-foreground px-2 py-1 bg-primary/10 rounded">
+                  {TEMPLATE_NAMES[currentTemplateId as keyof typeof TEMPLATE_NAMES]}
+                </span>
+              )}
+            </DialogTitle>
             <DialogDescription>
               각 스텝의 실행 결과를 확인하세요.
             </DialogDescription>
           </DialogHeader>
 
-          {/* 테스트 데이터 입력 영역 */}
-          {!simulationResult && (
+          {/* 시각적 결과 vs JSON 결과 토글 */}
+          {mockData.length > 0 && (
+            <div className="flex items-center gap-2 mb-4">
+              <Button
+                variant={showVisualResults ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowVisualResults(true)}
+              >
+                시각적 결과
+              </Button>
+              <Button
+                variant={!showVisualResults ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowVisualResults(false)}
+              >
+                JSON 결과
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto"
+                onClick={() => {
+                  if (currentTemplateId) {
+                    setMockData(generateMockDataForTemplate(currentTemplateId))
+                    toast({
+                      title: 'Mock 데이터 새로고침',
+                      description: '새로운 시뮬레이션 데이터가 생성되었습니다.',
+                    })
+                  }
+                }}
+              >
+                🔄 새로고침
+              </Button>
+            </div>
+          )}
+
+          {/* 시각적 카드형 결과 */}
+          {showVisualResults && mockData.length > 0 && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">테스트 데이터 (JSON)</label>
-                <textarea
-                  className="w-full h-40 p-3 font-mono text-sm border rounded-md bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary"
-                  value={testData}
-                  onChange={(e) => setTestData(e.target.value)}
-                  placeholder='{ "defect_rate": 5, "temperature": 25 }'
-                />
-                <p className="text-xs text-muted-foreground">
-                  워크플로우에서 사용할 테스트 데이터를 JSON 형식으로 입력하세요.
-                </p>
+              {/* 전체 실행 요약 */}
+              <Card className="p-4 bg-gradient-to-r from-green-500/10 to-blue-500/10 border-green-500/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">✅</span>
+                    <div>
+                      <h3 className="font-semibold text-lg text-green-700 dark:text-green-400">
+                        시뮬레이션 완료
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {steps.length}개 스텝이 정상적으로 실행되었습니다.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-green-600">{steps.length}/{steps.length}</p>
+                    <p className="text-xs text-muted-foreground">스텝 성공</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 스텝별 시각적 결과 */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg">스텝별 실행 결과</h3>
+                {steps.map((step, index) => {
+                  // 해당 타입의 Mock 데이터 추출
+                  const triggerData = step.type === 'TRIGGER' ? mockData.find(m => m.trigger)?.trigger : undefined
+                  const queryData = step.type === 'QUERY' ? mockData.find(m => m.query)?.query : undefined
+                  const calcData = step.type === 'CALC' ? mockData.find(m => m.calc)?.calc : undefined
+                  const judgmentData = step.type === 'JUDGMENT' ? mockData.find(m => m.judgment)?.judgment : undefined
+                  const approvalData = step.type === 'APPROVAL' ? mockData.find(m => m.approval)?.approval : undefined
+                  const alertData = step.type === 'ALERT' ? mockData.find(m => m.alert)?.alert : undefined
+
+                  return (
+                    <div key={step.id} className="relative">
+                      {/* 연결선 */}
+                      {index < steps.length - 1 && (
+                        <div className="absolute left-6 top-full w-0.5 h-3 bg-border z-0" />
+                      )}
+
+                      {/* 스텝 결과 카드 */}
+                      <Card className="p-4 border-l-4 border-l-primary relative z-10">
+                        <div className="flex items-start gap-3">
+                          {/* 스텝 번호 */}
+                          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">
+                            {index + 1}
+                          </div>
+
+                          {/* 스텝 내용 */}
+                          <div className="flex-1 space-y-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">{step.label}</span>
+                              <span className="text-xs px-2 py-0.5 rounded bg-muted">
+                                {step.type}
+                              </span>
+                            </div>
+
+                            {/* 스텝 타입별 결과 렌더링 */}
+                            {step.type === 'TRIGGER' && triggerData && (
+                              <TriggerResult data={triggerData} />
+                            )}
+                            {step.type === 'QUERY' && queryData && (
+                              <QueryResult data={queryData} />
+                            )}
+                            {step.type === 'CALC' && calcData && (
+                              <CalcResult data={calcData} />
+                            )}
+                            {step.type === 'JUDGMENT' && judgmentData && (
+                              <JudgmentResult data={judgmentData} />
+                            )}
+                            {step.type === 'APPROVAL' && approvalData && (
+                              <ApprovalResult
+                                data={approvalData}
+                                onApprove={() => {
+                                  setIsApproved(true)
+                                  toast({
+                                    title: '알림 전송 완료',
+                                    description: '알람이 전송 됐습니다.',
+                                    duration: 3000,
+                                  })
+                                }}
+                              />
+                            )}
+                            {step.type === 'ALERT' && alertData && (
+                              <AlertResult
+                                data={alertData}
+                                isPending={steps.some(s => s.type === 'APPROVAL') && !isApproved}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  )
+                })}
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowSimulationDialog(false)}>
-                  취소
-                </Button>
-                <Button onClick={handleRunSimulation} disabled={isSimulating}>
-                  {isSimulating ? '실행 중...' : '시뮬레이션 실행'}
+
+              {/* 닫기 버튼 */}
+              <div className="flex justify-end pt-4">
+                <Button onClick={() => setShowSimulationDialog(false)}>
+                  닫기
                 </Button>
               </div>
             </div>
           )}
 
-          {simulationResult && (
-            <div className="space-y-4">
-              {/* 전체 실행 결과 요약 */}
-              <Card className="p-4 bg-muted/50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-lg">
-                      실행 상태: {
-                        simulationResult.status === 'success' ? '✅ 성공' :
-                        simulationResult.status === 'partial_success' ? '⚠️ 부분 성공' :
-                        '❌ 실패'
-                      }
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      총 실행 시간: {simulationResult.total_execution_time_ms}ms
+          {/* 기존 JSON 결과 (토글 시) */}
+          {!showVisualResults && (
+            <>
+              {/* 테스트 데이터 입력 영역 */}
+              {!simulationResult && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">테스트 데이터 (JSON)</label>
+                    <textarea
+                      className="w-full h-40 p-3 font-mono text-sm border rounded-md bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={testData}
+                      onChange={(e) => setTestData(e.target.value)}
+                      placeholder='{ "defect_rate": 5, "temperature": 25 }'
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      워크플로우에서 사용할 테스트 데이터를 JSON 형식으로 입력하세요.
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">
-                      {simulationResult.steps_executed.filter(s => s.status === 'success').length} / {simulationResult.steps_executed.length} 스텝 성공
-                    </p>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowSimulationDialog(false)}>
+                      취소
+                    </Button>
+                    <Button onClick={handleRunSimulation} disabled={isSimulating}>
+                      {isSimulating ? '실행 중...' : '시뮬레이션 실행'}
+                    </Button>
                   </div>
                 </div>
-              </Card>
+              )}
 
-              {/* 각 스텝별 실행 결과 */}
-              <div className="space-y-3">
-                <h3 className="font-semibold">스텝별 실행 결과</h3>
-                {simulationResult.steps_executed.map((step, index) => (
-                  <Card key={step.step_id} className={`p-4 ${
-                    step.status === 'success' ? 'border-green-500/50' :
-                    step.status === 'error' ? 'border-red-500/50' :
-                    'border-gray-500/50'
-                  }`}>
-                    <div className="space-y-3">
-                      {/* 스텝 헤더 */}
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-semibold">
-                              {index + 1}. {step.label}
-                            </span>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              step.status === 'success' ? 'bg-green-500/20 text-green-700' :
-                              step.status === 'error' ? 'bg-red-500/20 text-red-700' :
-                              'bg-gray-500/20 text-gray-700'
-                            }`}>
-                              {step.step_type}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            실행 시간: {step.execution_time_ms}ms
-                          </p>
-                        </div>
-                        <div>
-                          {step.status === 'success' && (
-                            <span className="text-2xl">✅</span>
-                          )}
-                          {step.status === 'error' && (
-                            <span className="text-2xl">❌</span>
-                          )}
-                          {step.status === 'skipped' && (
-                            <span className="text-2xl">⏭️</span>
-                          )}
-                        </div>
+              {simulationResult && (
+                <div className="space-y-4">
+                  {/* 전체 실행 결과 요약 */}
+                  <Card className="p-4 bg-muted/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg">
+                          실행 상태: {
+                            simulationResult.status === 'success' ? '✅ 성공' :
+                            simulationResult.status === 'partial_success' ? '⚠️ 부분 성공' :
+                            '❌ 실패'
+                          }
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          총 실행 시간: {simulationResult.total_execution_time_ms}ms
+                        </p>
                       </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">
+                          {simulationResult.steps_executed.filter(s => s.status === 'success').length} / {simulationResult.steps_executed.length} 스텝 성공
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
 
-                      {/* 입력/출력 토글 */}
-                      <details className="group">
-                        <summary className="flex items-center gap-1 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
-                          <ChevronRight className="w-4 h-4 group-open:hidden" />
-                          <ChevronDown className="w-4 h-4 hidden group-open:block" />
-                          입력/출력 보기
-                        </summary>
-                        <div className="mt-2 space-y-2">
-                          {/* 입력 데이터 */}
-                          <div>
-                            <p className="text-sm font-medium mb-1">입력:</p>
-                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
-                              {JSON.stringify(step.input, null, 2)}
-                            </pre>
+                  {/* 각 스텝별 실행 결과 */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold">스텝별 실행 결과</h3>
+                    {simulationResult.steps_executed.map((step, index) => (
+                      <Card key={step.step_id} className={`p-4 ${
+                        step.status === 'success' ? 'border-green-500/50' :
+                        step.status === 'error' ? 'border-red-500/50' :
+                        'border-gray-500/50'
+                      }`}>
+                        <div className="space-y-3">
+                          {/* 스텝 헤더 */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg font-semibold">
+                                  {index + 1}. {step.label}
+                                </span>
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  step.status === 'success' ? 'bg-green-500/20 text-green-700' :
+                                  step.status === 'error' ? 'bg-red-500/20 text-red-700' :
+                                  'bg-gray-500/20 text-gray-700'
+                                }`}>
+                                  {step.step_type}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                실행 시간: {step.execution_time_ms}ms
+                              </p>
+                            </div>
+                            <div>
+                              {step.status === 'success' && (
+                                <span className="text-2xl">✅</span>
+                              )}
+                              {step.status === 'error' && (
+                                <span className="text-2xl">❌</span>
+                              )}
+                              {step.status === 'skipped' && (
+                                <span className="text-2xl">⏭️</span>
+                              )}
+                            </div>
                           </div>
 
-                          {/* 출력 데이터 */}
-                          {step.output && (
-                            <div>
-                              <p className="text-sm font-medium mb-1">출력:</p>
-                              <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
-                                {JSON.stringify(step.output, null, 2)}
-                              </pre>
+                          {/* 입력/출력 토글 */}
+                          <details className="group">
+                            <summary className="flex items-center gap-1 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                              <ChevronRight className="w-4 h-4 group-open:hidden" />
+                              <ChevronDown className="w-4 h-4 hidden group-open:block" />
+                              입력/출력 보기
+                            </summary>
+                            <div className="mt-2 space-y-2">
+                              {/* 입력 데이터 */}
+                              <div>
+                                <p className="text-sm font-medium mb-1">입력:</p>
+                                <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
+                                  {JSON.stringify(step.input, null, 2)}
+                                </pre>
+                              </div>
+
+                              {/* 출력 데이터 */}
+                              {step.output && (
+                                <div>
+                                  <p className="text-sm font-medium mb-1">출력:</p>
+                                  <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-h-32 overflow-y-auto">
+                                    {JSON.stringify(step.output, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </details>
+
+                          {/* 에러 메시지 */}
+                          {step.error && (
+                            <div className="bg-red-500/10 p-3 rounded">
+                              <p className="text-sm font-medium text-red-700 mb-1">에러:</p>
+                              <p className="text-sm text-red-600">{step.error}</p>
                             </div>
                           )}
                         </div>
-                      </details>
+                      </Card>
+                    ))}
+                  </div>
 
-                      {/* 에러 메시지 */}
-                      {step.error && (
-                        <div className="bg-red-500/10 p-3 rounded">
-                          <p className="text-sm font-medium text-red-700 mb-1">에러:</p>
-                          <p className="text-sm text-red-600">{step.error}</p>
-                        </div>
-                      )}
-                    </div>
+                  {/* 최종 결과 */}
+                  <Card className="p-4 bg-muted/50">
+                    <details className="group">
+                      <summary className="flex items-center gap-1 cursor-pointer font-semibold hover:text-primary">
+                        <ChevronRight className="w-4 h-4 group-open:hidden" />
+                        <ChevronDown className="w-4 h-4 hidden group-open:block" />
+                        최종 결과 데이터
+                      </summary>
+                      <pre className="mt-2 text-xs bg-background p-3 rounded overflow-x-auto max-h-48 overflow-y-auto">
+                        {JSON.stringify(simulationResult.final_result, null, 2)}
+                      </pre>
+                    </details>
                   </Card>
-                ))}
-              </div>
+                </div>
+              )}
+            </>
+          )}
 
-              {/* 최종 결과 */}
-              <Card className="p-4 bg-muted/50">
-                <details className="group">
-                  <summary className="flex items-center gap-1 cursor-pointer font-semibold hover:text-primary">
-                    <ChevronRight className="w-4 h-4 group-open:hidden" />
-                    <ChevronDown className="w-4 h-4 hidden group-open:block" />
-                    최종 결과 데이터
-                  </summary>
-                  <pre className="mt-2 text-xs bg-background p-3 rounded overflow-x-auto max-h-48 overflow-y-auto">
-                    {JSON.stringify(simulationResult.final_result, null, 2)}
-                  </pre>
-                </details>
-              </Card>
+          {/* Mock 데이터가 없는 경우 (템플릿 미선택) */}
+          {mockData.length === 0 && !simulationResult && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground mb-4">
+                시뮬레이션 Mock 데이터가 없습니다.<br />
+                템플릿을 선택하면 자동으로 Mock 데이터가 생성됩니다.
+              </p>
+              <Button variant="outline" onClick={() => {
+                setShowSimulationDialog(false)
+                setShowTemplateDialog(true)
+              }}>
+                템플릿 선택하기
+              </Button>
             </div>
           )}
         </DialogContent>

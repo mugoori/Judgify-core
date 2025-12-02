@@ -11,3 +11,4 @@ pub mod complexity_analyzer;
 pub mod context7_cache;
 pub mod ccp_service;
 pub mod mes_data_service;
+pub mod chart_service;

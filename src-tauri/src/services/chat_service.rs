@@ -676,14 +676,37 @@ Examples:
         Ok(json_result)
     }
 
-    /// BI Service 라우팅
+    /// MES 데이터 관련 요청인지 확인
+    fn is_mes_data_request(request: &str) -> bool {
+        // MES 관련 키워드 (생산, 불량, 라인, LOT, 공정 등)
+        let mes_keywords = [
+            "불량률", "불량", "양품", "생산량", "생산", "라인별", "라인",
+            "LOT", "lot", "배치", "충진", "완제품",
+            "공정", "살균", "균질", "발효", "냉각",
+            "품질", "검사", "QC", "qc",
+            "제품별", "설비별", "시프트별",
+            "reject", "good_qty", "reject_qty",
+        ];
+
+        let lower_request = request.to_lowercase();
+        mes_keywords.iter().any(|keyword| lower_request.contains(&keyword.to_lowercase()))
+    }
+
+    /// BI Service 또는 Chart Service 라우팅
     ///
     /// # Arguments
     /// * `user_request` - 사용자 요청 (자연어)
     ///
     /// # Returns
-    /// * `serde_json::Value` - BI 인사이트 (BiInsightResponse를 JSON으로 변환)
+    /// * `serde_json::Value` - BI 인사이트 또는 차트 데이터
     pub async fn route_to_bi(&self, user_request: String) -> Result<serde_json::Value> {
+        // MES 데이터 요청인 경우 Chart Service로 라우팅
+        if Self::is_mes_data_request(&user_request) {
+            println!("🔀 MES 키워드 감지! Chart Service로 라우팅: request={}", user_request);
+            return self.route_to_chart(user_request).await;
+        }
+
+        // 그 외는 BI Service로 라우팅 (워크플로우 성공률 등)
         use crate::services::bi_service::BiService;
 
         println!("🔀 Routing to BI Service: request={}", user_request);
@@ -700,6 +723,70 @@ Examples:
         });
 
         println!("✅ BI Service 호출 성공: title={}", insight.title);
+
+        Ok(json_result)
+    }
+
+    /// Chart Service 라우팅 (MES 데이터 시각화)
+    ///
+    /// # Arguments
+    /// * `user_request` - 사용자 요청 (자연어)
+    ///
+    /// # Returns
+    /// * `serde_json::Value` - 차트 데이터 + 인사이트
+    pub async fn route_to_chart(&self, user_request: String) -> Result<serde_json::Value> {
+        use crate::services::chart_service::ChartService;
+
+        println!("📊 Routing to Chart Service (MES): request={}", user_request);
+
+        let chart_service = ChartService::new()?;
+
+        // 1. LLM으로 차트 계획 생성 (SQL 포함)
+        let plan = chart_service.generate_chart_plan(&user_request).await?;
+        println!("📋 Chart plan generated: {} (SQL: {})", plan.title, plan.sql);
+
+        // 2. DB 연결
+        let db_path = std::env::var("APPDATA")
+            .map(|p| std::path::PathBuf::from(p).join("Judgify").join("judgify.db"))
+            .unwrap_or_else(|_| std::path::PathBuf::from("judgify.db"));
+
+        let conn = rusqlite::Connection::open(&db_path)
+            .map_err(|e| anyhow::anyhow!("DB 연결 실패: {}", e))?;
+
+        // 3. SQL 실행 및 차트 데이터 생성
+        let mut chart_response = chart_service.execute_and_transform(&conn, &plan)?;
+
+        // 4. 인사이트 생성
+        let insight = chart_service.generate_insight(&chart_response, &user_request).await?;
+        chart_response.insight = Some(insight.clone());
+
+        // 5. JSON으로 변환 (bar_line_data 또는 pie_data를 적절히 처리)
+        let data_value = if let Some(bar_line_data) = &chart_response.bar_line_data {
+            serde_json::to_value(bar_line_data).unwrap_or(serde_json::Value::Null)
+        } else if let Some(pie_data) = &chart_response.pie_data {
+            serde_json::json!(pie_data.iter().map(|d| serde_json::json!({
+                "name": d.name,
+                "value": d.value,
+                "color": d.color
+            })).collect::<Vec<_>>())
+        } else {
+            serde_json::Value::Null
+        };
+
+        let json_result = serde_json::json!({
+            "title": chart_response.title,
+            "chart_type": format!("{:?}", chart_response.chart_type).to_lowercase(),
+            "description": chart_response.description,
+            "data": data_value,
+            "data_keys": chart_response.data_keys,
+            "x_axis_key": chart_response.x_axis_key,
+            "insight": insight,
+            "insights": [insight.clone()],  // BI Service 호환용
+            "component_code": serde_json::Value::Null,
+            "recommendations": ["MES 데이터 기반 분석 결과입니다."],
+        });
+
+        println!("✅ Chart Service 호출 성공: title={}", chart_response.title);
 
         Ok(json_result)
     }
