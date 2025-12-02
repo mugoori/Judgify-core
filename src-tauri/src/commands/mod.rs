@@ -11,3 +11,4 @@ pub mod backup;
 pub mod ccp;
 pub mod mes;
 pub mod database;
+pub mod chart;

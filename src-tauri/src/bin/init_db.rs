@@ -3,21 +3,21 @@ use rusqlite::Connection;
 use std::path::PathBuf;
 
 fn main() {
-    println!("초기화 중: CCP 데모 데이터베이스...");
+    println!("초기화 중: 퓨어웰 음료㈜ 데이터베이스...");
 
     match Database::new() {
         Ok(_db) => {
             println!("✅ 데이터베이스 기본 스키마 생성 완료!");
 
-            // CCP 마이그레이션 적용
-            match apply_ccp_migrations() {
+            // 새로운 마이그레이션 적용 (ERP/MES/RAG)
+            match apply_migrations() {
                 Ok(()) => {
-                    println!("✅ CCP 마이그레이션 001-004 실행 완료");
+                    println!("✅ 마이그레이션 001-008 실행 완료");
                     println!("📁 위치: %APPDATA%\\Judgify\\judgify.db");
-                    println!("✅ Seed 데이터 삽입 완료 (1,008 logs + 48 docs)");
+                    println!("✅ 퓨어웰 음료㈜ 시드 데이터 삽입 완료");
                 }
                 Err(e) => {
-                    eprintln!("⚠️  CCP 마이그레이션 적용 실패: {}", e);
+                    eprintln!("⚠️  마이그레이션 적용 실패: {}", e);
                 }
             }
         }
@@ -28,59 +28,130 @@ fn main() {
     }
 }
 
-fn apply_ccp_migrations() -> rusqlite::Result<()> {
+fn apply_migrations() -> rusqlite::Result<()> {
     // Get database path
     let app_data = std::env::var("APPDATA")
         .or_else(|_| std::env::var("HOME"))
         .map_err(|e| rusqlite::Error::InvalidPath(PathBuf::from(e.to_string())))?;
 
     let db_path = PathBuf::from(app_data).join("Judgify").join("judgify.db");
-    let conn = Connection::open(db_path)?;
+    let conn = Connection::open(&db_path)?;
 
-    // Check if FTS table already has data
-    let fts_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM ccp_docs_fts",
+    // Check if knowledge_base already has data (skip if already migrated)
+    let kb_exists: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='knowledge_base'",
         [],
         |row| row.get(0),
-    )?;
+    ).unwrap_or(0);
 
-    if fts_count > 0 {
-        println!("📊 CCP 데이터가 이미 존재합니다 ({} documents). 스킵합니다.", fts_count);
-        return Ok(());
-    }
+    if kb_exists > 0 {
+        let kb_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM knowledge_base",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(0);
 
-    // Only execute 004 seed data (001-003 schemas already created in init_schema)
-    let seed_file = "migrations/004_ccp_seed_data.sql";
-
-    println!("📄 실행 중: {}", seed_file);
-    match std::fs::read_to_string(seed_file) {
-        Ok(sql) => {
-            conn.execute_batch(&sql)?;
-            println!("   ✅ Seed 데이터 삽입 완료");
-        }
-        Err(e) => {
-            return Err(rusqlite::Error::InvalidPath(PathBuf::from(format!("파일 읽기 실패: {}", e))));
+        if kb_count > 0 {
+            println!("📊 데이터가 이미 존재합니다 ({} knowledge entries). 스킵합니다.", kb_count);
+            return Ok(());
         }
     }
 
-    // External Content 방식: 수동으로 데이터 복사 (ccp.rs rebuild_fts5_index와 동일)
-    // Step 1: 기존 데이터 삭제
-    conn.execute_batch("DELETE FROM ccp_docs_fts")?;
+    // 마이그레이션 파일 목록 (순서대로 실행)
+    let migration_files = [
+        "migrations/001_knowledge_base.sql",
+        "migrations/002_erp_schema.sql",
+        "migrations/003_mes_schema.sql",
+        "migrations/004_seed_knowledge.sql",
+        "migrations/005_seed_erp_master.sql",
+        "migrations/006_seed_erp_transaction.sql",
+        "migrations/007_seed_mes.sql",
+        "migrations/008_seed_sales_history.sql",
+        "migrations/009_seed_2025_sales.sql",
+    ];
 
-    // Step 2: 원본 테이블에서 데이터 복사
+    for file in &migration_files {
+        println!("📄 실행 중: {}", file);
+        match std::fs::read_to_string(file) {
+            Ok(sql) => {
+                match conn.execute_batch(&sql) {
+                    Ok(()) => println!("   ✅ 완료"),
+                    Err(e) => {
+                        eprintln!("   ❌ 실패: {}", e);
+                        return Err(e);
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("   ❌ 파일 읽기 실패: {}", e);
+                return Err(rusqlite::Error::InvalidPath(PathBuf::from(format!("파일 읽기 실패: {}", e))));
+            }
+        }
+    }
+
+    // FTS5 인덱스 rebuild (knowledge_base)
+    println!("\n📊 FTS5 인덱스 재구축 중...");
+
+    // Step 1: 기존 FTS 데이터 삭제
+    conn.execute_batch("DELETE FROM knowledge_base_fts")?;
+
+    // Step 2: knowledge_base에서 FTS 인덱스 데이터 복사
     conn.execute_batch(r#"
-        INSERT INTO ccp_docs_fts (rowid, title, content)
-        SELECT id, title, content FROM ccp_docs
+        INSERT INTO knowledge_base_fts (rowid, title, content, tags)
+        SELECT rowid, title, content, tags FROM knowledge_base
     "#)?;
 
-    // Rebuild 후 인덱스 개수 확인
-    let fts_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM ccp_docs_fts",
+    let kb_fts_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM knowledge_base_fts",
         [],
         |row| row.get(0),
     )?;
 
-    println!("✅ FTS5 rebuild 완료: {}건", fts_count);
+    println!("✅ Knowledge Base FTS5 rebuild 완료: {}건", kb_fts_count);
+
+    // 결과 요약 출력
+    print_summary(&conn)?;
+
+    Ok(())
+}
+
+fn print_summary(conn: &Connection) -> rusqlite::Result<()> {
+    println!("\n========================================");
+    println!("📊 데이터베이스 초기화 완료 요약");
+    println!("========================================");
+
+    // Knowledge Base
+    let kb_count: i64 = conn.query_row("SELECT COUNT(*) FROM knowledge_base", [], |row| row.get(0))?;
+    println!("📚 Knowledge Base: {} entries (기업정보 + SOP)", kb_count);
+
+    // ERP Master
+    let item_count: i64 = conn.query_row("SELECT COUNT(*) FROM item_mst", [], |row| row.get(0))?;
+    let vendor_count: i64 = conn.query_row("SELECT COUNT(*) FROM vendor_mst", [], |row| row.get(0))?;
+    let customer_count: i64 = conn.query_row("SELECT COUNT(*) FROM customer_mst", [], |row| row.get(0))?;
+    let bom_count: i64 = conn.query_row("SELECT COUNT(*) FROM bom_mst", [], |row| row.get(0))?;
+    println!("📦 ERP 마스터: 품목 {}, 거래처 {}, 고객 {}, BOM {}", item_count, vendor_count, customer_count, bom_count);
+
+    // ERP Transactions
+    let po_count: i64 = conn.query_row("SELECT COUNT(*) FROM purchase_order", [], |row| row.get(0))?;
+    let prod_count: i64 = conn.query_row("SELECT COUNT(*) FROM production_order", [], |row| row.get(0))?;
+    let so_count: i64 = conn.query_row("SELECT COUNT(*) FROM sales_order", [], |row| row.get(0))?;
+    let fg_count: i64 = conn.query_row("SELECT COUNT(*) FROM fg_lot", [], |row| row.get(0))?;
+    println!("📋 ERP 거래: 발주 {}, 생산 {}, 수주 {}, 완제품LOT {}", po_count, prod_count, so_count, fg_count);
+
+    // MES Master
+    let line_count: i64 = conn.query_row("SELECT COUNT(*) FROM line_mst", [], |row| row.get(0))?;
+    let equip_count: i64 = conn.query_row("SELECT COUNT(*) FROM equipment_mst", [], |row| row.get(0))?;
+    let operator_count: i64 = conn.query_row("SELECT COUNT(*) FROM operator_mst", [], |row| row.get(0))?;
+    println!("🏭 MES 마스터: 라인 {}, 설비 {}, 작업자 {}", line_count, equip_count, operator_count);
+
+    // MES Execution
+    let wo_count: i64 = conn.query_row("SELECT COUNT(*) FROM mes_work_order", [], |row| row.get(0))?;
+    let ccp_count: i64 = conn.query_row("SELECT COUNT(*) FROM ccp_check_log", [], |row| row.get(0))?;
+    let sensor_count: i64 = conn.query_row("SELECT COUNT(*) FROM sensor_log", [], |row| row.get(0))?;
+    let alarm_count: i64 = conn.query_row("SELECT COUNT(*) FROM alarm_event", [], |row| row.get(0))?;
+    println!("⚙️  MES 실행: 작업지시 {}, CCP체크 {}, 센서로그 {}, 알람 {}", wo_count, ccp_count, sensor_count, alarm_count);
+
+    println!("========================================\n");
 
     Ok(())
 }

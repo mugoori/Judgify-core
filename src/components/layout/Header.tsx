@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getSystemStatus } from '@/lib/tauri-api-wrapper';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Bell, Moon, Sun, Database } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
@@ -11,7 +10,8 @@ export default function Header() {
   const { theme, setTheme } = useTheme();
   const [isDatabaseViewerOpen, setIsDatabaseViewerOpen] = useState(false);
 
-  const { data: status } = useQuery({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { data: _status } = useQuery({
     queryKey: ['system-status'],
     queryFn: getSystemStatus,
     refetchInterval: 10000,

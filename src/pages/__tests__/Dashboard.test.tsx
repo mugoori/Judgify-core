@@ -500,7 +500,6 @@ describe('Dashboard', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce(mockTokenMetrics);
 
-      const user = userEvent.setup();
       renderDashboard();
 
       await waitFor(() => {
@@ -510,7 +509,7 @@ describe('Dashboard', () => {
       const button = screen.getByRole('button', { name: /워크플로우 만들기/i });
       expect(button).toBeInTheDocument();
 
-      // Click behavior: window.location.href = '/workflow' (can't test easily)
+      // Click behavior: window.location.href = '/workflow' (can't test easily in jsdom)
     });
 
     it('generateSampleData 성공시 호출', async () => {

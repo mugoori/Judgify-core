@@ -161,3 +161,55 @@ export interface TokenMetrics {
 
 export const getTokenMetrics = (): Promise<TokenMetrics> =>
   invoke('get_token_metrics');
+
+// Chart API (MES 스키마 기반 차트 생성)
+export type ChartType = 'bar' | 'line' | 'pie' | 'gauge';
+
+export interface ChartDataPoint {
+  name: string;
+  [key: string]: string | number;
+}
+
+export interface PieChartData {
+  name: string;
+  value: number;
+  color?: string;
+}
+
+export interface GaugeChartData {
+  value: number;
+  min: number;
+  max: number;
+  label: string;
+  unit: string;
+}
+
+export interface DataKeyConfig {
+  key: string;
+  color: string;
+  label: string;
+}
+
+export interface ChartResponse {
+  chart_type: ChartType;
+  title: string;
+  description: string;
+  bar_line_data?: ChartDataPoint[];
+  pie_data?: PieChartData[];
+  gauge_data?: GaugeChartData;
+  data_keys?: DataKeyConfig[];
+  x_axis_key?: string;
+  insight?: string;  // AI 인사이트 (데이터 해석)
+}
+
+export interface GenerateChartResponse {
+  success: boolean;
+  chart?: ChartResponse;
+  error?: string;
+}
+
+export const generateChart = (request: string): Promise<GenerateChartResponse> =>
+  invoke('generate_chart', { request });
+
+export const getChartExamples = (): Promise<string[]> =>
+  invoke('get_chart_examples');

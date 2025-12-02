@@ -219,29 +219,85 @@ pub async fn send_chat_message(
                 println!("📊 Data query detected in GeneralQuery");
 
                 // ERP/MES 테이블 직접 조회 시도
-                if let Some((response_text, table_data)) = try_query_erp_mes_tables(&request.message).await {
-                    println!("✅ ERP/MES table data found!");
-                    return Ok(ChatMessageResponse {
-                        response: response_text,
-                        session_id,
-                        intent: format!("{:?}", intent).to_lowercase(),
-                        action_result: None,
-                        table_data: Some(table_data),
-                    });
+                if let Some((summary_text, table_data)) = try_query_erp_mes_tables(&request.message).await {
+                    println!("✅ ERP/MES table data found! Now generating natural language response...");
+
+                    // 테이블 데이터를 JSON으로 변환하여 LLM에 전달
+                    let table_json = serde_json::to_string_pretty(&serde_json::json!({
+                        "columns": table_data.columns,
+                        "rows": table_data.rows,
+                        "total_count": table_data.total_count
+                    })).unwrap_or_default();
+
+                    // LLM을 사용하여 자연어 응답 생성
+                    match service.generate_response_from_table_data(
+                        &request.message,
+                        &table_json,
+                        &summary_text
+                    ).await {
+                        Ok(natural_response) => {
+                            println!("✅ Natural language response generated from table data");
+                            return Ok(ChatMessageResponse {
+                                response: natural_response,
+                                session_id,
+                                intent: format!("{:?}", intent).to_lowercase(),
+                                action_result: None,
+                                table_data: Some(table_data),  // 근거 자료로 테이블도 함께 반환
+                            });
+                        }
+                        Err(e) => {
+                            eprintln!("⚠️ Failed to generate natural response, falling back to summary: {}", e);
+                            // LLM 실패시 기존 요약 텍스트로 반환
+                            return Ok(ChatMessageResponse {
+                                response: summary_text,
+                                session_id,
+                                intent: format!("{:?}", intent).to_lowercase(),
+                                action_result: None,
+                                table_data: Some(table_data),
+                            });
+                        }
+                    }
                 }
 
                 // MES 데이터 로그 조회 시도 (CSV 업로드 데이터)
                 match query_mes_data_for_chat(&request.message).await {
-                    Ok(Some((response_text, table_data))) => {
-                        println!("✅ MES data found and formatted");
-                        // table_data를 별도로 반환
-                        return Ok(ChatMessageResponse {
-                            response: response_text,
-                            session_id,
-                            intent: format!("{:?}", intent).to_lowercase(),
-                            action_result: None,
-                            table_data: Some(table_data),
-                        });
+                    Ok(Some((summary_text, table_data))) => {
+                        println!("✅ MES data found! Now generating natural language response...");
+
+                        // 테이블 데이터를 JSON으로 변환
+                        let table_json = serde_json::to_string_pretty(&serde_json::json!({
+                            "columns": table_data.columns,
+                            "rows": table_data.rows,
+                            "total_count": table_data.total_count
+                        })).unwrap_or_default();
+
+                        // LLM을 사용하여 자연어 응답 생성
+                        match service.generate_response_from_table_data(
+                            &request.message,
+                            &table_json,
+                            &summary_text
+                        ).await {
+                            Ok(natural_response) => {
+                                println!("✅ Natural language response generated from MES data");
+                                return Ok(ChatMessageResponse {
+                                    response: natural_response,
+                                    session_id,
+                                    intent: format!("{:?}", intent).to_lowercase(),
+                                    action_result: None,
+                                    table_data: Some(table_data),
+                                });
+                            }
+                            Err(e) => {
+                                eprintln!("⚠️ Failed to generate natural response: {}", e);
+                                return Ok(ChatMessageResponse {
+                                    response: summary_text,
+                                    session_id,
+                                    intent: format!("{:?}", intent).to_lowercase(),
+                                    action_result: None,
+                                    table_data: Some(table_data),
+                                });
+                            }
+                        }
                     }
                     Ok(None) => {
                         println!("ℹ️ No MES data found for query - returning clear message");
@@ -363,26 +419,48 @@ pub async fn test_claude_api() -> Result<String, String> {
 
 /// 메시지가 데이터 조회 요청인지 확인하는 헬퍼 함수
 fn check_if_data_query(message: &str) -> bool {
+    let lower_message = message.to_lowercase();
+
+    // 설명 요청 패턴 (데이터 조회가 아님!)
+    // "어떻게 해?", "방법 알려줘", "설명해줘", "절차 알려줘" 등은 RAG로 처리
+    let explanation_patterns = vec![
+        "어떻게 해", "어떻게해", "방법", "설명", "절차", "과정",
+        "뭐야", "무엇", "왜", "이유", "원리", "원칙",
+        "sop", "표준", "규정", "지침", "매뉴얼",
+        "how to", "what is", "explain", "procedure",
+    ];
+
+    let is_explanation_request = explanation_patterns.iter().any(|pattern| lower_message.contains(pattern));
+
+    // 설명 요청이면 데이터 조회가 아님
+    if is_explanation_request {
+        println!("📖 Explanation request detected - NOT a data query");
+        return false;
+    }
+
+    // 데이터 조회 키워드
     let data_keywords = vec![
         // 한글 키워드
-        "데이터", "보여줘", "조회", "확인", "찾아", "검색", "알려줘",
-        "어떤", "몇개", "몇 개", "목록", "리스트", "표시", "출력",
-        "현황", "내역", "결과", "정보", "상태", "이력", "로그",
+        "데이터", "보여줘", "조회", "확인", "찾아", "검색",
+        "몇개", "몇 개", "목록", "리스트", "표시", "출력",
+        "현황", "내역", "결과", "상태", "이력", "로그",
+        // 목록 조회 패턴 (뭐뭐 있어, 어떤 것들 있어 등)
+        "뭐뭐", "뭐가 있", "뭐 있", "어떤 것", "무엇이 있", "무엇 있",
+        "몇 가지", "몇가지", "종류", "전체", "모두", "다 보여",
         // 영어 키워드
         "data", "show", "query", "search", "find", "list", "display",
         // 조건 관련
         "이상", "이하", "초과", "미만", "같은", "동일한", "포함",
-        // 특정 필드 언급
-        "온도", "습도", "압력", "시간", "날짜", "temperature", "humidity",
-        // ERP/MES 관련 키워드
-        "생산", "품질", "검사", "재고", "구매", "판매",
-        "발주", "입고", "출하", "납품", "고객", "거래처",
-        "ccp", "qc", "lot", "배치", "공정", "작업",
-        "mes", "erp", "제품", "원료", "자재", "라인",
-        "설비", "ph", "brix", "파라미터", "충진", "살균",
+        // 특정 필드 언급 (수치 조회)
+        "온도", "습도", "압력", "temperature", "humidity",
+        // ERP/MES 데이터 조회 키워드 (테이블 데이터 조회용)
+        "재고", "구매", "판매", "발주", "입고", "출하", "납품",
+        "lot", "배치", "mes", "erp",
+        "ph", "brix", "파라미터",
+        // 제품/원료 조회 (명시적)
+        "제품", "원료", "자재", "품목",
     ];
 
-    let lower_message = message.to_lowercase();
     data_keywords.iter().any(|keyword| lower_message.contains(keyword))
 }
 
@@ -442,14 +520,15 @@ fn extract_customer_name(query: &str) -> Option<String> {
     None
 }
 
-/// 고객명으로 customer_id 조회하는 헬퍼 함수
+/// 고객명으로 cust_cd 조회하는 헬퍼 함수
+/// 실제 DB 스키마: cust_cd, cust_nm
 fn get_customer_id_by_name(conn: &rusqlite::Connection, customer_name: &str) -> Option<String> {
-    let sql = "SELECT customer_id FROM customer_mst WHERE customer_name LIKE ?";
+    let sql = "SELECT cust_cd FROM customer_mst WHERE cust_nm LIKE ?";
     let pattern = format!("%{}%", customer_name);
 
     match conn.query_row(sql, &[&pattern], |row| row.get::<_, String>(0)) {
         Ok(id) => {
-            println!("✅ Found customer_id: {} for name: {}", id, customer_name);
+            println!("✅ Found cust_cd: {} for name: {}", id, customer_name);
             Some(id)
         }
         Err(e) => {
@@ -490,7 +569,10 @@ async fn try_query_erp_mes_tables(query: &str) -> Option<(String, TableData)> {
         ("mes_work_order", "MES 작업 지시")
     } else if query_lower.contains("공정") || query_lower.contains("실행") || query_lower.contains("작업 이력") {
         ("operation_exec", "공정 실행")
-    } else if query_lower.contains("제품") || query_lower.contains("원료") || query_lower.contains("자재") || query_lower.contains("아이템") {
+    } else if query_lower.contains("제품") || query_lower.contains("뭐뭐") || query_lower.contains("뭐가 있") || query_lower.contains("뭐 있") {
+        // "제품 뭐뭐 있어", "제품 목록" 등
+        ("item_mst_products", "회사 제품 목록")  // 특수 플래그 - 완제품만 필터링
+    } else if query_lower.contains("원료") || query_lower.contains("자재") || query_lower.contains("아이템") {
         ("item_mst", "제품/원료 마스터")
     } else if query_lower.contains("구매") || query_lower.contains("발주") || query_lower.contains("po") {
         ("purchase_order", "구매 발주")
@@ -538,14 +620,65 @@ async fn try_query_erp_mes_tables(query: &str) -> Option<(String, TableData)> {
         None
     };
 
-    // 5. SQL 쿼리 생성 (고객 필터링 포함)
-    let sql = if let Some(ref cust_id) = customer_id {
+    // 4.1 날짜 필터 추출 (년/월)
+    let date_filter = extract_date_filter(&query_lower);
+    if let Some(ref df) = date_filter {
+        println!("📅 Detected date filter: {}", df);
+    }
+
+    // 4.2 제품 필터 추출
+    let product_filter = extract_product_filter(&query_lower);
+    if let Some(ref pf) = product_filter {
+        println!("📦 Detected product filter: {}", pf);
+    }
+
+    // 5. SQL 쿼리 생성 (고객/날짜/제품 필터링 포함)
+    let sql = if table_name == "sales_order" {
+        // 판매 주문은 항상 상세 테이블과 조인하여 제품명과 수량 포함
+        // 실제 DB 스키마: cust_cd, cust_nm, order_date, item_cd, item_nm, qty
+        let mut where_clauses = Vec::new();
+
+        if let Some(ref cust_id) = customer_id {
+            where_clauses.push(format!("so.cust_cd = '{}'", cust_id));
+        }
+        if let Some(ref df) = date_filter {
+            where_clauses.push(format!("so.order_date LIKE '{}%'", df));
+        }
+        if let Some(ref pf) = product_filter {
+            where_clauses.push(format!("i.item_nm LIKE '%{}%'", pf));
+        }
+
+        let where_clause = if where_clauses.is_empty() {
+            String::new()
+        } else {
+            format!(" WHERE {}", where_clauses.join(" AND "))
+        };
+
         format!(
-            "SELECT so.so_no, so.so_date, so.due_date, so.status, c.customer_name, sod.item_id, sod.order_qty \
+            "SELECT so.so_no as 주문번호, so.order_date as 주문일, c.cust_nm as 고객사, \
+             i.item_nm as 제품명, sod.qty as 주문수량, so.status as 상태 \
              FROM sales_order so \
-             JOIN customer_mst c ON so.customer_id = c.customer_id \
+             LEFT JOIN customer_mst c ON so.cust_cd = c.cust_cd \
+             LEFT JOIN sales_order_dtl sod ON so.so_no = sod.so_no \
+             LEFT JOIN item_mst i ON sod.item_cd = i.item_cd \
+             {}{}",
+            where_clause,
+            " ORDER BY so.order_date DESC LIMIT 50"
+        )
+    } else if table_name == "item_mst_products" {
+        // 회사 제품 목록 조회 - 완제품(FG)만 필터링하여 읽기 좋은 형태로 출력
+        "SELECT item_cd as 제품코드, item_nm as 제품명, unit as 단위, spec as 규격, \
+         shelf_life_days as 유통기한일수, storage_cond as 보관조건 \
+         FROM item_mst \
+         WHERE item_type = 'FG' AND is_active = 1 \
+         ORDER BY item_nm".to_string()
+    } else if let Some(ref cust_id) = customer_id {
+        format!(
+            "SELECT so.so_no, so.order_date, so.request_date, so.status, c.cust_nm, sod.item_cd, sod.qty \
+             FROM sales_order so \
+             JOIN customer_mst c ON so.cust_cd = c.cust_cd \
              JOIN sales_order_dtl sod ON so.so_no = sod.so_no \
-             WHERE so.customer_id = '{}' \
+             WHERE so.cust_cd = '{}' \
              LIMIT 20",
             cust_id
         )
@@ -701,4 +834,99 @@ fn parse_llm_response_to_table(response: &str) -> TableData {
         rows,
         total_count: Some(total_count),
     }
+}
+
+/// 쿼리에서 날짜 필터 추출 (년/월 형식)
+/// 예: "2024년 9월" → "2024-09", "24년 6월" → "2024-06"
+fn extract_date_filter(query: &str) -> Option<String> {
+    use regex::Regex;
+
+    // 패턴 1: "2024년 9월" 또는 "2024년9월"
+    let re_full_year = Regex::new(r"(20\d{2})\s*년\s*(\d{1,2})\s*월").ok()?;
+    if let Some(caps) = re_full_year.captures(query) {
+        let year = caps.get(1)?.as_str();
+        let month: u32 = caps.get(2)?.as_str().parse().ok()?;
+        return Some(format!("{}-{:02}", year, month));
+    }
+
+    // 패턴 2: "24년 6월" (2자리 연도)
+    let re_short_year = Regex::new(r"(\d{2})\s*년\s*(\d{1,2})\s*월").ok()?;
+    if let Some(caps) = re_short_year.captures(query) {
+        let short_year: u32 = caps.get(1)?.as_str().parse().ok()?;
+        let year = 2000 + short_year;
+        let month: u32 = caps.get(2)?.as_str().parse().ok()?;
+        return Some(format!("{}-{:02}", year, month));
+    }
+
+    // 패턴 3: "2024년" (연도만)
+    let re_year_only = Regex::new(r"(20\d{2})\s*년").ok()?;
+    if let Some(caps) = re_year_only.captures(query) {
+        let year = caps.get(1)?.as_str();
+        return Some(format!("{}", year));
+    }
+
+    // 패턴 4: "올해", "이번 년도"
+    if query.contains("올해") || query.contains("이번 년도") || query.contains("금년") {
+        let current_year = chrono::Local::now().format("%Y").to_string();
+        return Some(current_year);
+    }
+
+    // 패턴 5: "이번 달", "이번달"
+    if query.contains("이번 달") || query.contains("이번달") || query.contains("이달") {
+        let now = chrono::Local::now();
+        return Some(now.format("%Y-%m").to_string());
+    }
+
+    // 패턴 6: "지난 달", "지난달"
+    if query.contains("지난 달") || query.contains("지난달") || query.contains("저번달") {
+        let now = chrono::Local::now();
+        let last_month = now - chrono::Duration::days(30);
+        return Some(last_month.format("%Y-%m").to_string());
+    }
+
+    None
+}
+
+/// 쿼리에서 제품 필터 추출
+/// 예: "프로바이오틱스" → "프로바이오"
+/// 실제 DB item_mst의 item_nm에 맞게 매핑
+fn extract_product_filter(query: &str) -> Option<String> {
+    // 제품명 키워드 목록 (실제 DB item_mst 참조)
+    // 실제 제품명: 프로바이오 장건강, 식물성 프로틴쉐이크, 비타민워터, 콜라겐 뷰티드링크, 키즈 면역음료
+    let product_patterns = vec![
+        // 완제품 (실제 DB 기준)
+        ("프로바이오틱스", "프로바이오"),  // "프로바이오 장건강"에 매칭
+        ("프로바이오", "프로바이오"),
+        ("유산균", "프로바이오"),
+        ("장건강", "장건강"),
+        ("단백질", "프로틴"),              // "식물성 프로틴쉐이크"에 매칭
+        ("프로틴", "프로틴"),
+        ("쉐이크", "프로틴쉐이크"),
+        ("비타민", "비타민워터"),
+        ("비타민워터", "비타민워터"),
+        ("콜라겐", "콜라겐"),
+        ("뷰티", "뷰티드링크"),
+        ("키즈", "키즈"),
+        ("면역", "면역음료"),
+        // 맛/향
+        ("딸기", "딸기"),
+        ("초코", "초코"),
+        ("레몬", "레몬"),
+        ("오렌지", "오렌지"),
+        // 제품 코드
+        ("fg-001", "FG-001"),
+        ("fg-002", "FG-002"),
+        ("fg-003", "FG-003"),
+        ("fg-004", "FG-004"),
+    ];
+
+    let query_lower = query.to_lowercase();
+
+    for (keyword, product_name) in product_patterns {
+        if query_lower.contains(keyword) {
+            return Some(product_name.to_string());
+        }
+    }
+
+    None
 }

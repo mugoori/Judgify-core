@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { sendChatMessage, getChatHistory, type ChatMessageRequest, type ChatMessageResponse } from '@/lib/tauri-api-wrapper';
+import { sendChatMessage, getChatHistory, type ChatMessageRequest, type ChatMessageResponse, type ChartResponse } from '@/lib/tauri-api-wrapper';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
@@ -14,10 +14,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Send, Bot, User, Trash2, TrendingUp, Play, FileQuestion, Activity, Paperclip, FileText, X } from 'lucide-react';
+import { Send, User, Trash2, TrendingUp, Play, FileQuestion, Activity, Paperclip, FileText, X, ChevronDown, BarChart3 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { toast } from '@/components/ui/use-toast';
 import type { MesUploadResult, MesQueryResult } from '@/types/mes';
+import {
+  BarChart as RechartsBarChart,
+  Bar,
+  LineChart as RechartsLineChart,
+  Line,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -27,6 +42,7 @@ interface Message {
     columns: string[];
     rows: any[];
   };
+  chartData?: ChartResponse;
 }
 
 // Memoized MessageBubble component to prevent unnecessary re-renders
@@ -39,8 +55,8 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
       }`}
     >
       {message.role === 'assistant' && (
-        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-          <Bot className="w-5 h-5 text-primary-foreground" />
+        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+          <img src="/chatbot_img.png" alt="AI" className="w-full h-full object-cover" />
         </div>
       )}
 
@@ -55,40 +71,169 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
       >
         <p className="whitespace-pre-wrap">{message.content}</p>
 
-        {/* 테이블 데이터 표시 */}
+        {/* 테이블 데이터 표시 - 접을 수 있는 근거 자료 */}
         {message.tableData && (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-600">
-                  {message.tableData.columns.map((col, idx) => (
-                    <th
-                      key={idx}
-                      className="px-3 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
-                    >
-                      {col}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {message.tableData.rows.map((row, rowIdx) => (
-                  <tr key={rowIdx} className="border-b border-gray-700 hover:bg-gray-800/50">
-                    {message.tableData!.columns.map((col, colIdx) => (
-                      <td key={colIdx} className="px-3 py-2 text-sm text-gray-300">
-                        {row[col] === null || row[col] === undefined ? (
-                          <span className="text-gray-500 italic">NULL</span>
-                        ) : (
-                          String(row[col])
-                        )}
-                      </td>
+          <details className="mt-4 border border-blue-300 rounded-lg overflow-hidden group shadow-sm">
+            <summary className="px-3 py-2 bg-blue-50 border-b border-blue-200 text-xs text-blue-700 font-medium cursor-pointer hover:bg-blue-100 transition-colors flex items-center gap-2 list-none">
+              <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
+              <span>📊 근거 데이터 보기 ({message.tableData.rows.length}건)</span>
+            </summary>
+            {/* 스크롤 가능한 테이블 컨테이너 */}
+            <div className="max-h-[300px] overflow-auto bg-white">
+              <table className="min-w-full border-collapse">
+                <thead className="sticky top-0 bg-slate-700">
+                  <tr className="border-b border-slate-600">
+                    {message.tableData.columns.map((col, idx) => (
+                      <th
+                        key={idx}
+                        className="px-3 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider whitespace-nowrap"
+                      >
+                        {col}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {message.tableData.rows.map((row, rowIdx) => (
+                    <tr key={rowIdx} className={`${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
+                      {message.tableData!.columns.map((col, colIdx) => (
+                        <td key={colIdx} className="px-3 py-2 text-sm text-gray-800 whitespace-nowrap">
+                          {row[col] === null || row[col] === undefined ? (
+                            <span className="text-gray-400 italic">NULL</span>
+                          ) : (
+                            String(row[col])
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {message.tableData.rows.length === 0 && (
-              <p className="text-center text-gray-500 py-4">데이터가 없습니다</p>
+              <p className="text-center text-gray-500 py-4 bg-white">데이터가 없습니다</p>
+            )}
+          </details>
+        )}
+
+        {/* 차트 렌더링 */}
+        {message.chartData && (
+          <div className="mt-4 p-4 bg-gray-900 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              <h4 className="font-semibold text-sm">{message.chartData.title}</h4>
+            </div>
+            <p className="text-xs text-gray-400 mb-2">{message.chartData.description}</p>
+
+            {/* 💡 AI 인사이트 표시 */}
+            {message.chartData.insight && (
+              <div className="mb-4 p-3 bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <span className="text-lg">💡</span>
+                  <p className="text-sm text-blue-200">{message.chartData.insight}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Bar/Line 차트 */}
+            {(message.chartData.chart_type === 'bar' || message.chartData.chart_type === 'line') &&
+              message.chartData.bar_line_data && (
+                <ResponsiveContainer width="100%" height={300}>
+                  {message.chartData.chart_type === 'bar' ? (
+                    <RechartsBarChart data={message.chartData.bar_line_data} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis
+                        dataKey={message.chartData.x_axis_key || 'name'}
+                        stroke="#9ca3af"
+                        fontSize={11}
+                        angle={-35}
+                        textAnchor="end"
+                        height={70}
+                        interval={0}
+                        tick={{ fill: '#d1d5db' }}
+                      />
+                      <YAxis stroke="#9ca3af" fontSize={12} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '6px' }}
+                        labelStyle={{ color: '#f3f4f6' }}
+                      />
+                      <Legend />
+                      {message.chartData.data_keys?.map((dk) => (
+                        <Bar key={dk.key} dataKey={dk.key} fill={dk.color} name={dk.label} radius={[4, 4, 0, 0]} />
+                      ))}
+                    </RechartsBarChart>
+                  ) : (
+                    <RechartsLineChart data={message.chartData.bar_line_data} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis
+                        dataKey={message.chartData.x_axis_key || 'name'}
+                        stroke="#9ca3af"
+                        fontSize={11}
+                        angle={-35}
+                        textAnchor="end"
+                        height={70}
+                        interval={0}
+                        tick={{ fill: '#d1d5db' }}
+                      />
+                      <YAxis stroke="#9ca3af" fontSize={12} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '6px' }}
+                        labelStyle={{ color: '#f3f4f6' }}
+                      />
+                      <Legend />
+                      {message.chartData.data_keys?.map((dk) => (
+                        <Line key={dk.key} type="monotone" dataKey={dk.key} stroke={dk.color} name={dk.label} strokeWidth={2} dot={{ fill: dk.color }} />
+                      ))}
+                    </RechartsLineChart>
+                  )}
+                </ResponsiveContainer>
+              )}
+
+            {/* Pie 차트 */}
+            {message.chartData.chart_type === 'pie' && message.chartData.pie_data && (
+              <ResponsiveContainer width="100%" height={250}>
+                <RechartsPieChart>
+                  <Pie
+                    data={message.chartData.pie_data}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {message.chartData.pie_data.map((entry, idx) => (
+                      <Cell key={`cell-${idx}`} fill={entry.color || ['#3b82f6', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6'][idx % 5]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '6px' }} />
+                  <Legend />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            )}
+
+            {/* Gauge 차트 (간단한 프로그레스 바로 대체) */}
+            {message.chartData.chart_type === 'gauge' && message.chartData.gauge_data && (
+              <div className="flex flex-col items-center">
+                <div className="text-3xl font-bold text-primary">
+                  {message.chartData.gauge_data.value.toFixed(1)}{message.chartData.gauge_data.unit}
+                </div>
+                <div className="w-full h-4 bg-gray-700 rounded-full mt-2 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, ((message.chartData.gauge_data.value - message.chartData.gauge_data.min) / (message.chartData.gauge_data.max - message.chartData.gauge_data.min)) * 100))}%`,
+                      backgroundColor: message.chartData.gauge_data.value > 80 ? '#22c55e' : message.chartData.gauge_data.value > 50 ? '#f59e0b' : '#ef4444',
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between w-full text-xs text-gray-400 mt-1">
+                  <span>{message.chartData.gauge_data.min}{message.chartData.gauge_data.unit}</span>
+                  <span>{message.chartData.gauge_data.label}</span>
+                  <span>{message.chartData.gauge_data.max}{message.chartData.gauge_data.unit}</span>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -113,7 +258,7 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>();
-  const [claudeApiKey, setClaudeApiKey] = useState<string>(''); // 🔧 API 키 상태
+  const [, setClaudeApiKey] = useState<string>(''); // 🔧 API 키 상태 (읽기는 불필요, 설정만 사용)
   const [showClearDialog, setShowClearDialog] = useState(false); // ✅ AlertDialog 상태
   const messagesRef = useRef<Message[]>([]); // 🔧 최신 messages 추적용 ref
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -375,6 +520,40 @@ export default function ChatInterface() {
     };
   }, [sessionId]); // sessionId만 의존 - messagesRef.current로 최신 값 참조
 
+  // 차트 관련 키워드 감지 함수 (MES 데이터 전용)
+  // ERP 관련 요청(매출, 구매, 재고 등)은 일반 채팅으로 라우팅
+  const isChartRequest = (message: string): boolean => {
+    // ERP 관련 키워드 - 차트 API 사용하면 안됨 (MES 스키마에 없는 데이터)
+    const erpKeywords = [
+      '매출', '판매', '구매', '발주', '수주', '입고', '출고',
+      '재고', '창고', '거래처', '고객', '제품별', '품목별',
+      '금액', '원', '달러', '억', '만원', '예측', '전망',
+      '주문', '배송', '청구', '결제', '정산',
+    ];
+
+    // MES 차트용 키워드 - 차트 API로 처리
+    const mesChartKeywords = [
+      '차트', '그래프', '시각화',
+      '온도', '살균', 'ccp', 'CCP',
+      '생산량', '가동률', '불량률', '수율',
+      '라인별', '설비별', '공정별',
+      '센서', '알람', '비가동',
+    ];
+
+    const lowerMessage = message.toLowerCase();
+
+    // ERP 키워드가 있으면 차트 요청으로 처리하지 않음
+    const hasErpKeyword = erpKeywords.some(kw => lowerMessage.includes(kw.toLowerCase()));
+    if (hasErpKeyword) {
+      console.log('📊 [isChartRequest] ERP keyword detected, routing to chat:', message);
+      return false;
+    }
+
+    // MES 차트 키워드가 있으면 차트 요청으로 처리
+    const hasMesChartKeyword = mesChartKeywords.some(kw => lowerMessage.includes(kw.toLowerCase()));
+    return hasMesChartKeyword;
+  };
+
   const sendMessageMutation = useMutation({
     mutationFn: async (request: ChatMessageRequest) => {
       console.log('🚀 [Mutation] Starting chat request:', {
@@ -387,13 +566,45 @@ export default function ChatInterface() {
       console.log('🏁 [Mutation] Pending flag set:', localStorage.getItem('chat-pending-request'));
       console.log('🏁 [Mutation] Session ID:', request.session_id);
 
+      // 📊 차트 요청 감지 시 차트 API 먼저 시도
+      if (isChartRequest(request.message)) {
+        console.log('📊 [Mutation] Chart request detected, trying generateChart API');
+        try {
+          const chartResult = await invoke<{
+            success: boolean;
+            chart?: ChartResponse;
+            error?: string;
+          }>('generate_chart', { request: request.message });
+
+          if (chartResult.success && chartResult.chart) {
+            console.log('✅ [Mutation] Chart generated successfully:', chartResult.chart.title);
+            // 차트 결과를 ChatMessageResponse 형태로 변환
+            return {
+              response: `${chartResult.chart.description}`,
+              session_id: request.session_id || sessionId || crypto.randomUUID(),
+              intent: 'data_visualization',
+              action_result: null,
+              table_data: null,
+              chart_data: chartResult.chart,
+            } as ChatMessageResponse & { chart_data: ChartResponse };
+          } else {
+            console.log('⚠️ [Mutation] Chart generation failed:', chartResult.error);
+            // 실패시 일반 채팅으로 fallback
+          }
+        } catch (chartError) {
+          console.log('⚠️ [Mutation] Chart API error, falling back to chat:', chartError);
+          // 차트 API 실패시 일반 채팅으로 fallback
+        }
+      }
+
       return await sendChatMessage(request);
     },
-    onSuccess: (response: ChatMessageResponse) => {
+    onSuccess: (response: ChatMessageResponse & { chart_data?: ChartResponse }) => {
       console.log('✅ [Mutation] onSuccess called!');
       console.log('   Session ID:', response.session_id);
       console.log('   Response:', response.response.substring(0, 50) + '...');
       console.log('   Document hidden:', document.hidden);
+      console.log('   Has chart_data:', !!response.chart_data);
 
       // ✅ 답변 성공 - 플래그 제거
       localStorage.removeItem('chat-pending-request');
@@ -429,6 +640,7 @@ export default function ChatInterface() {
             content: response.response,
             intent: response.intent,
             tableData: tableData,
+            chartData: response.chart_data, // 📊 차트 데이터 추가
           },
         ]);
       }
@@ -750,8 +962,8 @@ export default function ChatInterface() {
 
         {sendMessageMutation.isPending && (
           <div className="flex gap-3 justify-start">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-              <Bot className="w-5 h-5 text-primary-foreground animate-pulse" />
+            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 animate-pulse">
+              <img src="/chatbot_img.png" alt="AI" className="w-full h-full object-cover" />
             </div>
             <div className="bg-muted rounded-lg p-4">
               <p className="text-sm text-muted-foreground">생각 중...</p>

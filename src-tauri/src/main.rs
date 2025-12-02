@@ -204,6 +204,10 @@ pub fn run() {
             commands::database::get_database_tables,
             commands::database::query_table_data,
             commands::database::execute_custom_query,
+
+            // Chart Service Commands (MES 스키마 기반 차트 생성)
+            commands::chart::generate_chart,
+            commands::chart::get_chart_examples,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
