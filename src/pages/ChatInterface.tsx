@@ -511,22 +511,61 @@ export default function ChatInterface() {
     loadApiKey();
   }, []);
 
-  // 앱 시작시 초기 환영 메시지 설정 (채팅 기록은 세션 메모리만 사용, 재시작시 초기화)
+  // 앱 시작시 초기 환영 메시지 설정 (sessionStorage 사용: 탭 이동시 유지, 앱 재시작시 초기화)
   useEffect(() => {
-    const initialMessage: Message = {
-      role: 'assistant',
-      content: '안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
-    };
-    setMessages([initialMessage]);
+    // sessionStorage에서 현재 세션 대화 복원 시도
+    const savedMessages = sessionStorage.getItem('chat-messages');
+    const savedSessionId = sessionStorage.getItem('chat-session-id');
 
-    // 이전 세션의 localStorage 데이터 정리
+    if (savedMessages) {
+      try {
+        const parsedMessages = JSON.parse(savedMessages);
+        setMessages(parsedMessages);
+        console.log('📂 [ChatInterface] Restored messages from sessionStorage:', parsedMessages.length);
+      } catch (error) {
+        console.error('Failed to parse saved messages:', error);
+        // 파싱 실패시 초기 메시지 설정
+        const initialMessage: Message = {
+          role: 'assistant',
+          content: '안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
+        };
+        setMessages([initialMessage]);
+      }
+    } else {
+      // 새 세션 (앱 재시작) - 초기 환영 메시지 설정
+      console.log('🆕 [ChatInterface] New session - setting initial message');
+      const initialMessage: Message = {
+        role: 'assistant',
+        content: '안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
+      };
+      setMessages([initialMessage]);
+    }
+
+    if (savedSessionId) {
+      setSessionId(savedSessionId);
+      console.log('📂 [ChatInterface] Restored session ID:', savedSessionId);
+    }
+
+    // 이전 localStorage 데이터 정리 (마이그레이션)
     localStorage.removeItem('chat-messages');
     localStorage.removeItem('chat-session-id');
     localStorage.removeItem('chat-pending-request');
     localStorage.removeItem('chat-pending-response');
   }, []);
 
-  // 메시지 변경시 ref 업데이트 (탭 전환 동기화용, localStorage 저장 제거됨)
+  // 메시지 변경시 sessionStorage에 저장 (탭 이동시 유지)
+  useEffect(() => {
+    if (messages.length > 0) {
+      sessionStorage.setItem('chat-messages', JSON.stringify(messages));
+    }
+  }, [messages]);
+
+  // Session ID 변경시 sessionStorage에 저장
+  useEffect(() => {
+    if (sessionId) {
+      sessionStorage.setItem('chat-session-id', sessionId);
+    }
+  }, [sessionId]);
 
   // 🔧 Track latest messages in ref for visibility handler (클로저 문제 해결)
   useEffect(() => {
@@ -943,6 +982,9 @@ export default function ChatInterface() {
     };
     setMessages([initialMessage]);
     setSessionId(undefined);
+    // sessionStorage도 정리
+    sessionStorage.removeItem('chat-messages');
+    sessionStorage.removeItem('chat-session-id');
     setShowClearDialog(false);
   };
 
