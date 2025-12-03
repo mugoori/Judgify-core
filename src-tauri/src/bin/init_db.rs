@@ -12,9 +12,10 @@ fn main() {
             // 새로운 마이그레이션 적용 (ERP/MES/RAG)
             match apply_migrations() {
                 Ok(()) => {
-                    println!("✅ 마이그레이션 001-008 실행 완료");
+                    println!("✅ 마이그레이션 001-011 실행 완료");
                     println!("📁 위치: %APPDATA%\\Judgify\\judgify.db");
                     println!("✅ 퓨어웰 음료㈜ 시드 데이터 삽입 완료");
+                    println!("✅ 추가 ERP/MES 테이블 및 시드 데이터 삽입 완료");
                 }
                 Err(e) => {
                     eprintln!("⚠️  마이그레이션 적용 실패: {}", e);
@@ -68,6 +69,8 @@ fn apply_migrations() -> rusqlite::Result<()> {
         "migrations/007_seed_mes.sql",
         "migrations/008_seed_sales_history.sql",
         "migrations/009_seed_2025_sales.sql",
+        "migrations/010_additional_erp_mes.sql",
+        "migrations/011_seed_additional.sql",
     ];
 
     for file in &migration_files {
@@ -150,6 +153,16 @@ fn print_summary(conn: &Connection) -> rusqlite::Result<()> {
     let sensor_count: i64 = conn.query_row("SELECT COUNT(*) FROM sensor_log", [], |row| row.get(0))?;
     let alarm_count: i64 = conn.query_row("SELECT COUNT(*) FROM alarm_event", [], |row| row.get(0))?;
     println!("⚙️  MES 실행: 작업지시 {}, CCP체크 {}, 센서로그 {}, 알람 {}", wo_count, ccp_count, sensor_count, alarm_count);
+
+    // 추가된 테이블 (010, 011)
+    let qc_insp_count: i64 = conn.query_row("SELECT COUNT(*) FROM qc_inspection", [], |row| row.get(0)).unwrap_or(0);
+    let metal_count: i64 = conn.query_row("SELECT COUNT(*) FROM metal_detection_log", [], |row| row.get(0)).unwrap_or(0);
+    let process_param_count: i64 = conn.query_row("SELECT COUNT(*) FROM process_param_log", [], |row| row.get(0)).unwrap_or(0);
+    let material_input_count: i64 = conn.query_row("SELECT COUNT(*) FROM material_input_log", [], |row| row.get(0)).unwrap_or(0);
+    let warehouse_count: i64 = conn.query_row("SELECT COUNT(*) FROM warehouse_mst", [], |row| row.get(0)).unwrap_or(0);
+    let inv_mov_count: i64 = conn.query_row("SELECT COUNT(*) FROM inventory_movement", [], |row| row.get(0)).unwrap_or(0);
+    println!("🔬 MES 품질: 품질검사 {}, 금속검출 {}, 공정파라미터 {}", qc_insp_count, metal_count, process_param_count);
+    println!("📦 ERP 추가: 창고 {}, 자재투입 {}, 재고이동 {}", warehouse_count, material_input_count, inv_mov_count);
 
     println!("========================================\n");
 

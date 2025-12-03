@@ -48,7 +48,6 @@
           "installerIcon": "icons/icon.ico",
           "headerImage": null,
           "sidebarImage": null,
-          "installerHooks": "nsis/hooks.nsi",
           "installMode": "currentUser",
           "languages": ["Korean", "English"],
           "displayLanguageSelector": false
