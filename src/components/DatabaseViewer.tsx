@@ -9,6 +9,7 @@ interface TableInfo {
   name: string;
   display_name: string;  // 사용자에게 보여줄 한글 이름
   description?: string;  // 테이블 설명
+  category: string;      // ERP, MES 등 분류
   row_count: number;
   columns: ColumnInfo[];
 }
@@ -30,6 +31,15 @@ interface DatabaseViewerProps {
   onClose: () => void;
 }
 
+// 카테고리 탭 정의
+type CategoryTab = 'ALL' | 'ERP' | 'MES';
+
+const CATEGORY_TABS: { key: CategoryTab; label: string; color: string }[] = [
+  { key: 'ALL', label: '전체', color: 'bg-gray-600' },
+  { key: 'ERP', label: 'ERP (계획/기준)', color: 'bg-blue-600' },
+  { key: 'MES', label: 'MES (실행/품질)', color: 'bg-green-600' },
+];
+
 export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose }) => {
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
@@ -43,6 +53,7 @@ export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose 
   const [isCustomQueryMode, setIsCustomQueryMode] = useState(false);
   const [jsonModalData, setJsonModalData] = useState<any>(null);
   const [jsonModalTitle, setJsonModalTitle] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<CategoryTab>('ALL');
 
   const ROWS_PER_PAGE = 50;
 
@@ -336,10 +347,20 @@ export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose 
 
   if (!isOpen) return null;
 
-  const filteredTables = tables.filter(table =>
-    table.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    table.display_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // 카테고리 및 검색 필터링
+  const filteredTables = tables.filter(table => {
+    const matchesCategory = activeCategory === 'ALL' || table.category === activeCategory;
+    const matchesSearch = table.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          table.display_name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  // 카테고리별 테이블 수
+  const categoryCounts = {
+    ALL: tables.length,
+    ERP: tables.filter(t => t.category === 'ERP').length,
+    MES: tables.filter(t => t.category === 'MES').length,
+  };
 
   const totalPages = tableData ? Math.ceil(tableData.total_count / ROWS_PER_PAGE) : 0;
 
@@ -366,7 +387,7 @@ export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose 
         {/* 본문 */}
         <div className="flex flex-1" style={{ overflow: 'hidden', minHeight: 0 }}>
           {/* 좌측 사이드바 - 테이블 목록 */}
-          <div className="w-48 border-r border-gray-700 p-3 overflow-y-auto flex-shrink-0" style={{ height: '100%' }}>
+          <div className="w-56 border-r border-gray-700 p-3 overflow-y-auto flex-shrink-0" style={{ height: '100%' }}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-gray-300">테이블 목록</h3>
               <button
@@ -376,6 +397,24 @@ export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose 
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
+            </div>
+
+            {/* 카테고리 탭 */}
+            <div className="flex gap-1 mb-3">
+              {CATEGORY_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveCategory(tab.key)}
+                  className={`flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors ${
+                    activeCategory === tab.key
+                      ? `${tab.color} text-white`
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  }`}
+                >
+                  <div>{tab.label.split(' ')[0]}</div>
+                  <div className="text-[10px] opacity-75">{categoryCounts[tab.key]}개</div>
+                </button>
+              ))}
             </div>
 
             <div className="mb-3">
@@ -404,20 +443,29 @@ export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose 
                       selectedTable === table.name ? 'bg-gray-800 text-blue-400' : 'text-gray-300'
                     }`}
                   >
-                    <div className="flex items-center gap-1 flex-1">
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
                       {expandedTables.has(table.name) ? (
-                        <ChevronDown className="w-3 h-3" />
+                        <ChevronDown className="w-3 h-3 flex-shrink-0" />
                       ) : (
-                        <ChevronRight className="w-3 h-3" />
+                        <ChevronRight className="w-3 h-3 flex-shrink-0" />
                       )}
-                      <div className="flex flex-col">
-                        <span>{table.display_name}</span>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${
+                            table.category === 'ERP'
+                              ? 'bg-blue-600/30 text-blue-400'
+                              : 'bg-green-600/30 text-green-400'
+                          }`}>
+                            {table.category}
+                          </span>
+                          <span className="truncate">{table.display_name}</span>
+                        </div>
                         {table.description && (
-                          <span className="text-xs text-gray-500 mt-0.5">{table.name}</span>
+                          <span className="text-xs text-gray-500 mt-0.5 truncate">{table.name}</span>
                         )}
                       </div>
                     </div>
-                    <span className="text-xs text-gray-500">{table.row_count}행</span>
+                    <span className="text-xs text-gray-500 flex-shrink-0 ml-1">{table.row_count}</span>
                   </button>
 
                   {expandedTables.has(table.name) && (

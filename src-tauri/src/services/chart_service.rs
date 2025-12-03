@@ -107,55 +107,123 @@ impl ChartService {
         })
     }
 
-    /// MES 스키마 정보 반환
+    /// MES/ERP 스키마 정보 반환
     fn get_mes_schema_info(&self) -> &'static str {
         r#"
-## MES 데이터베이스 스키마 (SQLite)
+## MES/ERP 데이터베이스 스키마 (SQLite) - 퓨어웰 음료㈜
 
-### 1. 마스터 테이블
+### 1. MES 마스터 테이블
 - **line_mst** (라인 마스터): line_cd(PK), line_nm, line_type(BATCHING|FILLING|PACKAGING), capacity_per_hour, is_active
 - **equipment_mst** (설비 마스터): equip_cd(PK), equip_nm, line_cd(FK), equip_type, is_ccp, ccp_type
 - **operation_mst** (공정 마스터): oper_cd(PK), oper_nm, oper_seq, line_cd(FK), is_ccp
 - **shift_mst** (교대 마스터): shift_cd(PK), shift_nm, start_time, end_time
 - **operator_mst** (작업자 마스터): operator_id(PK), operator_nm, dept, shift_cd(FK)
 - **param_mst** (파라미터 마스터): param_cd(PK), param_nm, param_type, unit, equip_cd, min_val, max_val, target_val, is_ccp
+- **reason_code_mst** (사유코드 마스터): reason_cd(PK), reason_type(DOWNTIME|DEFECT|ALARM|DEVIATION), reason_nm, category
 
 ### 2. 작업 실행 테이블
-- **mes_work_order** (작업지시): wo_no(PK), prod_order_no, line_cd, shift_cd, plan_date, plan_start, plan_end, actual_start, actual_end, status(SCHEDULED|READY|RUNNING|PAUSED|COMPLETED|CANCELLED), plan_qty, good_qty, reject_qty
-- **operation_exec** (공정실행): id(PK), wo_no(FK), oper_cd(FK), batch_lot_no, equip_cd, start_time, end_time, status(RUNNING|COMPLETED|FAILED|PAUSED), result(OK|NG|DEVIATION)
+- **mes_work_order** (작업지시): wo_no(PK), prod_order_no, line_cd, shift_cd, plan_date, plan_start, plan_end, actual_start, actual_end, status(SCHEDULED|READY|RUNNING|PAUSED|COMPLETED|CANCELLED), plan_qty, good_qty, reject_qty, operator_id
+- **operation_exec** (공정실행): id(PK), wo_no(FK), oper_cd(FK), batch_lot_no, equip_cd, start_time, end_time, status(RUNNING|COMPLETED|FAILED|PAUSED), result(OK|NG|DEVIATION), operator_id
+- **operation_param_target** (공정 파라미터 목표값): id(PK), wo_no(FK), oper_cd(FK), param_cd(FK), target_val, tolerance_min, tolerance_max
+- **operation_param_log** (공정 파라미터 실적): id(PK), operation_exec_id(FK), param_cd(FK), recorded_at, value, is_within_spec
+- **checklist_result** (체크리스트 결과): id(PK), wo_no(FK), checklist_type(PRE_START|HOURLY|SHIFT_END|CIP|QUALITY), check_time, operator_id, items(JSON), overall_result(OK|NG|NA)
 
 ### 3. LOT 추적성 테이블 (불량 분석 핵심!)
-- **batch_lot** (배치LOT): batch_lot_no(PK), prod_order_no(FK), wo_no(FK), line_cd, batch_seq, batch_size, start_time, end_time, status(CREATED|PROCESSING|COMPLETED|CANCELLED), good_qty, reject_qty
+- **batch_lot** (배치LOT): batch_lot_no(PK), prod_order_no(FK), bom_cd, line_cd, batch_size, tank_no, start_time, end_time, status(CREATED|PROCESSING|COMPLETED|CANCELLED|HOLD), operator_id
 - **filling_lot** (충진LOT): filling_lot_no(PK), batch_lot_no(FK), filling_date, line_cd, pkg_item_cd, plan_qty, good_qty, reject_qty, start_time, end_time, status
   - 불량률 계산: ROUND(SUM(reject_qty) * 100.0 / NULLIF(SUM(plan_qty), 0), 2) as defect_rate
-  - 또는: ROUND(SUM(reject_qty) * 100.0 / NULLIF(SUM(good_qty + reject_qty), 0), 2) as defect_rate
-- **fg_lot** (완제품LOT): fg_lot_no(PK), filling_lot_no(FK), prod_date, expiry_date, item_cd, lot_qty, location, status(IN_STOCK|SHIPPED|QUARANTINE|DISPOSED)
-- **process_result** (공정실적): id(PK), batch_lot_no(FK), process_type(살균|균질|발효|충진|냉각), equip_cd, start_time, end_time, target_temp, actual_temp, target_time_sec, actual_time_sec, result(PASS|FAIL|WARNING)
+- **fg_lot** (완제품LOT): fg_lot_no(PK), filling_lot_no(FK), fg_item_cd, qty, mfg_date, exp_date, qc_status(PENDING|PASS|FAIL|HOLD), location
+- **process_result** (공정실적): id(PK), batch_lot_no(FK), process_type(BATCHING|PASTEURIZATION|COOLING|HOLDING|TRANSFER), equipment_cd, start_time, end_time, target_temp, actual_temp, target_time_sec, actual_time_sec, result(OK|NG|PENDING), operator_id
+- **material_issue** (자재 출고): batch_lot_no(FK), seq, item_cd, lot_no, plan_qty, actual_qty, issue_time, operator_id
 
 ### 4. 품질 검사 테이블
-- **qc_test** (품질검사): id(PK), test_type(원료입고|공정중|완제품), batch_lot_no, item_cd, test_item(수분|지방|pH|산도|Brix|미생물), test_value, unit, spec_min, spec_max, result(PASS|FAIL|HOLD), test_time
+- **qc_test** (품질검사-기본): qc_no(PK), test_type(INCOMING|IN_PROCESS|FINAL|HOLD_RELEASE), ref_type(INBOUND|BATCH|FILLING|FG), ref_no, item_cd, lot_no, test_date, tester_id, result(PASS|FAIL|CONDITIONAL), test_items(JSON), remarks
+- **qc_inspection** (품질검사-상세): inspection_no(PK), inspection_type(INCOMING|IN_PROCESS|FINAL), lot_no, item_cd, inspection_time, inspector_id, ph_level, acidity, brix, fat_content, protein_content, viscosity, moisture, total_bacteria, coliform, color_l, color_a, color_b, result(PASS|FAIL|HOLD), remark
+  - 품질 지표: pH(6.5-6.8), 산도(0.14-0.18%), Brix(8-16), 지방(1.5-4%), 단백질(2.5-3.3%)
+- **metal_detection_log** (금속검출 로그): id(PK), detection_time, equip_cd, line_cd, lot_no, metal_detected(0|1), metal_type(FE|SUS|NON_FE), sensitivity_fe, sensitivity_sus, sensitivity_non_fe, reject_action(REJECTED|PASSED|RECHECK), operator_id
 
 ### 5. 센서/CCP 테이블
-- **sensor_log** (센서로그): id(PK), equip_cd(FK), param_cd(FK), batch_lot_no, recorded_at, value, is_alarm, alarm_type
-- **ccp_check_log** (CCP검사): id(PK), batch_lot_no, ccp_type(PASTEURIZATION|METAL_DETECTION|COOLING), check_time, equip_cd, target_temp, actual_temp, target_time_sec, actual_time_sec, result(PASS|FAIL|DEVIATION)
+- **sensor_log** (센서로그): id(PK), equip_cd(FK), param_cd(FK), batch_lot_no, recorded_at, value, is_alarm, alarm_type(LOW|HIGH|CRITICAL_LOW|CRITICAL_HIGH)
+- **ccp_check_log** (CCP검사): id(PK), batch_lot_no, ccp_type(PASTEURIZATION|METAL_DETECTION|COOLING), check_time, equip_cd, operator_id, target_temp, actual_temp, target_time_sec, actual_time_sec, sensitivity_fe, sensitivity_sus, test_piece_detected, reject_confirmed, result(PASS|FAIL|DEVIATION), corrective_action, verified_by, verified_at
+- **process_param_log** (공정 파라미터 로그): id(PK), recorded_at, equip_cd, batch_lot_no, sterilization_temp, holding_time_sec, homogenizer_pressure, tank_temp, cip_status, fill_speed, fill_volume, cooling_temp
 
 ### 6. 이벤트 테이블
-- **downtime_event** (비가동): id(PK), wo_no(FK), equip_cd(FK), line_cd(FK), start_time, end_time, duration_min, reason_cd, is_planned
-- **alarm_event** (알람): id(PK), equip_cd(FK), param_cd, alarm_time, alarm_level(INFO|WARNING|CRITICAL), alarm_type, message, is_acknowledged, is_resolved
+- **downtime_event** (비가동): id(PK), wo_no(FK), equip_cd(FK), line_cd(FK), start_time, end_time, duration_min, reason_cd, reason_detail, is_planned, reported_by
+- **alarm_event** (알람): id(PK), equip_cd(FK), param_cd, batch_lot_no, alarm_time, alarm_level(INFO|WARNING|CRITICAL), alarm_type(PARAM_HIGH|PARAM_LOW|CCP_DEVIATION|EQUIP_FAULT|QUALITY_ISSUE|SAFETY), message, value, threshold, is_acknowledged, acknowledged_by, acknowledged_at, is_resolved, resolved_by, resolved_at, resolution
 
-### 샘플 데이터 정보
+### 7. ERP 마스터 테이블
+- **item_mst** (품목 마스터): item_cd(PK), item_nm, item_type(RM|FG|PKG|WIP), unit, category, spec, shelf_life_days, is_active
+- **vendor_mst** (거래처 마스터): vendor_cd(PK), vendor_nm, vendor_type(SUPPLIER|MANUFACTURER|BOTH), contact_nm, phone, email, address, is_active
+- **customer_mst** (고객 마스터): cust_cd(PK), cust_nm, cust_type(RETAIL|WHOLESALE|ONLINE|DISTRIBUTOR), contact_nm, phone, email, address, credit_limit, is_active
+- **bom_mst** (BOM 마스터): bom_cd(PK), fg_item_cd, bom_nm, batch_size, batch_unit, version, is_active
+- **bom_dtl** (BOM 상세): id(PK), bom_cd(FK), item_cd, seq, usage_qty, unit, loss_rate
+- **warehouse_mst** (창고 마스터): warehouse_id(PK), warehouse_nm, warehouse_type(RAW|COLD|WIP|FG|FROZEN|SHIPPING), location, temp_min, temp_max
+
+### 8. ERP 거래 테이블
+- **purchase_order** (발주서): po_no(PK), vendor_cd(FK), order_date, expected_date, status(DRAFT|CONFIRMED|PARTIAL|COMPLETED|CANCELLED), total_amount, remarks, created_by
+- **purchase_order_dtl** (발주상세): id(PK), po_no(FK), item_cd, qty, unit, unit_price, amount, received_qty, status
+- **inbound** (입고): inbound_no(PK), inbound_date, po_no(FK), vendor_cd, status(SCHEDULED|IN_PROGRESS|COMPLETED|CANCELLED), total_amount
+- **inbound_dtl** (입고상세): id(PK), inbound_no(FK), po_dtl_id(FK), item_cd, lot_no, qty, unit, unit_price, amount, warehouse_id, qc_status
+- **production_order** (생산지시): prod_order_no(PK), bom_cd, plan_qty, actual_qty, plan_date, status(PLANNED|RELEASED|IN_PROGRESS|COMPLETED|CANCELLED), priority, remarks, created_by
+- **sales_order** (수주): so_no(PK), cust_cd(FK), order_date, request_date, status(DRAFT|CONFIRMED|ALLOCATED|SHIPPED|COMPLETED|CANCELLED), total_amount, ship_to, remarks, created_by
+- **sales_order_dtl** (수주상세): id(PK), so_no(FK), item_cd, qty, unit, unit_price, amount, allocated_qty, shipped_qty, status
+- **outbound** (출고): outbound_no(PK), outbound_date, so_no(FK), cust_cd, status(SCHEDULED|PICKING|COMPLETED|CANCELLED), ship_to
+- **outbound_dtl** (출고상세): id(PK), outbound_no(FK), so_dtl_id(FK), item_cd, lot_no, qty, unit, warehouse_id
+- **inventory** (재고): id(PK), item_cd, lot_no, location(창고코드, 예: WH01), qty, reserved_qty, unit, exp_date, last_move_date, updated_at
+- **inventory_movement** (재고 이동): movement_no(PK), movement_type(IN|OUT|TRANSFER), movement_date, item_cd, lot_no, qty, unit, from_warehouse, to_warehouse, ref_type(PO|SO|PROD|INBOUND|OUTBOUND|ADJUST), ref_no
+- **material_input_log** (자재 투입 이력): id(PK), input_time, batch_lot_no, wo_no, material_lot_no, item_cd, item_nm, plan_qty, input_qty, remain_qty, unit, operator_id, is_verified
+
+### 샘플 데이터 정보 (2024년 8월~11월, 4개월치)
 - 라인: LINE-A(배합), LINE-B(충진), LINE-C(포장)
-- 설비: MIX-001(배합기), PAST-001(살균기), FILL-001(충진기), METAL-001(금속검출기) 등
-- 작업지시: WO-2024-001 ~ (2024년 9~11월)
-- LOT 데이터: batch_lot 513건, filling_lot 1,236건, fg_lot 1,236건, process_result 2,856건
-- 품질검사: qc_test 405건 (원료입고/공정중/완제품 검사)
-- 이벤트: downtime_event 382건, alarm_event 296건
+- 설비: EQ-MIX-01(배합기), EQ-PAST-01(살균기), EQ-FILL-01(충진기), EQ-MD-01(금속검출기) 등
+- 작업지시: WO-240805-A01 ~ (2024년 8~11월)
+- LOT 데이터: batch_lot, filling_lot, fg_lot
+- 품질검사: qc_inspection, qc_test, metal_detection_log
+- CCP 체크: ccp_check_log (살균/금속검출/냉각)
+- 이벤트: downtime_event, alarm_event
+- 자재: material_issue, material_input_log
+- 재고: inventory, inventory_movement, warehouse_mst
 
-### 불량률 분석 팁
-- **라인별 불량률**: filling_lot 테이블의 good_qty, reject_qty 활용
-- **제품별 불량률**: fg_lot + filling_lot 조인으로 item_cd별 분석
-- **불량 원인 분석**: filling_lot.reject_reason 컬럼 활용
-- **공정별 품질**: process_result.result (PASS/FAIL/WARNING) 분석
+### 분석 쿼리 예시
+1. **라인별 불량률**:
+   SELECT line_cd, ROUND(SUM(reject_qty)*100.0/NULLIF(SUM(good_qty+reject_qty),0),2) as defect_rate
+   FROM filling_lot GROUP BY line_cd
+
+2. **월별 생산량 추이**:
+   SELECT strftime('%Y-%m', plan_date) as month, SUM(good_qty) as production
+   FROM mes_work_order WHERE status='COMPLETED' GROUP BY month ORDER BY month
+
+3. **CCP 합격률**:
+   SELECT ccp_type, ROUND(SUM(CASE WHEN result='PASS' THEN 1 ELSE 0 END)*100.0/COUNT(*),1) as pass_rate
+   FROM ccp_check_log GROUP BY ccp_type
+
+4. **설비별 비가동 시간**:
+   SELECT equip_cd, SUM(duration_min) as total_downtime, COUNT(*) as event_count
+   FROM downtime_event GROUP BY equip_cd ORDER BY total_downtime DESC
+
+5. **품질검사 결과 분포**:
+   SELECT result, COUNT(*) as cnt FROM qc_inspection GROUP BY result
+
+6. **월별 매출**:
+   SELECT strftime('%Y-%m', order_date) as month, SUM(total_amount) as sales
+   FROM sales_order WHERE status IN ('CONFIRMED','SHIPPED','DELIVERED') GROUP BY month
+
+7. **금속검출 현황**:
+   SELECT line_cd, COUNT(*) as total, SUM(metal_detected) as detected
+   FROM metal_detection_log GROUP BY line_cd
+
+8. **재고 이동 현황**:
+   SELECT movement_type, COUNT(*) as cnt, SUM(qty) as total_qty
+   FROM inventory_movement GROUP BY movement_type
+
+9. **창고별 재고 현황** (inventory 테이블은 location 컬럼 사용):
+   SELECT i.location as warehouse, w.warehouse_nm, SUM(i.qty) as total_qty, COUNT(DISTINCT i.item_cd) as item_count
+   FROM inventory i LEFT JOIN warehouse_mst w ON i.location = w.warehouse_id
+   GROUP BY i.location ORDER BY total_qty DESC
+
+10. **품목별 재고 현황**:
+   SELECT item_cd, SUM(qty) as total_qty, SUM(reserved_qty) as reserved, COUNT(DISTINCT location) as locations
+   FROM inventory GROUP BY item_cd ORDER BY total_qty DESC
 "#
     }
 

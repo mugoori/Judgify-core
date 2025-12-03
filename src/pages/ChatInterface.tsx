@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { sendChatMessage, getChatHistory, type ChatMessageRequest, type ChatMessageResponse, type ChartResponse } from '@/lib/tauri-api-wrapper';
+import { sendChatMessage, getChatHistory, type ChatMessageRequest, type ChatMessageResponse, type ChartResponse, type DataKeyConfig, type PieChartData } from '@/lib/tauri-api-wrapper';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
@@ -158,7 +158,7 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                         labelStyle={{ color: '#f3f4f6' }}
                       />
                       <Legend />
-                      {message.chartData.data_keys?.map((dk) => (
+                      {message.chartData.data_keys?.map((dk: DataKeyConfig) => (
                         <Bar key={dk.key} dataKey={dk.key} fill={dk.color} name={dk.label} radius={[4, 4, 0, 0]} />
                       ))}
                     </RechartsBarChart>
@@ -181,7 +181,7 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                         labelStyle={{ color: '#f3f4f6' }}
                       />
                       <Legend />
-                      {message.chartData.data_keys?.map((dk) => (
+                      {message.chartData.data_keys?.map((dk: DataKeyConfig) => (
                         <Line key={dk.key} type="monotone" dataKey={dk.key} stroke={dk.color} name={dk.label} strokeWidth={2} dot={{ fill: dk.color }} />
                       ))}
                     </RechartsLineChart>
@@ -203,7 +203,7 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {message.chartData.pie_data.map((entry, idx) => (
+                    {message.chartData.pie_data.map((entry: PieChartData, idx: number) => (
                       <Cell key={`cell-${idx}`} fill={entry.color || ['#3b82f6', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6'][idx % 5]} />
                     ))}
                   </Pie>
@@ -520,38 +520,50 @@ export default function ChatInterface() {
     };
   }, [sessionId]); // sessionId만 의존 - messagesRef.current로 최신 값 참조
 
-  // 차트 관련 키워드 감지 함수 (MES 데이터 전용)
-  // ERP 관련 요청(매출, 구매, 재고 등)은 일반 채팅으로 라우팅
+  // 차트 관련 키워드 감지 함수 (MES/ERP 데이터 시각화)
+  // 데이터 시각화가 필요한 요청을 차트 API로 라우팅
   const isChartRequest = (message: string): boolean => {
-    // ERP 관련 키워드 - 차트 API 사용하면 안됨 (MES 스키마에 없는 데이터)
-    const erpKeywords = [
-      '매출', '판매', '구매', '발주', '수주', '입고', '출고',
-      '재고', '창고', '거래처', '고객', '제품별', '품목별',
-      '금액', '원', '달러', '억', '만원', '예측', '전망',
-      '주문', '배송', '청구', '결제', '정산',
+    // 차트 API를 사용하지 않을 키워드 (비시각화 요청)
+    const nonChartKeywords = [
+      '예측', '전망', '방법', '알려줘', '설명해',
+      '청구', '결제', '정산', '주문', '배송',
     ];
 
-    // MES 차트용 키워드 - 차트 API로 처리
-    const mesChartKeywords = [
-      '차트', '그래프', '시각화',
-      '온도', '살균', 'ccp', 'CCP',
-      '생산량', '가동률', '불량률', '수율',
-      '라인별', '설비별', '공정별',
-      '센서', '알람', '비가동',
+    // MES/ERP 차트용 키워드 - 차트 API로 처리
+    const chartKeywords = [
+      // 시각화 직접 요청
+      '차트', '그래프', '시각화', '분석', '통계', '현황', '추이', '트렌드',
+      // MES 생산/품질 키워드
+      '온도', '살균', 'ccp', 'CCP', '품질검사', '금속검출',
+      '생산량', '가동률', '불량률', '수율', '공정',
+      '라인별', '설비별', '공정별', '작업자별',
+      '센서', '알람', '비가동', '다운타임',
+      '배치', 'LOT', 'lot', '로트',
+      // ERP 재고/창고 키워드 (DB에 데이터 있음)
+      '재고', '창고', '창고별', '품목별', '제품별',
+      '입고', '출고', '재고이동', '자재',
+      // ERP 거래 키워드
+      '매출', '판매', '수주', '발주', '구매',
+      '고객별', '거래처별', '월별', '일별', '주별',
     ];
 
     const lowerMessage = message.toLowerCase();
 
-    // ERP 키워드가 있으면 차트 요청으로 처리하지 않음
-    const hasErpKeyword = erpKeywords.some(kw => lowerMessage.includes(kw.toLowerCase()));
-    if (hasErpKeyword) {
-      console.log('📊 [isChartRequest] ERP keyword detected, routing to chat:', message);
+    // 비차트 키워드가 있으면 일반 채팅으로
+    const hasNonChartKeyword = nonChartKeywords.some(kw => lowerMessage.includes(kw.toLowerCase()));
+    if (hasNonChartKeyword) {
+      console.log('💬 [isChartRequest] Non-chart keyword detected, routing to chat:', message);
       return false;
     }
 
-    // MES 차트 키워드가 있으면 차트 요청으로 처리
-    const hasMesChartKeyword = mesChartKeywords.some(kw => lowerMessage.includes(kw.toLowerCase()));
-    return hasMesChartKeyword;
+    // 차트 키워드가 있으면 차트 요청으로 처리
+    const hasChartKeyword = chartKeywords.some(kw => lowerMessage.includes(kw.toLowerCase()));
+    if (hasChartKeyword) {
+      console.log('📊 [isChartRequest] Chart keyword detected:', message);
+      return true;
+    }
+
+    return false;
   };
 
   const sendMessageMutation = useMutation({
@@ -583,8 +595,8 @@ export default function ChatInterface() {
               response: `${chartResult.chart.description}`,
               session_id: request.session_id || sessionId || crypto.randomUUID(),
               intent: 'data_visualization',
-              action_result: null,
-              table_data: null,
+              action_result: undefined,
+              table_data: undefined,
               chart_data: chartResult.chart,
             } as ChatMessageResponse & { chart_data: ChartResponse };
           } else {
