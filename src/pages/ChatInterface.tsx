@@ -45,13 +45,19 @@ interface Message {
   chartData?: ChartResponse;
 }
 
-// Y축 숫자 압축 포맷터 (K: 천 단위, M: 백만 단위)
+// Y축 숫자 압축 포맷터 (K: 천, M: 백만, B: 10억)
 const formatYAxisValue = (value: number): string => {
+  if (value >= 1000000000) {
+    const formatted = (value / 1000000000).toFixed(1);
+    return formatted.endsWith('.0') ? `${parseInt(formatted)}B` : `${formatted}B`;
+  }
   if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(1)}M`;
+    const formatted = (value / 1000000).toFixed(1);
+    return formatted.endsWith('.0') ? `${parseInt(formatted)}M` : `${formatted}M`;
   }
   if (value >= 1000) {
-    return `${(value / 1000).toFixed(0)}K`;
+    const formatted = (value / 1000).toFixed(1);
+    return formatted.endsWith('.0') ? `${parseInt(formatted)}K` : `${formatted}K`;
   }
   return value.toString();
 };
