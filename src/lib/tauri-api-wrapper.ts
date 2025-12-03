@@ -92,6 +92,10 @@ export const exportDatabase = api.exportDatabase;
 // Token Metrics API
 export const getTokenMetrics = api.getTokenMetrics;
 
+// Chart API
+export const generateChart = api.generateChart;
+export const getChartExamples = api.getChartExamples;
+
 // Type re-exports (타입 정의도 함께 export)
 export type {
   ExecuteJudgmentRequest,
@@ -105,4 +109,13 @@ export type {
   SystemStatus,
   SystemStats,
   TokenMetrics,
+  // Chart Types
+  ChartType,
+  ChartDataPoint,
+  PieChartData,
+  GaugeChartData,
+  DataKeyConfig,
+  ChartResponse,
+  GenerateChartResponse,
+  TableData,
 } from './tauri-api';
