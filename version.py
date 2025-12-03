@@ -5,10 +5,10 @@ Judgify-core 버전 관리 (Single Source of Truth)
 버전 변경시 이 파일만 수정하고, scripts/bump_version.py를 실행하세요.
 """
 
-__version__ = "0.3.10"
+__version__ = "0.3.11"
 __stage__ = "beta"  # alpha → beta → rc → stable
 __release_date__ = "2025-12-03"
-__description__ = "DB 테이블 컬럼 정렬 기능 및 채팅 히스토리 세션 초기화"
+__description__ = "채팅 히스토리 탭 이동시 유지, 앱 재시작시만 초기화 (sessionStorage 적용)"
 
 # 9개 마이크로서비스 구현 상태 추적
 MICROSERVICES_STATUS = {
