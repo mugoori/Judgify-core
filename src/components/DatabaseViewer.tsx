@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
-import { X, Database, RefreshCw, ChevronRight, ChevronDown, Search, Download, Eye, Calendar, Hash, Type, FileJson } from 'lucide-react';
+import { X, Database, RefreshCw, ChevronRight, ChevronDown, Search, Download, Eye, Calendar, Hash, Type, FileJson, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { JsonViewerModal } from './JsonViewerModal';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
+
+// 정렬 상태 타입
+interface SortState {
+  column: string | null;
+  direction: 'ASC' | 'DESC';
+}
 
 interface TableInfo {
   name: string;
@@ -54,6 +60,7 @@ export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose 
   const [jsonModalData, setJsonModalData] = useState<any>(null);
   const [jsonModalTitle, setJsonModalTitle] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<CategoryTab>('ALL');
+  const [sortState, setSortState] = useState<SortState>({ column: null, direction: 'DESC' });
 
   const ROWS_PER_PAGE = 50;
 
@@ -134,15 +141,22 @@ export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose 
     }
   };
 
-  // 테이블 데이터 로드
-  const loadTableData = async (tableName: string, page: number = 0) => {
+  // 테이블 데이터 로드 (정렬 옵션 지원)
+  const loadTableData = async (
+    tableName: string,
+    page: number = 0,
+    sort?: SortState
+  ) => {
     setLoading(true);
     setError(null);
     try {
+      const currentSort = sort || sortState;
       const result = await invoke<QueryResult>('query_table_data', {
         tableName,
         limit: ROWS_PER_PAGE,
         offset: page * ROWS_PER_PAGE,
+        sortColumn: currentSort.column,
+        sortDirection: currentSort.direction,
       });
       setTableData(result);
       setSelectedTable(tableName);
@@ -153,6 +167,32 @@ export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose 
     } finally {
       setLoading(false);
     }
+  };
+
+  // 컬럼 헤더 클릭 시 정렬 변경
+  const handleColumnSort = (columnName: string) => {
+    if (!selectedTable) return;
+
+    let newDirection: 'ASC' | 'DESC' = 'ASC';
+
+    // 같은 컬럼을 다시 클릭하면 정렬 방향 토글
+    if (sortState.column === columnName) {
+      newDirection = sortState.direction === 'ASC' ? 'DESC' : 'ASC';
+    }
+
+    const newSortState: SortState = { column: columnName, direction: newDirection };
+    setSortState(newSortState);
+    loadTableData(selectedTable, 0, newSortState); // 첫 페이지로 리셋하고 새 정렬로 로드
+  };
+
+  // 정렬 아이콘 렌더링
+  const renderSortIcon = (columnName: string) => {
+    if (sortState.column !== columnName) {
+      return <ArrowUpDown className="w-3 h-3 text-gray-600 opacity-50 group-hover:opacity-100 transition-opacity" />;
+    }
+    return sortState.direction === 'ASC'
+      ? <ArrowUp className="w-3 h-3 text-blue-400" />
+      : <ArrowDown className="w-3 h-3 text-blue-400" />;
   };
 
   // 사용자 정의 쿼리 실행
@@ -436,7 +476,10 @@ export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose 
                   <button
                     onClick={() => {
                       toggleTableExpansion(table.name);
-                      loadTableData(table.name);
+                      // 테이블 변경 시 정렬 상태 초기화
+                      const newSortState: SortState = { column: null, direction: 'DESC' };
+                      setSortState(newSortState);
+                      loadTableData(table.name, 0, newSortState);
                       setIsCustomQueryMode(false);
                     }}
                     className={`w-full flex items-center justify-between px-2 py-1.5 text-left text-sm rounded hover:bg-gray-800 transition-colors ${
@@ -587,7 +630,7 @@ export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose 
 
                   <div className="table-scroll-container">
                     <table className="text-sm" style={{ width: '3000px' }}>
-                    <thead className="bg-gray-900 sticky top-0">
+                    <thead className="bg-gray-900 sticky top-0 z-10">
                       <tr>
                         {tableData.columns.map((col) => {
                           // 컬럼별 최소/최대 너비 설정 (더 넓게 설정)
@@ -612,18 +655,24 @@ export const DatabaseViewer: React.FC<DatabaseViewerProps> = ({ isOpen, onClose 
                             maxWidth = '250px';
                           }
 
+                          const isSorted = sortState.column === col;
+
                           return (
                             <th
                               key={col}
                               style={{ minWidth, maxWidth }}
-                              className="px-3 py-2 text-left text-gray-300 font-medium border-b border-gray-700 whitespace-nowrap"
+                              onClick={() => handleColumnSort(col)}
+                              className={`px-3 py-2 text-left font-medium border-b border-gray-700 whitespace-nowrap cursor-pointer select-none group transition-colors ${
+                                isSorted ? 'bg-blue-900/30 text-blue-300' : 'text-gray-300 hover:bg-gray-800'
+                              }`}
                             >
-                              <div className="flex items-center gap-1 truncate">
+                              <div className="flex items-center gap-1.5 truncate">
                                 {col.toLowerCase().includes('id') && <Hash className="w-3 h-3 text-blue-400 flex-shrink-0" />}
                                 {col.toLowerCase().includes('time') && <Calendar className="w-3 h-3 text-amber-400 flex-shrink-0" />}
                                 {col.toLowerCase().includes('date') && <Calendar className="w-3 h-3 text-amber-400 flex-shrink-0" />}
                                 {col.toLowerCase().includes('data') && <FileJson className="w-3 h-3 text-purple-400 flex-shrink-0" />}
-                                <span className="truncate">{col}</span>
+                                <span className="truncate flex-1">{col}</span>
+                                {renderSortIcon(col)}
                               </div>
                             </th>
                           );

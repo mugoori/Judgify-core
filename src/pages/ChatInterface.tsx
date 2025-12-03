@@ -45,15 +45,59 @@ interface Message {
   chartData?: ChartResponse;
 }
 
-// Y축 숫자 압축 포맷터 (K: 천 단위, M: 백만 단위)
+// Y축 숫자 압축 포맷터 (K: 천, M: 백만, B: 10억)
 const formatYAxisValue = (value: number): string => {
+  if (value >= 1000000000) {
+    const formatted = (value / 1000000000).toFixed(1);
+    return formatted.endsWith('.0') ? `${parseInt(formatted)}B` : `${formatted}B`;
+  }
   if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(1)}M`;
+    const formatted = (value / 1000000).toFixed(1);
+    return formatted.endsWith('.0') ? `${parseInt(formatted)}M` : `${formatted}M`;
   }
   if (value >= 1000) {
-    return `${(value / 1000).toFixed(0)}K`;
+    const formatted = (value / 1000).toFixed(1);
+    return formatted.endsWith('.0') ? `${parseInt(formatted)}K` : `${formatted}K`;
   }
   return value.toString();
+};
+
+// 모던 색상 배열 (Bar/Line 차트용)
+const MODERN_COLORS = [
+  '#6366f1', // indigo
+  '#10b981', // emerald
+  '#f59e0b', // amber
+  '#ec4899', // pink
+  '#06b6d4', // cyan
+  '#8b5cf6', // violet
+  '#f97316', // orange
+  '#14b8a6', // teal
+];
+
+// Pie 차트용 그라데이션 색상
+const PIE_COLORS = [
+  '#6366f1',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#8b5cf6',
+  '#06b6d4',
+  '#ec4899',
+  '#f97316',
+];
+
+// 커스텀 툴팁 스타일
+const tooltipStyle = {
+  backgroundColor: 'rgba(17, 24, 39, 0.95)',
+  border: 'none',
+  borderRadius: '12px',
+  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+  padding: '12px 16px',
+};
+
+// 커스텀 Legend 스타일
+const legendStyle = {
+  paddingTop: '20px',
 };
 
 // Memoized MessageBubble component to prevent unnecessary re-renders
@@ -127,122 +171,275 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
           </details>
         )}
 
-        {/* 차트 렌더링 */}
+        {/* 차트 렌더링 - 모던 글래스모피즘 디자인 */}
         {message.chartData && (
-          <div className="mt-4 p-4 bg-gray-900 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
-              <h4 className="font-semibold text-sm">{message.chartData.title}</h4>
+          <div className="mt-4 p-5 bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-2xl">
+            {/* 차트 헤더 */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/25">
+                <BarChart3 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h4 className="font-bold text-base text-white tracking-tight">{message.chartData.title}</h4>
+                <p className="text-xs text-slate-400">{message.chartData.description}</p>
+              </div>
             </div>
-            <p className="text-xs text-gray-400 mb-2">{message.chartData.description}</p>
 
-            {/* 💡 AI 인사이트 표시 */}
+            {/* 💡 AI 인사이트 표시 - 글로우 효과 */}
             {message.chartData.insight && (
-              <div className="mb-4 p-3 bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg">💡</span>
-                  <p className="text-sm text-blue-200">{message.chartData.insight}</p>
+              <div className="mb-5 p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/20 rounded-xl backdrop-blur-sm relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 animate-pulse" />
+                <div className="flex items-start gap-3 relative">
+                  <div className="p-1.5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg shadow-lg shadow-amber-500/25">
+                    <span className="text-sm">💡</span>
+                  </div>
+                  <p className="text-sm text-slate-200 leading-relaxed">{message.chartData.insight}</p>
                 </div>
               </div>
             )}
 
-            {/* Bar/Line 차트 */}
+            {/* Bar/Line 차트 - 모던 스타일 */}
             {(message.chartData.chart_type === 'bar' || message.chartData.chart_type === 'line') &&
               message.chartData.bar_line_data && (
-                <ResponsiveContainer width="100%" height={300}>
-                  {message.chartData.chart_type === 'bar' ? (
-                    <RechartsBarChart data={message.chartData.bar_line_data} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis
-                        dataKey={message.chartData.x_axis_key || 'name'}
-                        stroke="#9ca3af"
-                        fontSize={11}
-                        angle={-35}
-                        textAnchor="end"
-                        height={70}
-                        interval={0}
-                        tick={{ fill: '#d1d5db' }}
-                      />
-                      <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={formatYAxisValue} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '6px' }}
-                        labelStyle={{ color: '#f3f4f6' }}
-                      />
-                      <Legend />
-                      {message.chartData.data_keys?.map((dk: DataKeyConfig) => (
-                        <Bar key={dk.key} dataKey={dk.key} fill={dk.color} name={dk.label} radius={[4, 4, 0, 0]} />
-                      ))}
-                    </RechartsBarChart>
-                  ) : (
-                    <RechartsLineChart data={message.chartData.bar_line_data} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis
-                        dataKey={message.chartData.x_axis_key || 'name'}
-                        stroke="#9ca3af"
-                        fontSize={11}
-                        angle={-35}
-                        textAnchor="end"
-                        height={70}
-                        interval={0}
-                        tick={{ fill: '#d1d5db' }}
-                      />
-                      <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={formatYAxisValue} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '6px' }}
-                        labelStyle={{ color: '#f3f4f6' }}
-                      />
-                      <Legend />
-                      {message.chartData.data_keys?.map((dk: DataKeyConfig) => (
-                        <Line key={dk.key} type="monotone" dataKey={dk.key} stroke={dk.color} name={dk.label} strokeWidth={2} dot={{ fill: dk.color }} />
-                      ))}
-                    </RechartsLineChart>
-                  )}
-                </ResponsiveContainer>
+                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/30">
+                  <ResponsiveContainer width="100%" height={320}>
+                    {message.chartData.chart_type === 'bar' ? (
+                      <RechartsBarChart data={message.chartData.bar_line_data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                        <defs>
+                          {message.chartData.data_keys?.map((dk: DataKeyConfig, idx: number) => (
+                            <linearGradient key={`gradient-${dk.key}`} id={`gradient-${dk.key}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={MODERN_COLORS[idx % MODERN_COLORS.length]} stopOpacity={1} />
+                              <stop offset="100%" stopColor={MODERN_COLORS[idx % MODERN_COLORS.length]} stopOpacity={0.6} />
+                            </linearGradient>
+                          ))}
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" strokeOpacity={0.5} vertical={false} />
+                        <XAxis
+                          dataKey={message.chartData.x_axis_key || 'name'}
+                          stroke="#64748b"
+                          fontSize={11}
+                          angle={-35}
+                          textAnchor="end"
+                          height={70}
+                          interval={0}
+                          tick={{ fill: '#94a3b8' }}
+                          axisLine={{ stroke: '#475569', strokeWidth: 1 }}
+                          tickLine={{ stroke: '#475569' }}
+                        />
+                        <YAxis
+                          stroke="#64748b"
+                          fontSize={11}
+                          tickFormatter={formatYAxisValue}
+                          tick={{ fill: '#94a3b8' }}
+                          axisLine={{ stroke: '#475569', strokeWidth: 1 }}
+                          tickLine={{ stroke: '#475569' }}
+                        />
+                        <Tooltip
+                          contentStyle={tooltipStyle}
+                          labelStyle={{ color: '#f1f5f9', fontWeight: 600, marginBottom: '8px' }}
+                          itemStyle={{ color: '#e2e8f0', padding: '2px 0' }}
+                          cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
+                        />
+                        <Legend
+                          wrapperStyle={legendStyle}
+                          iconType="circle"
+                          iconSize={8}
+                          formatter={(value) => <span className="text-slate-300 text-sm ml-1">{value}</span>}
+                        />
+                        {message.chartData.data_keys?.map((dk: DataKeyConfig, _idx: number) => (
+                          <Bar
+                            key={dk.key}
+                            dataKey={dk.key}
+                            fill={`url(#gradient-${dk.key})`}
+                            name={dk.label}
+                            radius={[6, 6, 0, 0]}
+                            animationDuration={800}
+                            animationEasing="ease-out"
+                          />
+                        ))}
+                      </RechartsBarChart>
+                    ) : (
+                      <RechartsLineChart data={message.chartData.bar_line_data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                        <defs>
+                          {message.chartData.data_keys?.map((dk: DataKeyConfig, idx: number) => (
+                            <linearGradient key={`area-gradient-${dk.key}`} id={`area-gradient-${dk.key}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={MODERN_COLORS[idx % MODERN_COLORS.length]} stopOpacity={0.3} />
+                              <stop offset="100%" stopColor={MODERN_COLORS[idx % MODERN_COLORS.length]} stopOpacity={0} />
+                            </linearGradient>
+                          ))}
+                          <filter id="glow">
+                            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                            <feMerge>
+                              <feMergeNode in="coloredBlur"/>
+                              <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                          </filter>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" strokeOpacity={0.5} vertical={false} />
+                        <XAxis
+                          dataKey={message.chartData.x_axis_key || 'name'}
+                          stroke="#64748b"
+                          fontSize={11}
+                          angle={-35}
+                          textAnchor="end"
+                          height={70}
+                          interval={0}
+                          tick={{ fill: '#94a3b8' }}
+                          axisLine={{ stroke: '#475569', strokeWidth: 1 }}
+                          tickLine={{ stroke: '#475569' }}
+                        />
+                        <YAxis
+                          stroke="#64748b"
+                          fontSize={11}
+                          tickFormatter={formatYAxisValue}
+                          tick={{ fill: '#94a3b8' }}
+                          axisLine={{ stroke: '#475569', strokeWidth: 1 }}
+                          tickLine={{ stroke: '#475569' }}
+                        />
+                        <Tooltip
+                          contentStyle={tooltipStyle}
+                          labelStyle={{ color: '#f1f5f9', fontWeight: 600, marginBottom: '8px' }}
+                          itemStyle={{ color: '#e2e8f0', padding: '2px 0' }}
+                          cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '5 5' }}
+                        />
+                        <Legend
+                          wrapperStyle={legendStyle}
+                          iconType="circle"
+                          iconSize={8}
+                          formatter={(value) => <span className="text-slate-300 text-sm ml-1">{value}</span>}
+                        />
+                        {message.chartData.data_keys?.map((dk: DataKeyConfig, idx: number) => (
+                          <Line
+                            key={dk.key}
+                            type="monotone"
+                            dataKey={dk.key}
+                            stroke={MODERN_COLORS[idx % MODERN_COLORS.length]}
+                            name={dk.label}
+                            strokeWidth={3}
+                            dot={{ fill: MODERN_COLORS[idx % MODERN_COLORS.length], strokeWidth: 2, stroke: '#1e293b', r: 4 }}
+                            activeDot={{ r: 6, stroke: '#1e293b', strokeWidth: 2, fill: MODERN_COLORS[idx % MODERN_COLORS.length] }}
+                            animationDuration={1000}
+                            animationEasing="ease-out"
+                            filter="url(#glow)"
+                          />
+                        ))}
+                      </RechartsLineChart>
+                    )}
+                  </ResponsiveContainer>
+                </div>
               )}
 
-            {/* Pie 차트 */}
+            {/* Pie 차트 - 모던 도넛 스타일 */}
             {message.chartData.chart_type === 'pie' && message.chartData.pie_data && (
-              <ResponsiveContainer width="100%" height={250}>
-                <RechartsPieChart>
-                  <Pie
-                    data={message.chartData.pie_data}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {message.chartData.pie_data.map((entry: PieChartData, idx: number) => (
-                      <Cell key={`cell-${idx}`} fill={entry.color || ['#3b82f6', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6'][idx % 5]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '6px' }} />
-                  <Legend />
-                </RechartsPieChart>
-              </ResponsiveContainer>
+              <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/30">
+                <ResponsiveContainer width="100%" height={280}>
+                  <RechartsPieChart>
+                    <defs>
+                      {message.chartData.pie_data.map((_entry: PieChartData, idx: number) => (
+                        <linearGradient key={`pie-gradient-${idx}`} id={`pie-gradient-${idx}`} x1="0" y1="0" x2="1" y2="1">
+                          <stop offset="0%" stopColor={PIE_COLORS[idx % PIE_COLORS.length]} stopOpacity={1} />
+                          <stop offset="100%" stopColor={PIE_COLORS[idx % PIE_COLORS.length]} stopOpacity={0.7} />
+                        </linearGradient>
+                      ))}
+                      <filter id="pie-shadow">
+                        <feDropShadow dx="0" dy="4" stdDeviation="8" floodOpacity="0.3"/>
+                      </filter>
+                    </defs>
+                    <Pie
+                      data={message.chartData.pie_data}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={100}
+                      innerRadius={60}
+                      fill="#8884d8"
+                      dataKey="value"
+                      paddingAngle={3}
+                      animationDuration={800}
+                      animationEasing="ease-out"
+                      filter="url(#pie-shadow)"
+                    >
+                      {message.chartData.pie_data.map((_entry: PieChartData, idx: number) => (
+                        <Cell
+                          key={`cell-${idx}`}
+                          fill={`url(#pie-gradient-${idx})`}
+                          stroke="#1e293b"
+                          strokeWidth={2}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      labelStyle={{ color: '#f1f5f9', fontWeight: 600 }}
+                      itemStyle={{ color: '#e2e8f0' }}
+                    />
+                    <Legend
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="circle"
+                      iconSize={10}
+                      formatter={(value) => <span className="text-slate-300 text-sm ml-2">{value}</span>}
+                    />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              </div>
             )}
 
-            {/* Gauge 차트 (간단한 프로그레스 바로 대체) */}
+            {/* Gauge 차트 - 모던 반원형 게이지 */}
             {message.chartData.chart_type === 'gauge' && message.chartData.gauge_data && (
-              <div className="flex flex-col items-center">
-                <div className="text-3xl font-bold text-primary">
-                  {message.chartData.gauge_data.value.toFixed(1)}{message.chartData.gauge_data.unit}
-                </div>
-                <div className="w-full h-4 bg-gray-700 rounded-full mt-2 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${Math.min(100, Math.max(0, ((message.chartData.gauge_data.value - message.chartData.gauge_data.min) / (message.chartData.gauge_data.max - message.chartData.gauge_data.min)) * 100))}%`,
-                      backgroundColor: message.chartData.gauge_data.value > 80 ? '#22c55e' : message.chartData.gauge_data.value > 50 ? '#f59e0b' : '#ef4444',
-                    }}
-                  />
-                </div>
-                <div className="flex justify-between w-full text-xs text-gray-400 mt-1">
-                  <span>{message.chartData.gauge_data.min}{message.chartData.gauge_data.unit}</span>
-                  <span>{message.chartData.gauge_data.label}</span>
-                  <span>{message.chartData.gauge_data.max}{message.chartData.gauge_data.unit}</span>
+              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/30">
+                <div className="flex flex-col items-center">
+                  {/* 메인 값 표시 */}
+                  <div className="relative mb-4">
+                    <div className="text-5xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                      {message.chartData.gauge_data.value.toFixed(1)}
+                    </div>
+                    <div className="text-lg text-slate-400 text-center mt-1">
+                      {message.chartData.gauge_data.unit}
+                    </div>
+                  </div>
+
+                  {/* 게이지 바 */}
+                  <div className="w-full max-w-md">
+                    <div className="relative h-4 bg-slate-700/50 rounded-full overflow-hidden shadow-inner">
+                      {/* 배경 그라데이션 */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 opacity-50" />
+
+                      {/* 진행 바 */}
+                      <div
+                        className="h-full rounded-full transition-all duration-1000 ease-out relative overflow-hidden"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, ((message.chartData.gauge_data.value - message.chartData.gauge_data.min) / (message.chartData.gauge_data.max - message.chartData.gauge_data.min)) * 100))}%`,
+                          background: message.chartData.gauge_data.value > 80
+                            ? 'linear-gradient(90deg, #10b981 0%, #34d399 50%, #6ee7b7 100%)'
+                            : message.chartData.gauge_data.value > 50
+                            ? 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #fcd34d 100%)'
+                            : 'linear-gradient(90deg, #ef4444 0%, #f87171 50%, #fca5a5 100%)',
+                          boxShadow: message.chartData.gauge_data.value > 80
+                            ? '0 0 20px rgba(16, 185, 129, 0.5)'
+                            : message.chartData.gauge_data.value > 50
+                            ? '0 0 20px rgba(245, 158, 11, 0.5)'
+                            : '0 0 20px rgba(239, 68, 68, 0.5)',
+                        }}
+                      >
+                        {/* 광택 효과 */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent" />
+                      </div>
+                    </div>
+
+                    {/* 라벨 */}
+                    <div className="flex justify-between items-center mt-3 px-1">
+                      <span className="text-sm font-medium text-slate-500">
+                        {message.chartData.gauge_data.min}{message.chartData.gauge_data.unit}
+                      </span>
+                      <span className="text-sm font-semibold text-slate-300 bg-slate-700/50 px-3 py-1 rounded-full">
+                        {message.chartData.gauge_data.label}
+                      </span>
+                      <span className="text-sm font-medium text-slate-500">
+                        {message.chartData.gauge_data.max}{message.chartData.gauge_data.unit}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -314,95 +511,22 @@ export default function ChatInterface() {
     loadApiKey();
   }, []);
 
-  // Load chat history from localStorage on mount + recover pending responses
+  // 앱 시작시 초기 환영 메시지 설정 (채팅 기록은 세션 메모리만 사용, 재시작시 초기화)
   useEffect(() => {
-    const loadHistory = async () => {
-      const savedMessages = localStorage.getItem('chat-messages');
-      const savedSessionId = localStorage.getItem('chat-session-id');
-      const pendingRequest = localStorage.getItem('chat-pending-request');
-
-      // 파싱된 메시지를 저장할 변수 (복구 로직에서 재사용)
-      let parsedMessages: Message[] = [];
-
-      if (savedMessages) {
-        try {
-          parsedMessages = JSON.parse(savedMessages);
-
-          // 🔄 마이그레이션: "Judgify AI" → "TriFlow AI" 자동 변환
-          parsedMessages = parsedMessages.map((msg: Message) => ({
-            ...msg,
-            content: msg.content.replace(/Judgify AI/g, 'TriFlow AI')
-          }));
-
-          setMessages(parsedMessages);
-        } catch (error) {
-          console.error('Failed to parse saved messages:', error);
-          // If parsing fails, set initial welcome message
-          const initialMessage: Message = {
-            role: 'assistant',
-            content: '안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
-          };
-          parsedMessages = [initialMessage];
-          setMessages(parsedMessages);
-        }
-      } else {
-        // No saved messages, set initial welcome message
-        const initialMessage: Message = {
-          role: 'assistant',
-          content: '안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
-        };
-        parsedMessages = [initialMessage];
-        setMessages(parsedMessages);
-      }
-
-      if (savedSessionId) {
-        setSessionId(savedSessionId);
-
-        // 🔄 답변 대기 중이던 요청 복구
-        if (pendingRequest) {
-          console.log('⏳ Recovering pending chat response...');
-          console.log(`   Session ID: ${savedSessionId}`);
-          console.log(`   Current messages count: ${parsedMessages.length}`);
-
-          try {
-            const backendHistory = await getChatHistory(savedSessionId);
-            console.log(`   Backend history count: ${backendHistory.length}`);
-            console.log(`   Backend history:`, backendHistory);
-
-            // 백엔드에 더 많은 메시지가 있으면 (답변이 와있음)
-            if (backendHistory.length > parsedMessages.length) {
-              console.log(`✅ Found new messages from backend! (${backendHistory.length} vs ${parsedMessages.length})`);
-              const newMessages: Message[] = backendHistory.map((msg: any) => ({
-                role: msg.role,
-                content: msg.content,
-                intent: msg.intent,
-              }));
-              console.log('   Setting messages:', newMessages);
-              setMessages(newMessages);
-              localStorage.removeItem('chat-pending-request');
-            } else {
-              console.log('⚠️ No new messages yet, clearing pending flag');
-              localStorage.removeItem('chat-pending-request');
-            }
-          } catch (error) {
-            console.error('❌ Failed to recover pending request:', error);
-            localStorage.removeItem('chat-pending-request');
-          }
-        } else {
-          console.log('ℹ️ No pending request found');
-        }
-      }
+    const initialMessage: Message = {
+      role: 'assistant',
+      content: '안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
     };
+    setMessages([initialMessage]);
 
-    loadHistory();
+    // 이전 세션의 localStorage 데이터 정리
+    localStorage.removeItem('chat-messages');
+    localStorage.removeItem('chat-session-id');
+    localStorage.removeItem('chat-pending-request');
+    localStorage.removeItem('chat-pending-response');
   }, []);
 
-  // Save messages to localStorage whenever they change (but not empty array)
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem('chat-messages', JSON.stringify(messages));
-    }
-  }, [messages]);
+  // 메시지 변경시 ref 업데이트 (탭 전환 동기화용, localStorage 저장 제거됨)
 
   // 🔧 Track latest messages in ref for visibility handler (클로저 문제 해결)
   useEffect(() => {
@@ -414,12 +538,7 @@ export default function ChatInterface() {
     }
   }, [messages]);
 
-  // Save session ID to localStorage
-  useEffect(() => {
-    if (sessionId) {
-      localStorage.setItem('chat-session-id', sessionId);
-    }
-  }, [sessionId]);
+  // Session ID는 메모리에만 유지 (재시작시 새 세션 시작)
 
   // 🔄 Session ID 변경시 백엔드 히스토리 동기화 (새 메시지 응답 처리)
   useEffect(() => {
@@ -824,8 +943,6 @@ export default function ChatInterface() {
     };
     setMessages([initialMessage]);
     setSessionId(undefined);
-    localStorage.removeItem('chat-messages');
-    localStorage.removeItem('chat-session-id');
     setShowClearDialog(false);
   };
 

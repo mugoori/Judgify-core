@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "TriFlow-AI",
-    "version": "0.3.8"
+    "version": "0.3.10"
   },
   "tauri": {
     "allowlist": {
@@ -49,7 +49,10 @@
           "headerImage": null,
           "sidebarImage": null,
           "installMode": "currentUser",
-          "languages": ["Korean", "English"],
+          "languages": [
+            "Korean",
+            "English"
+          ],
           "displayLanguageSelector": false
         }
       },

@@ -1365,22 +1365,42 @@ Examples:
             "demand" // 기본값
         };
 
-        // 품목 추출 시도
+        // 품목 추출 시도 - 실제 item_mst 테이블 데이터 기준 (퓨어웰 브랜드 제품)
+        // FG-001~008: 완제품, RM-001~015: 원료, PKG-001~007: 포장재
         let item_patterns = [
-            ("프로바이오틱스 100", "FG-PB-100"),
-            ("프로바이오틱스 플러스", "FG-PB-150"),
-            ("프로바이오틱스", "FG-PB-100"), // 기본값
-            ("단백질 초코", "FG-PT-CHO"),
-            ("단백질 오리지널", "FG-PT-250"),
-            ("식물성단백질", "FG-PT-250"),
-            ("단백질", "FG-PT-250"),
-            ("디톡스", "FG-DT-500"),
-            ("콤부차", "FG-DT-500"),
-            ("pb-100", "FG-PB-100"),
-            ("pb-150", "FG-PB-150"),
-            ("pt-250", "FG-PT-250"),
-            ("pt-cho", "FG-PT-CHO"),
-            ("dt-500", "FG-DT-500"),
+            // 완제품 (FG: Finished Goods) - 퓨어웰 브랜드
+            ("프로바이오 플러스 500", "FG-001"),
+            ("프로바이오 플러스", "FG-001"),
+            ("프로바이오 라이트 350", "FG-002"),
+            ("프로바이오 라이트", "FG-002"),
+            ("프로바이오", "FG-001"), // 기본값 플러스
+            ("그린프로틴 딸기", "FG-003"),
+            ("그린프로틴 초코", "FG-004"),
+            ("그린프로틴", "FG-003"), // 기본값 딸기
+            ("프로틴", "FG-003"),
+            ("단백질", "FG-003"),
+            ("비타퓨어 레몬", "FG-005"),
+            ("스파클링 레몬", "FG-005"),
+            ("비타퓨어 오렌지", "FG-006"),
+            ("스파클링 오렌지", "FG-006"),
+            ("비타퓨어", "FG-005"), // 기본값 레몬
+            ("뷰티셀 콜라겐", "FG-007"),
+            ("콜라겐 워터", "FG-007"),
+            ("뷰티셀", "FG-007"),
+            ("콜라겐", "FG-007"),
+            ("키즈웰 면역", "FG-008"),
+            ("면역쑥쑥", "FG-008"),
+            ("키즈웰", "FG-008"),
+            ("키즈", "FG-008"),
+            // 단축 코드
+            ("fg-001", "FG-001"),
+            ("fg-002", "FG-002"),
+            ("fg-003", "FG-003"),
+            ("fg-004", "FG-004"),
+            ("fg-005", "FG-005"),
+            ("fg-006", "FG-006"),
+            ("fg-007", "FG-007"),
+            ("fg-008", "FG-008"),
         ];
 
         let item_id = item_patterns
@@ -1446,11 +1466,12 @@ Examples:
         );
 
         // SQL 쿼리 (품목별 또는 전체)
-        // seed_data.py/judgify_large.db 기준: sales_order(so_date), sales_order_dtl(item_id, order_qty)
+        // judgify.db 스키마: sales_order(so_date), sales_order_dtl(item_cd, qty)
+        // item_mst(item_cd, item_nm, item_type) - FG: 완제품, RM: 원료, PKG: 포장재
         let (sql, item_name) = if let Some(id) = item_id {
-            // 품목명 조회 (item_mst 테이블의 item_name 컬럼)
+            // 품목명 조회 (item_mst 테이블의 item_nm 컬럼)
             let name: String = conn.query_row(
-                "SELECT item_name FROM item_mst WHERE item_id = ?",
+                "SELECT item_nm FROM item_mst WHERE item_cd = ?",
                 [id],
                 |row| row.get(0)
             ).unwrap_or_else(|_| id.to_string());
@@ -1458,10 +1479,10 @@ Examples:
             (format!(r#"
                 SELECT
                     strftime('%Y-%m', s.so_date) as month,
-                    SUM(d.order_qty) as qty
+                    SUM(d.qty) as qty
                 FROM sales_order s
                 JOIN sales_order_dtl d ON s.so_no = d.so_no
-                WHERE d.item_id = '{}'
+                WHERE d.item_cd = '{}'
                 GROUP BY strftime('%Y-%m', s.so_date)
                 ORDER BY month DESC
                 LIMIT 12
@@ -1470,7 +1491,7 @@ Examples:
             (r#"
                 SELECT
                     strftime('%Y-%m', s.so_date) as month,
-                    SUM(d.order_qty) as qty
+                    SUM(d.qty) as qty
                 FROM sales_order s
                 JOIN sales_order_dtl d ON s.so_no = d.so_no
                 GROUP BY strftime('%Y-%m', s.so_date)
@@ -1882,12 +1903,34 @@ IMPORTANT - Company Knowledge:
 - Always prioritize knowledge base data over generic responses
 - If knowledge base has relevant info, quote specific details (e.g., "퓨어웰 음료㈜는 2010년 설립된 음료 제조 전문기업입니다")
 
+=== 제품(품목) 데이터 구조 (item_mst) ===
+품목 마스터 테이블 구조:
+- item_cd: 품목코드 (FG-XXX: 완제품, RM-XXX: 원료, PKG-XXX: 포장재)
+- item_nm: 품목명
+- item_type: 품목유형 (FG=완제품/Finished Goods, RM=원료/Raw Material, PKG=포장재/Packaging)
+
+현재 완제품 목록 (FG: Finished Goods) - 퓨어웰 음료㈜ 브랜드 제품:
+- FG-001: 퓨어웰 프로바이오 플러스 500 (유산균 음료)
+- FG-002: 퓨어웰 프로바이오 라이트 350 (유산균 음료)
+- FG-003: 퓨어웰 그린프로틴 딸기맛 (식물성 단백질 쉐이크)
+- FG-004: 퓨어웰 그린프로틴 초코맛 (식물성 단백질 쉐이크)
+- FG-005: 비타퓨어 스파클링 레몬 (비타민 음료)
+- FG-006: 비타퓨어 스파클링 오렌지 (비타민 음료)
+- FG-007: 뷰티셀 콜라겐 워터 (콜라겐 음료)
+- FG-008: 키즈웰 면역쑥쑥 (어린이 면역 음료)
+
+IMPORTANT: 사용자가 "제품 목록", "우리 제품", "뭘 만들어?" 등을 물으면:
+- 완제품(FG-XXX)만 응답하세요
+- 원료(RM-XXX)나 포장재(PKG-XXX)는 제품이 아닙니다
+- 예: "퓨어웰 음료㈜는 총 8종의 완제품을 생산합니다: 퓨어웰 프로바이오 시리즈(플러스, 라이트), 퓨어웰 그린프로틴(딸기, 초코), 비타퓨어 스파클링(레몬, 오렌지), 뷰티셀 콜라겐 워터, 키즈웰 면역쑥쑥이 있어요."
+
 === 현재 동작하는 기능 (시연 가능) ===
 1. 회사 정보 조회: 퓨어웰 음료㈜ 기업 개요, 제품, 인증, 조직, 시설 정보
 2. SOP 절차 안내: 살균, 배합, 충진, 냉각, 포장 등 제조 공정 표준작업절차
 3. MES/ERP 데이터 조회: 매출, 구매, 재고, 생산 현황 실시간 조회
 4. 수요/재고 예측: 이동평균 + 성장률 기반 다음달 수요 예측, 안전재고 분석
-5. 일반 질문 응답: 식품안전, HACCP, 품질관리 관련 지식 답변
+5. 제품(품목) 조회: 완제품 목록, 품목별 정보 안내
+6. 일반 질문 응답: 식품안전, HACCP, 품질관리 관련 지식 답변
 
 === 다른 메뉴에서 가능한 기능 ===
 - 워크플로우 생성/편집 → "워크플로우" 메뉴에서 가능
@@ -1919,7 +1962,8 @@ Examples:
 - User: "프로바이오틱스 재고 예측" → [Use forecast_data with item] "프로바이오틱스 100의 다음달 예상 수요는 2,500개입니다. 현재 재고 3,000개로 안전재고(1,575개) 대비 여유가 있습니다."
 - User: "우리 회사가 뭐하는 회사야?" → [Use knowledge_base_context] "퓨어웰 음료㈜는 2010년 설립된 음료 제조 전문기업입니다. 주스, 스무디, 건강음료 등을 생산하고 있으며, HACCP, ISO 22000 등의 인증을 보유하고 있어요."
 - User: "살균 공정 어떻게 해?" → [Use SOP from knowledge_base] "살균 공정(SOP-04)은 CCP(중요관리점)로, 85°C에서 15초간 유지하는 것이 기준입니다. 온도가 83°C 미만이면 즉시 재살균이 필요해요."
-- User: "뭘 할 수 있어?" → "저는 퓨어웰 음료 회사 정보 안내, SOP 절차 설명, 매출/재고/생산 데이터 조회, 수요/재고 예측을 도와드릴 수 있어요. 워크플로우 생성은 좌측 '워크플로우' 메뉴에서, 대시보드는 '대시보드' 메뉴에서 이용하실 수 있습니다!"
+- User: "제품 뭐 있어?" / "우리 제품 목록" → "퓨어웰 음료㈜는 총 8종의 완제품을 생산합니다: 퓨어웰 프로바이오 시리즈(플러스 500, 라이트 350), 퓨어웰 그린프로틴(딸기맛, 초코맛), 비타퓨어 스파클링(레몬, 오렌지), 뷰티셀 콜라겐 워터, 키즈웰 면역쑥쑥이 있어요." (완제품 FG-001~008만 응답, 원료/포장재 제외)
+- User: "뭘 할 수 있어?" → "저는 퓨어웰 음료 회사 정보 안내, SOP 절차 설명, 매출/재고/생산 데이터 조회, 수요/재고 예측, 제품 목록 안내를 도와드릴 수 있어요. 워크플로우 생성은 좌측 '워크플로우' 메뉴에서, 대시보드는 '대시보드' 메뉴에서 이용하실 수 있습니다!"
 "#;
 
         // 대화 이력을 안전하게 처리 (최근 5개)
