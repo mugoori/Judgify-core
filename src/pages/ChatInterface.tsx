@@ -45,6 +45,17 @@ interface Message {
   chartData?: ChartResponse;
 }
 
+// Y축 숫자 압축 포맷터 (K: 천 단위, M: 백만 단위)
+const formatYAxisValue = (value: number): string => {
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(0)}K`;
+  }
+  return value.toString();
+};
+
 // Memoized MessageBubble component to prevent unnecessary re-renders
 const MessageBubble = memo(({ message, index }: { message: Message; index: number }) => {
   return (
@@ -152,7 +163,7 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                         interval={0}
                         tick={{ fill: '#d1d5db' }}
                       />
-                      <YAxis stroke="#9ca3af" fontSize={12} />
+                      <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={formatYAxisValue} />
                       <Tooltip
                         contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '6px' }}
                         labelStyle={{ color: '#f3f4f6' }}
@@ -175,7 +186,7 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                         interval={0}
                         tick={{ fill: '#d1d5db' }}
                       />
-                      <YAxis stroke="#9ca3af" fontSize={12} />
+                      <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={formatYAxisValue} />
                       <Tooltip
                         contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '6px' }}
                         labelStyle={{ color: '#f3f4f6' }}
