@@ -3,6 +3,9 @@
 -- 추가 테이블 시드 데이터
 -- ========================================
 
+-- FK 제약조건 비활성화 (시드 데이터 삽입용)
+PRAGMA foreign_keys = OFF;
+
 -- ========================================
 -- 1. 창고 마스터 시드
 -- ========================================
@@ -119,3 +122,6 @@ INSERT OR IGNORE INTO inventory_movement (movement_no, movement_type, movement_d
 
 -- 창고간 이동
 ('MV-2025-009', 'TRANSFER', '2025-11-28 14:00:00', 'FG-001', 'FG-241125-001', 500, 'EA', 'WH-FG01', 'WH-FG02', NULL, NULL);
+
+-- FK 제약조건 다시 활성화
+PRAGMA foreign_keys = ON;

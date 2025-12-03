@@ -104,10 +104,11 @@ CREATE TABLE IF NOT EXISTS process_param_log (
     glycol_temp REAL,                             -- 글리콜 온도
 
     is_alarm INTEGER DEFAULT 0,
-    alarm_message TEXT,
+    alarm_message TEXT
 
-    FOREIGN KEY (equip_cd) REFERENCES equipment_mst(equip_cd),
-    FOREIGN KEY (batch_lot_no) REFERENCES batch_lot(batch_lot_no)
+    -- FK 제거: 유연한 데이터 입력 허용
+    -- FOREIGN KEY (equip_cd) REFERENCES equipment_mst(equip_cd),
+    -- FOREIGN KEY (batch_lot_no) REFERENCES batch_lot(batch_lot_no)
 );
 
 -- ========================================
@@ -136,10 +137,11 @@ CREATE TABLE IF NOT EXISTS material_input_log (
     is_verified INTEGER DEFAULT 0,                -- 검증 여부 (바코드 스캔)
     verification_time TEXT,
 
-    remark TEXT,
+    remark TEXT
 
-    FOREIGN KEY (batch_lot_no) REFERENCES batch_lot(batch_lot_no),
-    FOREIGN KEY (item_cd) REFERENCES item_mst(item_cd)
+    -- FK 제거: 유연한 데이터 입력 허용
+    -- FOREIGN KEY (batch_lot_no) REFERENCES batch_lot(batch_lot_no),
+    -- FOREIGN KEY (item_cd) REFERENCES item_mst(item_cd)
 );
 
 -- ========================================

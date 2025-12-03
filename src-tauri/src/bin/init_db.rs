@@ -12,7 +12,7 @@ fn main() {
             // 새로운 마이그레이션 적용 (ERP/MES/RAG)
             match apply_migrations() {
                 Ok(()) => {
-                    println!("✅ 마이그레이션 001-011 실행 완료");
+                    println!("✅ 마이그레이션 001-013 실행 완료");
                     println!("📁 위치: %APPDATA%\\Judgify\\judgify.db");
                     println!("✅ 퓨어웰 음료㈜ 시드 데이터 삽입 완료");
                     println!("✅ 추가 ERP/MES 테이블 및 시드 데이터 삽입 완료");
@@ -71,6 +71,8 @@ fn apply_migrations() -> rusqlite::Result<()> {
         "migrations/009_seed_2025_sales.sql",
         "migrations/010_additional_erp_mes.sql",
         "migrations/011_seed_additional.sql",
+        "migrations/012_seed_erp_extended.sql",
+        "migrations/013_seed_mes_extended.sql",
     ];
 
     for file in &migration_files {
@@ -152,7 +154,10 @@ fn print_summary(conn: &Connection) -> rusqlite::Result<()> {
     let ccp_count: i64 = conn.query_row("SELECT COUNT(*) FROM ccp_check_log", [], |row| row.get(0))?;
     let sensor_count: i64 = conn.query_row("SELECT COUNT(*) FROM sensor_log", [], |row| row.get(0))?;
     let alarm_count: i64 = conn.query_row("SELECT COUNT(*) FROM alarm_event", [], |row| row.get(0))?;
+    let material_issue_count: i64 = conn.query_row("SELECT COUNT(*) FROM material_issue", [], |row| row.get(0)).unwrap_or(0);
+    let operation_exec_count: i64 = conn.query_row("SELECT COUNT(*) FROM operation_exec", [], |row| row.get(0)).unwrap_or(0);
     println!("⚙️  MES 실행: 작업지시 {}, CCP체크 {}, 센서로그 {}, 알람 {}", wo_count, ccp_count, sensor_count, alarm_count);
+    println!("⚙️  MES 확장: 공정실행 {}, 자재출고 {}", operation_exec_count, material_issue_count);
 
     // 추가된 테이블 (010, 011)
     let qc_insp_count: i64 = conn.query_row("SELECT COUNT(*) FROM qc_inspection", [], |row| row.get(0)).unwrap_or(0);
