@@ -5,7 +5,7 @@ Judgify-core 버전 관리 (Single Source of Truth)
 버전 변경시 이 파일만 수정하고, scripts/bump_version.py를 실행하세요.
 """
 
-__version__ = "0.3.8"
+__version__ = "0.3.9"
 __stage__ = "beta"  # alpha → beta → rc → stable
 __release_date__ = "2025-12-03"
 __description__ = "차트 Y축 숫자 압축 포맷 적용 (K/M 단위)"
