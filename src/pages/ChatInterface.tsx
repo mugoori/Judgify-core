@@ -511,95 +511,22 @@ export default function ChatInterface() {
     loadApiKey();
   }, []);
 
-  // Load chat history from localStorage on mount + recover pending responses
+  // 앱 시작시 초기 환영 메시지 설정 (채팅 기록은 세션 메모리만 사용, 재시작시 초기화)
   useEffect(() => {
-    const loadHistory = async () => {
-      const savedMessages = localStorage.getItem('chat-messages');
-      const savedSessionId = localStorage.getItem('chat-session-id');
-      const pendingRequest = localStorage.getItem('chat-pending-request');
-
-      // 파싱된 메시지를 저장할 변수 (복구 로직에서 재사용)
-      let parsedMessages: Message[] = [];
-
-      if (savedMessages) {
-        try {
-          parsedMessages = JSON.parse(savedMessages);
-
-          // 🔄 마이그레이션: "Judgify AI" → "TriFlow AI" 자동 변환
-          parsedMessages = parsedMessages.map((msg: Message) => ({
-            ...msg,
-            content: msg.content.replace(/Judgify AI/g, 'TriFlow AI')
-          }));
-
-          setMessages(parsedMessages);
-        } catch (error) {
-          console.error('Failed to parse saved messages:', error);
-          // If parsing fails, set initial welcome message
-          const initialMessage: Message = {
-            role: 'assistant',
-            content: '안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
-          };
-          parsedMessages = [initialMessage];
-          setMessages(parsedMessages);
-        }
-      } else {
-        // No saved messages, set initial welcome message
-        const initialMessage: Message = {
-          role: 'assistant',
-          content: '안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
-        };
-        parsedMessages = [initialMessage];
-        setMessages(parsedMessages);
-      }
-
-      if (savedSessionId) {
-        setSessionId(savedSessionId);
-
-        // 🔄 답변 대기 중이던 요청 복구
-        if (pendingRequest) {
-          console.log('⏳ Recovering pending chat response...');
-          console.log(`   Session ID: ${savedSessionId}`);
-          console.log(`   Current messages count: ${parsedMessages.length}`);
-
-          try {
-            const backendHistory = await getChatHistory(savedSessionId);
-            console.log(`   Backend history count: ${backendHistory.length}`);
-            console.log(`   Backend history:`, backendHistory);
-
-            // 백엔드에 더 많은 메시지가 있으면 (답변이 와있음)
-            if (backendHistory.length > parsedMessages.length) {
-              console.log(`✅ Found new messages from backend! (${backendHistory.length} vs ${parsedMessages.length})`);
-              const newMessages: Message[] = backendHistory.map((msg: any) => ({
-                role: msg.role,
-                content: msg.content,
-                intent: msg.intent,
-              }));
-              console.log('   Setting messages:', newMessages);
-              setMessages(newMessages);
-              localStorage.removeItem('chat-pending-request');
-            } else {
-              console.log('⚠️ No new messages yet, clearing pending flag');
-              localStorage.removeItem('chat-pending-request');
-            }
-          } catch (error) {
-            console.error('❌ Failed to recover pending request:', error);
-            localStorage.removeItem('chat-pending-request');
-          }
-        } else {
-          console.log('ℹ️ No pending request found');
-        }
-      }
+    const initialMessage: Message = {
+      role: 'assistant',
+      content: '안녕하세요! TriFlow AI 어시스턴트입니다. 무엇을 도와드릴까요?\n\n다음과 같은 작업을 도와드릴 수 있습니다:\n\n📊 "지난 주 불량률 트렌드 보여줘"\n⚙️ "품질 검사 워크플로우 실행해줘"\n📋 "워크플로우 생성 방법 알려줘"\n🔧 "시스템 상태 확인해줘"',
     };
+    setMessages([initialMessage]);
 
-    loadHistory();
+    // 이전 세션의 localStorage 데이터 정리
+    localStorage.removeItem('chat-messages');
+    localStorage.removeItem('chat-session-id');
+    localStorage.removeItem('chat-pending-request');
+    localStorage.removeItem('chat-pending-response');
   }, []);
 
-  // Save messages to localStorage whenever they change (but not empty array)
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem('chat-messages', JSON.stringify(messages));
-    }
-  }, [messages]);
+  // 메시지 변경시 ref 업데이트 (탭 전환 동기화용, localStorage 저장 제거됨)
 
   // 🔧 Track latest messages in ref for visibility handler (클로저 문제 해결)
   useEffect(() => {
@@ -611,12 +538,7 @@ export default function ChatInterface() {
     }
   }, [messages]);
 
-  // Save session ID to localStorage
-  useEffect(() => {
-    if (sessionId) {
-      localStorage.setItem('chat-session-id', sessionId);
-    }
-  }, [sessionId]);
+  // Session ID는 메모리에만 유지 (재시작시 새 세션 시작)
 
   // 🔄 Session ID 변경시 백엔드 히스토리 동기화 (새 메시지 응답 처리)
   useEffect(() => {
@@ -1021,8 +943,6 @@ export default function ChatInterface() {
     };
     setMessages([initialMessage]);
     setSessionId(undefined);
-    localStorage.removeItem('chat-messages');
-    localStorage.removeItem('chat-session-id');
     setShowClearDialog(false);
   };
 

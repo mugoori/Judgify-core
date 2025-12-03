@@ -105,6 +105,8 @@ pub async fn query_table_data(
     table_name: String,
     limit: Option<i32>,
     offset: Option<i32>,
+    sort_column: Option<String>,
+    sort_direction: Option<String>,
 ) -> Result<QueryResult, String> {
     println!("📊 테이블 데이터 조회: {}", table_name);
 
@@ -138,14 +140,49 @@ pub async fn query_table_data(
         row.get(0)
     }).map_err(|e| format!("행 개수 조회 실패: {}", e))?;
 
-    // 데이터 조회 (페이징 지원)
+    // 데이터 조회 (페이징 지원 + 사용자 정렬 또는 자동 정렬)
     let limit_val = limit.unwrap_or(100);
     let offset_val = offset.unwrap_or(0);
 
-    let data_query = format!(
-        "SELECT * FROM {} LIMIT {} OFFSET {}",
-        table_name, limit_val, offset_val
+    // 사용자가 정렬 컬럼을 지정한 경우 해당 컬럼 사용, 아니면 기본 정렬 컬럼
+    let (final_sort_column, final_sort_direction) = if let Some(ref user_col) = sort_column {
+        // SQL Injection 방지: 컬럼명에 허용되지 않은 문자가 있으면 거부
+        if !user_col.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            eprintln!("⚠️ 잘못된 정렬 컬럼명: {}", user_col);
+            return Err("잘못된 정렬 컬럼명입니다.".to_string());
+        }
+        let dir = sort_direction.as_deref().unwrap_or("ASC");
+        // 정렬 방향 검증
+        let safe_dir = if dir.to_uppercase() == "DESC" { "DESC" } else { "ASC" };
+        (user_col.as_str(), safe_dir)
+    } else {
+        // 기본 정렬: 테이블별 최적 정렬 컬럼
+        get_sort_column(&table_name)
+    };
+
+    // 정렬 컬럼이 테이블에 존재하는지 확인
+    let column_check_query = format!(
+        "SELECT 1 FROM pragma_table_info('{}') WHERE name = '{}'",
+        table_name, final_sort_column
     );
+    let column_exists = conn.query_row(&column_check_query, [], |_| Ok(true))
+        .unwrap_or(false);
+
+    // 정렬 컬럼이 존재하면 ORDER BY 추가, 없으면 기본 정렬
+    let data_query = if column_exists {
+        format!(
+            "SELECT * FROM {} ORDER BY {} {} LIMIT {} OFFSET {}",
+            table_name, final_sort_column, final_sort_direction, limit_val, offset_val
+        )
+    } else {
+        // 정렬 컬럼이 없으면 rowid로 정렬 (기본 삽입 순서)
+        format!(
+            "SELECT * FROM {} ORDER BY rowid DESC LIMIT {} OFFSET {}",
+            table_name, limit_val, offset_val
+        )
+    };
+
+    println!("📊 쿼리 실행: {}", data_query);
 
     let mut stmt = conn.prepare(&data_query).map_err(|e| {
         format!("데이터 조회 준비 실패: {}", e)
@@ -597,4 +634,67 @@ const ALLOWED_TABLES: &[&str] = &[
 // API 접근 권한 검증 (보안용)
 fn is_valid_table_name(name: &str) -> bool {
     ALLOWED_TABLES.contains(&name)
+}
+
+/// 테이블별 최적 정렬 컬럼 반환
+/// 날짜/시간 컬럼이 있으면 최신순(DESC)으로, 없으면 기본키로 정렬
+fn get_sort_column(table_name: &str) -> (&'static str, &'static str) {
+    // (정렬 컬럼, 정렬 방향)
+    match table_name {
+        // === ERP 마스터 테이블 (생성일 또는 코드순) ===
+        "item_mst" => ("created_at", "DESC"),
+        "vendor_mst" => ("created_at", "DESC"),
+        "customer_mst" => ("created_at", "DESC"),
+        "bom_mst" => ("created_at", "DESC"),
+        "bom_dtl" => ("id", "ASC"),  // 순서 유지
+        "warehouse_mst" => ("created_at", "DESC"),
+
+        // === ERP 트랜잭션 테이블 (날짜순) ===
+        "purchase_order" => ("order_date", "DESC"),
+        "purchase_order_dtl" => ("id", "ASC"),
+        "inbound" => ("inbound_date", "DESC"),
+        "inbound_dtl" => ("id", "ASC"),
+        "production_order" => ("plan_date", "DESC"),
+        "sales_order" => ("order_date", "DESC"),
+        "sales_order_dtl" => ("id", "ASC"),
+        "outbound" => ("ship_date", "DESC"),
+
+        // === ERP 재고 테이블 ===
+        "inventory" => ("updated_at", "DESC"),
+        "inventory_movement" => ("movement_date", "DESC"),
+
+        // === MES 마스터 테이블 ===
+        "line_mst" => ("created_at", "DESC"),
+        "equipment_mst" => ("created_at", "DESC"),
+        "operator_mst" => ("created_at", "DESC"),
+        "operation_mst" => ("created_at", "DESC"),
+        "param_mst" => ("created_at", "DESC"),
+
+        // === MES 생산 실적 테이블 (날짜/시간순) ===
+        "mes_work_order" => ("plan_date", "DESC"),
+        "batch_lot" => ("batch_date", "DESC"),
+        "filling_lot" => ("filling_date", "DESC"),
+        "fg_lot" => ("mfg_date", "DESC"),
+        "operation_exec" => ("start_time", "DESC"),
+
+        // === MES 공정/설비 테이블 (기록 시간순) ===
+        "sensor_log" => ("recorded_at", "DESC"),
+        "process_param_log" => ("recorded_at", "DESC"),
+        "operation_param_log" => ("recorded_at", "DESC"),
+
+        // === MES 품질 관리 테이블 ===
+        "ccp_check_log" => ("check_time", "DESC"),
+        "qc_test" => ("test_date", "DESC"),
+        "qc_inspection" => ("inspection_time", "DESC"),
+        "metal_detection_log" => ("detection_time", "DESC"),
+
+        // === MES 자재/이벤트 테이블 ===
+        "material_issue" => ("issue_time", "DESC"),
+        "material_input_log" => ("input_time", "DESC"),
+        "alarm_event" => ("alarm_time", "DESC"),
+        "downtime_event" => ("start_time", "DESC"),
+
+        // === 기본 (id 기준) ===
+        _ => ("id", "DESC"),
+    }
 }

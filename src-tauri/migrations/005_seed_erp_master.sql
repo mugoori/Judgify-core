@@ -36,16 +36,16 @@ INSERT INTO item_mst (item_cd, item_nm, item_type, unit, spec, shelf_life_days, 
 ('PKG-006', '박스 24입', 'PKG', 'EA', '골판지 박스', NULL, 'RT'),
 ('PKG-007', '박스 12입', 'PKG', 'EA', '골판지 박스', NULL, 'RT');
 
--- 완제품 (FG: Finished Goods)
+-- 완제품 (FG: Finished Goods) - 퓨어웰 음료㈜ 브랜드 제품
 INSERT INTO item_mst (item_cd, item_nm, item_type, unit, spec, shelf_life_days, storage_cond) VALUES
-('FG-001', '프로바이오 장건강 500ml', 'FG', 'EA', '유산균 10억CFU/병', 120, 'COLD'),
-('FG-002', '프로바이오 장건강 350ml', 'FG', 'EA', '유산균 7억CFU/병', 120, 'COLD'),
-('FG-003', '식물성 프로틴쉐이크 딸기 500ml', 'FG', 'EA', '단백질 20g/병', 180, 'RT'),
-('FG-004', '식물성 프로틴쉐이크 초코 500ml', 'FG', 'EA', '단백질 20g/병', 180, 'RT'),
-('FG-005', '비타민워터 레몬 500ml', 'FG', 'EA', 'Vit.C 100mg/병', 365, 'RT'),
-('FG-006', '비타민워터 오렌지 500ml', 'FG', 'EA', 'Vit.C 100mg/병', 365, 'RT'),
-('FG-007', '콜라겐 뷰티드링크 350ml', 'FG', 'EA', '콜라겐 5000mg/병', 180, 'RT'),
-('FG-008', '키즈 면역음료 200ml', 'FG', 'EA', '아연+초유', 180, 'COLD');
+('FG-001', '퓨어웰 프로바이오 플러스 500', 'FG', 'EA', '유산균 10억CFU/병', 120, 'COLD'),
+('FG-002', '퓨어웰 프로바이오 라이트 350', 'FG', 'EA', '유산균 7억CFU/병', 120, 'COLD'),
+('FG-003', '퓨어웰 그린프로틴 딸기맛', 'FG', 'EA', '단백질 20g/병', 180, 'RT'),
+('FG-004', '퓨어웰 그린프로틴 초코맛', 'FG', 'EA', '단백질 20g/병', 180, 'RT'),
+('FG-005', '비타퓨어 스파클링 레몬', 'FG', 'EA', 'Vit.C 100mg/병', 365, 'RT'),
+('FG-006', '비타퓨어 스파클링 오렌지', 'FG', 'EA', 'Vit.C 100mg/병', 365, 'RT'),
+('FG-007', '뷰티셀 콜라겐 워터', 'FG', 'EA', '콜라겐 5000mg/병', 180, 'RT'),
+('FG-008', '키즈웰 면역쑥쑥', 'FG', 'EA', '아연+초유', 180, 'COLD');
 
 -- ========================================
 -- 2. 거래처 마스터 (vendor_mst)
@@ -77,16 +77,16 @@ INSERT INTO customer_mst (cust_cd, cust_nm, cust_type, contact_nm, phone, email,
 -- 4. BOM 마스터 (bom_mst + bom_dtl)
 -- ========================================
 
--- BOM 헤더
+-- BOM 헤더 - 퓨어웰 브랜드 제품 레시피
 INSERT INTO bom_mst (bom_cd, fg_item_cd, bom_nm, batch_size, batch_unit, version) VALUES
-('BOM-001', 'FG-001', '프로바이오 장건강 500ml BOM', 1000, 'L', 1),
-('BOM-002', 'FG-002', '프로바이오 장건강 350ml BOM', 1000, 'L', 1),
-('BOM-003', 'FG-003', '식물성 프로틴쉐이크 딸기 500ml BOM', 1000, 'L', 1),
-('BOM-004', 'FG-004', '식물성 프로틴쉐이크 초코 500ml BOM', 1000, 'L', 1),
-('BOM-005', 'FG-005', '비타민워터 레몬 500ml BOM', 1000, 'L', 1),
-('BOM-006', 'FG-006', '비타민워터 오렌지 500ml BOM', 1000, 'L', 1),
-('BOM-007', 'FG-007', '콜라겐 뷰티드링크 350ml BOM', 1000, 'L', 1),
-('BOM-008', 'FG-008', '키즈 면역음료 200ml BOM', 1000, 'L', 1);
+('BOM-001', 'FG-001', '퓨어웰 프로바이오 플러스 500 BOM', 1000, 'L', 1),
+('BOM-002', 'FG-002', '퓨어웰 프로바이오 라이트 350 BOM', 1000, 'L', 1),
+('BOM-003', 'FG-003', '퓨어웰 그린프로틴 딸기맛 BOM', 1000, 'L', 1),
+('BOM-004', 'FG-004', '퓨어웰 그린프로틴 초코맛 BOM', 1000, 'L', 1),
+('BOM-005', 'FG-005', '비타퓨어 스파클링 레몬 BOM', 1000, 'L', 1),
+('BOM-006', 'FG-006', '비타퓨어 스파클링 오렌지 BOM', 1000, 'L', 1),
+('BOM-007', 'FG-007', '뷰티셀 콜라겐 워터 BOM', 1000, 'L', 1),
+('BOM-008', 'FG-008', '키즈웰 면역쑥쑥 BOM', 1000, 'L', 1);
 
 -- BOM 상세 - 프로바이오 장건강 500ml
 INSERT INTO bom_dtl (bom_cd, seq, item_cd, qty, unit, loss_rate, remark) VALUES
