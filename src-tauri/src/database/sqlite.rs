@@ -316,6 +316,14 @@ impl Database {
         // Seed sample data for demo (only if database is empty)
         crate::database::seed::seed_sample_data(conn)?;
 
+        // 🔥 앱 시작시 자동 마이그레이션 실행 (ERP/MES 테이블 + 시드 데이터)
+        // 마이그레이션 SQL은 컴파일 시점에 바이너리에 포함됨 (include_str!)
+        eprintln!("🔄 앱 시작: ERP/MES 마이그레이션 확인 중...");
+        if let Err(e) = crate::database::migrations::apply_migrations(conn) {
+            eprintln!("⚠️  마이그레이션 경고 (무시 가능): {}", e);
+            // 마이그레이션 실패는 치명적이지 않음 - 기존 데이터가 있을 수 있음
+        }
+
         Ok(())
     }
 
