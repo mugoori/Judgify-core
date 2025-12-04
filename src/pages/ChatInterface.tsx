@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { sendChatMessage, getChatHistory, type ChatMessageRequest, type ChatMessageResponse, type ChartResponse, type DataKeyConfig, type PieChartData } from '@/lib/tauri-api-wrapper';
+import { sendChatMessage, getChatHistory, getSystemStatus, type ChatMessageRequest, type ChatMessageResponse, type ChartResponse, type DataKeyConfig, type PieChartData } from '@/lib/tauri-api-wrapper';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
@@ -14,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Send, User, Trash2, TrendingUp, Play, FileQuestion, Activity, Paperclip, FileText, X, ChevronDown, BarChart3 } from 'lucide-react';
+import { Send, User, Trash2, TrendingUp, Play, FileQuestion, Activity, Paperclip, FileText, X, ChevronDown, BarChart3, AlertTriangle, Settings } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { toast } from '@/components/ui/use-toast';
 import type { MesUploadResult, MesQueryResult } from '@/types/mes';
@@ -468,14 +469,31 @@ export default function ChatInterface() {
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [, setClaudeApiKey] = useState<string>(''); // 🔧 API 키 상태 (읽기는 불필요, 설정만 사용)
   const [showClearDialog, setShowClearDialog] = useState(false); // ✅ AlertDialog 상태
+  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState<boolean | null>(null); // 🔑 API 키 설정 여부 (null = 확인 중)
   const messagesRef = useRef<Message[]>([]); // 🔧 최신 messages 추적용 ref
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const navigate = useNavigate();
 
   // MES RAG 상태
   const [mesSessionId] = useState<string>(() => crypto.randomUUID()); // MES 세션 ID (고정)
   const [uploadedFile, setUploadedFile] = useState<{ name: string; rowCount: number } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 🔑 API 키 설정 상태 확인 (앱 시작시)
+  useEffect(() => {
+    async function checkApiKeyStatus() {
+      try {
+        const status = await getSystemStatus();
+        setIsApiKeyConfigured(status.claude_configured);
+        console.log('[ChatInterface] API key configured:', status.claude_configured);
+      } catch (error) {
+        console.error('[ChatInterface] Failed to check API key status:', error);
+        setIsApiKeyConfigured(false);
+      }
+    }
+    checkApiKeyStatus();
+  }, []);
 
   // 🔧 Phase 1 Security Fix: Load API key from Tauri IPC (프로덕션 빌드 호환)
   useEffect(() => {
@@ -486,6 +504,7 @@ export default function ChatInterface() {
         if (apiKey) {
           console.log('[ChatInterface] API key loaded from system keychain');
           setClaudeApiKey(apiKey);
+          setIsApiKeyConfigured(true); // API 키 로드 성공시 상태 업데이트
 
           // Rust 환경변수에도 설정 (chat_service.rs가 사용)
           await invoke('save_api_key', { apiKey });
@@ -498,6 +517,7 @@ export default function ChatInterface() {
         if (localKey) {
           console.log('[ChatInterface] Fallback to localStorage API key');
           setClaudeApiKey(localKey);
+          setIsApiKeyConfigured(true); // localStorage에서 로드 성공시 상태 업데이트
 
           try {
             const { invoke } = await import('@tauri-apps/api/tauri');
@@ -1075,6 +1095,31 @@ export default function ChatInterface() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* 🔑 API 키 미설정 경고 배너 */}
+      {isApiKeyConfigured === false && (
+        <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-amber-800 dark:text-amber-200 mb-1">
+                Claude API 키가 설정되지 않았습니다
+              </h3>
+              <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+                AI 채팅 기능을 사용하려면 먼저 설정 페이지에서 Claude API 키를 등록해주세요.
+              </p>
+              <Button
+                size="sm"
+                onClick={() => navigate('/settings')}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                설정으로 이동
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
@@ -1101,7 +1146,7 @@ export default function ChatInterface() {
             variant="outline"
             className="justify-start h-auto py-3"
             onClick={() => handleQuickAction('지난 주 불량률 트렌드 보여줘')}
-            disabled={sendMessageMutation.isPending}
+            disabled={sendMessageMutation.isPending || isApiKeyConfigured === false}
           >
             <TrendingUp className="w-4 h-4 mr-2 flex-shrink-0" />
             <span className="text-sm">지난 주 불량률 트렌드</span>
@@ -1110,7 +1155,7 @@ export default function ChatInterface() {
             variant="outline"
             className="justify-start h-auto py-3"
             onClick={() => handleQuickAction('품질 검사 워크플로우 실행해줘')}
-            disabled={sendMessageMutation.isPending}
+            disabled={sendMessageMutation.isPending || isApiKeyConfigured === false}
           >
             <Play className="w-4 h-4 mr-2 flex-shrink-0" />
             <span className="text-sm">워크플로우 실행</span>
@@ -1119,7 +1164,7 @@ export default function ChatInterface() {
             variant="outline"
             className="justify-start h-auto py-3"
             onClick={() => handleQuickAction('워크플로우 생성 방법 알려줘')}
-            disabled={sendMessageMutation.isPending}
+            disabled={sendMessageMutation.isPending || isApiKeyConfigured === false}
           >
             <FileQuestion className="w-4 h-4 mr-2 flex-shrink-0" />
             <span className="text-sm">워크플로우 생성 방법</span>
@@ -1128,7 +1173,7 @@ export default function ChatInterface() {
             variant="outline"
             className="justify-start h-auto py-3"
             onClick={() => handleQuickAction('시스템 상태 확인해줘')}
-            disabled={sendMessageMutation.isPending}
+            disabled={sendMessageMutation.isPending || isApiKeyConfigured === false}
           >
             <Activity className="w-4 h-4 mr-2 flex-shrink-0" />
             <span className="text-sm">시스템 상태 확인</span>
@@ -1207,15 +1252,18 @@ export default function ChatInterface() {
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={
-              uploadedFile
+              isApiKeyConfigured === false
+                ? '⚠️ API 키를 먼저 설정해주세요 (설정 페이지)'
+                : uploadedFile
                 ? 'MES/ERP 데이터에 대해 질문하세요... (예: "온도가 90도 이상인 데이터는?")'
                 : '메시지를 입력하세요... (Shift+Enter로 줄바꿈, Ctrl+/로 포커스)'
             }
             className="min-h-[60px] resize-none"
+            disabled={isApiKeyConfigured === false}
           />
           <Button
             onClick={handleSend}
-            disabled={!input.trim() || sendMessageMutation.isPending || isUploading}
+            disabled={!input.trim() || sendMessageMutation.isPending || isUploading || isApiKeyConfigured === false}
             size="icon"
             className="h-[60px] w-[60px] flex-shrink-0"
           >
