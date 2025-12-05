@@ -5,7 +5,7 @@ Judgify-core 버전 관리 (Single Source of Truth)
 버전 변경시 이 파일만 수정하고, scripts/bump_version.py를 실행하세요.
 """
 
-__version__ = "0.3.13"
+__version__ = "0.3.14"
 __stage__ = "beta"  # alpha → beta → rc → stable
 __release_date__ = "2025-12-05"
 __description__ = "앱 시작시 자동 마이그레이션 실행 (ERP/MES 테이블 자동 생성)"

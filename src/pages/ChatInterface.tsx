@@ -356,6 +356,7 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                       innerRadius={60}
                       fill="#8884d8"
                       dataKey="value"
+                      nameKey="name"
                       paddingAngle={3}
                       animationDuration={800}
                       animationEasing="ease-out"
