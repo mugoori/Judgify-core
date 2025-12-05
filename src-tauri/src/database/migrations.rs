@@ -75,6 +75,10 @@ const MIGRATIONS: &[Migration] = &[
         name: "016_seed_recent_sensor_data.sql",
         sql: include_str!("../../migrations/016_seed_recent_sensor_data.sql"),
     },
+    Migration {
+        name: "017_fix_warehouse_inventory_mapping.sql",
+        sql: include_str!("../../migrations/017_fix_warehouse_inventory_mapping.sql"),
+    },
 ];
 
 /// 마이그레이션 실행 (앱 시작시 자동 호출)
