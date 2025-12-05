@@ -71,6 +71,10 @@ const MIGRATIONS: &[Migration] = &[
         name: "015_seed_erp_2025_full.sql",
         sql: include_str!("../../migrations/015_seed_erp_2025_full.sql"),
     },
+    Migration {
+        name: "016_seed_recent_sensor_data.sql",
+        sql: include_str!("../../migrations/016_seed_recent_sensor_data.sql"),
+    },
 ];
 
 /// 마이그레이션 실행 (앱 시작시 자동 호출)
