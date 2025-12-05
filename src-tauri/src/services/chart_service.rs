@@ -69,7 +69,8 @@ pub struct ChartResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataKeyConfig {
     pub key: String,
-    pub color: String,
+    #[serde(default)]
+    pub color: Option<String>,
     pub label: String,
 }
 
@@ -381,16 +382,26 @@ impl ChartService {
             ChartType::Bar | ChartType::Line => {
                 // 항상 "name" 키를 사용 (ChartDataPoint 구조체의 필드명과 일치)
                 let x_axis_key = "name".to_string();
-                let data_keys = plan.data_keys.clone().unwrap_or_else(|| {
-                    columns.iter().skip(1).enumerate().map(|(i, col)| {
-                        let colors = ["#3b82f6", "#22c55e", "#ef4444", "#f59e0b", "#8b5cf6"];
-                        DataKeyConfig {
-                            key: col.clone(),
-                            color: colors[i % colors.len()].to_string(),
-                            label: col.clone(),
-                        }
-                    }).collect()
-                });
+                let colors = ["#3b82f6", "#22c55e", "#ef4444", "#f59e0b", "#8b5cf6", "#06b6d4"];
+                let data_keys = plan.data_keys.clone()
+                    .map(|keys| {
+                        // LLM이 color를 생성하지 않은 경우 기본값 할당
+                        keys.into_iter().enumerate().map(|(i, mut dk)| {
+                            if dk.color.is_none() {
+                                dk.color = Some(colors[i % colors.len()].to_string());
+                            }
+                            dk
+                        }).collect()
+                    })
+                    .unwrap_or_else(|| {
+                        columns.iter().skip(1).enumerate().map(|(i, col)| {
+                            DataKeyConfig {
+                                key: col.clone(),
+                                color: Some(colors[i % colors.len()].to_string()),
+                                label: col.clone(),
+                            }
+                        }).collect()
+                    });
 
                 let chart_data: Vec<ChartDataPoint> = rows.iter().map(|row| {
                     let name = row.get(0)

@@ -63,6 +63,21 @@ const formatYAxisValue = (value: number): string => {
   return value.toString();
 };
 
+// Bar/Line 차트 데이터 평탄화 (values 객체를 최상위로 펼침)
+// Backend: { name: "12-01", values: { "살균온도": 85.5, "냉각온도": 4.2 } }
+// Recharts 필요: { name: "12-01", "살균온도": 85.5, "냉각온도": 4.2 }
+const flattenChartData = (data: any[] | undefined): any[] => {
+  if (!data) return [];
+  return data.map(item => {
+    const { name, values, ...rest } = item;
+    // values 객체가 있으면 펼치고, 없으면 그대로 사용
+    if (values && typeof values === 'object') {
+      return { name, ...values, ...rest };
+    }
+    return item;
+  });
+};
+
 // 모던 색상 배열 (Bar/Line 차트용)
 const MODERN_COLORS = [
   '#6366f1', // indigo
@@ -205,7 +220,7 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                 <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/30">
                   <ResponsiveContainer width="100%" height={320}>
                     {message.chartData.chart_type === 'bar' ? (
-                      <RechartsBarChart data={message.chartData.bar_line_data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                      <RechartsBarChart data={flattenChartData(message.chartData.bar_line_data)} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                         <defs>
                           {message.chartData.data_keys?.map((dk: DataKeyConfig, idx: number) => (
                             <linearGradient key={`gradient-${dk.key}`} id={`gradient-${dk.key}`} x1="0" y1="0" x2="0" y2="1">
@@ -218,14 +233,25 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                         <XAxis
                           dataKey={message.chartData.x_axis_key || 'name'}
                           stroke="#64748b"
-                          fontSize={11}
-                          angle={-35}
+                          fontSize={10}
+                          angle={-45}
                           textAnchor="end"
-                          height={70}
-                          interval={0}
+                          height={90}
+                          interval="preserveStartEnd"
                           tick={{ fill: '#94a3b8' }}
                           axisLine={{ stroke: '#475569', strokeWidth: 1 }}
                           tickLine={{ stroke: '#475569' }}
+                          tickFormatter={(value: string) => {
+                            if (value && value.includes('-') && value.includes(':')) {
+                              const parts = value.split(' ');
+                              if (parts.length >= 2) {
+                                const datePart = parts[0].split('-').slice(1).join('/');
+                                const timePart = parts[1].substring(0, 5);
+                                return `${datePart} ${timePart}`;
+                              }
+                            }
+                            return value && value.length > 12 ? value.substring(0, 12) + '...' : value;
+                          }}
                         />
                         <YAxis
                           stroke="#64748b"
@@ -260,7 +286,7 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                         ))}
                       </RechartsBarChart>
                     ) : (
-                      <RechartsLineChart data={message.chartData.bar_line_data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                      <RechartsLineChart data={flattenChartData(message.chartData.bar_line_data)} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                         <defs>
                           {message.chartData.data_keys?.map((dk: DataKeyConfig, idx: number) => (
                             <linearGradient key={`area-gradient-${dk.key}`} id={`area-gradient-${dk.key}`} x1="0" y1="0" x2="0" y2="1">
@@ -280,14 +306,25 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                         <XAxis
                           dataKey={message.chartData.x_axis_key || 'name'}
                           stroke="#64748b"
-                          fontSize={11}
-                          angle={-35}
+                          fontSize={10}
+                          angle={-45}
                           textAnchor="end"
-                          height={70}
-                          interval={0}
+                          height={90}
+                          interval="preserveStartEnd"
                           tick={{ fill: '#94a3b8' }}
                           axisLine={{ stroke: '#475569', strokeWidth: 1 }}
                           tickLine={{ stroke: '#475569' }}
+                          tickFormatter={(value: string) => {
+                            if (value && value.includes('-') && value.includes(':')) {
+                              const parts = value.split(' ');
+                              if (parts.length >= 2) {
+                                const datePart = parts[0].split('-').slice(1).join('/');
+                                const timePart = parts[1].substring(0, 5);
+                                return `${datePart} ${timePart}`;
+                              }
+                            }
+                            return value && value.length > 12 ? value.substring(0, 12) + '...' : value;
+                          }}
                         />
                         <YAxis
                           stroke="#64748b"
@@ -330,13 +367,31 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                 </div>
               )}
 
-            {/* Pie 차트 - 모던 도넛 스타일 */}
-            {message.chartData.chart_type === 'pie' && message.chartData.pie_data && (
+            {/* Pie 차트 - 모던 도넛 스타일 (항목이 많으면 기타로 그룹화) */}
+            {message.chartData.chart_type === 'pie' && message.chartData.pie_data && (() => {
+              // 항목이 6개 초과시 상위 5개만 표시하고 나머지는 "기타"로 그룹화
+              const MAX_ITEMS = 6;
+              const rawData = message.chartData.pie_data!;
+              const sortedData = [...rawData].sort((a, b) => b.value - a.value);
+
+              let displayData: PieChartData[];
+              if (sortedData.length > MAX_ITEMS) {
+                const topItems = sortedData.slice(0, MAX_ITEMS - 1);
+                const otherItems = sortedData.slice(MAX_ITEMS - 1);
+                const otherValue = otherItems.reduce((sum, item) => sum + item.value, 0);
+                displayData = [...topItems, { name: `기타 (${otherItems.length}개)`, value: otherValue }];
+              } else {
+                displayData = sortedData;
+              }
+
+              const total = displayData.reduce((sum, item) => sum + item.value, 0);
+
+              return (
               <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/30">
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={320}>
                   <RechartsPieChart>
                     <defs>
-                      {message.chartData.pie_data.map((_entry: PieChartData, idx: number) => (
+                      {displayData.map((_entry: PieChartData, idx: number) => (
                         <linearGradient key={`pie-gradient-${idx}`} id={`pie-gradient-${idx}`} x1="0" y1="0" x2="1" y2="1">
                           <stop offset="0%" stopColor={PIE_COLORS[idx % PIE_COLORS.length]} stopOpacity={1} />
                           <stop offset="100%" stopColor={PIE_COLORS[idx % PIE_COLORS.length]} stopOpacity={0.7} />
@@ -347,11 +402,11 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                       </filter>
                     </defs>
                     <Pie
-                      data={message.chartData.pie_data}
+                      data={displayData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={false}
                       outerRadius={100}
                       innerRadius={60}
                       fill="#8884d8"
@@ -362,7 +417,7 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                       animationEasing="ease-out"
                       filter="url(#pie-shadow)"
                     >
-                      {message.chartData.pie_data.map((_entry: PieChartData, idx: number) => (
+                      {displayData.map((_entry: PieChartData, idx: number) => (
                         <Cell
                           key={`cell-${idx}`}
                           fill={`url(#pie-gradient-${idx})`}
@@ -375,17 +430,21 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                       contentStyle={tooltipStyle}
                       labelStyle={{ color: '#f1f5f9', fontWeight: 600 }}
                       itemStyle={{ color: '#e2e8f0' }}
+                      formatter={(value: number) => [`${value.toLocaleString()} (${((value / total) * 100).toFixed(1)}%)`, '수량']}
                     />
                     <Legend
+                      layout="horizontal"
+                      align="center"
                       wrapperStyle={{ paddingTop: '20px' }}
                       iconType="circle"
                       iconSize={10}
-                      formatter={(value) => <span className="text-slate-300 text-sm ml-2">{value}</span>}
+                      formatter={(value) => <span className="text-slate-300 text-xs ml-1 mr-2">{value}</span>}
                     />
                   </RechartsPieChart>
                 </ResponsiveContainer>
               </div>
-            )}
+              );
+            })()}
 
             {/* Gauge 차트 - 모던 반원형 게이지 */}
             {message.chartData.chart_type === 'gauge' && message.chartData.gauge_data && (
