@@ -4,6 +4,7 @@
 
 [1. 데이터 조회 SQL]
 ----------------------------------------------------------
+<!--SQL_START:warehouse_inventory-->
 -- 창고별 재고 현황 집계
 SELECT
     w.warehouse_id,
@@ -65,6 +66,7 @@ FROM inventory i
 JOIN item_mst im ON i.item_id = im.item_id
 WHERE i.qty_on_hand <= im.reorder_point * 1.2
 ORDER BY i.qty_on_hand * 1.0 / NULLIF(im.safety_stock, 0);
+<!--SQL_END-->
 ----------------------------------------------------------
 
 [2. 창고 마스터 정보]

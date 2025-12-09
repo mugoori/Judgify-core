@@ -4,6 +4,7 @@
 
 [1. 데이터 조회 SQL]
 ----------------------------------------------------------
+<!--SQL_START:monthly_production_trend-->
 -- 월별 생산량 집계 (최근 12개월)
 -- 참고: fg_lot.status는 AVAILABLE 또는 SHIPPED 값만 존재
 SELECT
@@ -41,6 +42,7 @@ JOIN production_order p ON f.prod_order_id = p.prod_order_id
 JOIN item_mst i ON p.item_id = i.item_id
 WHERE f.production_dt >= date('now', '-6 months')
 GROUP BY strftime('%Y-%m', f.production_dt), i.category;
+<!--SQL_END-->
 ----------------------------------------------------------
 
 [2. 생산 능력 기준 정보]

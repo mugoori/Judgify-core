@@ -4,6 +4,7 @@
 
 [1. 데이터 조회 SQL]
 ----------------------------------------------------------
+<!--SQL_START:quality_inspection-->
 -- 검사 결과별 분포
 SELECT
     final_status,
@@ -49,6 +50,7 @@ FROM qc_test
 WHERE test_dt >= date('now', '-8 weeks')
 GROUP BY strftime('%Y-W%W', test_dt)
 ORDER BY week;
+<!--SQL_END-->
 ----------------------------------------------------------
 
 [2. 검사 항목 기준 정보]

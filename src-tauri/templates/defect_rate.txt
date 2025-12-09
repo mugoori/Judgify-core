@@ -4,6 +4,7 @@
 
 [1. 데이터 조회 SQL]
 ----------------------------------------------------------
+<!--SQL_START:defect_rate-->
 -- 금일 전체 평균 불량률 산출
 SELECT
     SUM(qty_input) as total_input,
@@ -86,6 +87,7 @@ FROM operation_exec
 WHERE DATE(end_dt) >= DATE('now', '-7 days')
 GROUP BY DATE(end_dt)
 ORDER BY work_date;
+<!--SQL_END-->
 ----------------------------------------------------------
 
 [2. 불량 유형 분류 체계 (퓨어웰)]

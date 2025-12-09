@@ -4,6 +4,7 @@
 
 [1. 데이터 조회 SQL]
 ----------------------------------------------------------
+<!--SQL_START:temperature_trend-->
 -- 살균기별 실시간 온도 추이 (최근 8시간)
 SELECT
     s.sensor_id,
@@ -63,6 +64,7 @@ WHERE s.log_dt >= datetime('now', '-8 hours')
   AND e.equip_type = 'UHT'
 GROUP BY e.equip_name, strftime('%H', s.log_dt)
 ORDER BY e.equip_name, hour;
+<!--SQL_END-->
 ----------------------------------------------------------
 
 [2. CCP 관리 기준 (HACCP)]

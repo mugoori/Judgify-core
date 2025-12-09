@@ -4,7 +4,7 @@
 
 [1. 데이터 조회 SQL]
 ----------------------------------------------------------
--- 설비별 비가동 시간 집계
+<!--SQL_START:equipment_downtime-->
 SELECT
     e.equip_id,
     e.equip_name,
@@ -48,6 +48,7 @@ WHERE d.start_dt >= date('now', '-7 days')
 GROUP BY e.equip_id, e.equip_name
 HAVING failure_count >= 2
 ORDER BY failure_count DESC;
+<!--SQL_END-->
 ----------------------------------------------------------
 
 [2. 설비 마스터 정보]

@@ -4,6 +4,7 @@
 
 [1. 데이터 조회 SQL]
 ----------------------------------------------------------
+<!--SQL_START:ccp_types-->
 -- CCP 유형별 점검 현황 집계
 SELECT
     o.op_name as ccp_type,
@@ -61,6 +62,7 @@ WHERE c.check_dt >= date('now', '-8 weeks')
   AND o.is_ccp = 'Y'
 GROUP BY strftime('%Y-W%W', c.check_dt), o.op_name
 ORDER BY week;
+<!--SQL_END-->
 ----------------------------------------------------------
 
 [2. CCP(중요관리점) 관리 기준]
