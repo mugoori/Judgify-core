@@ -10,6 +10,7 @@ use tauri::{AppHandle, Manager};
 use uuid::Uuid;
 use crate::utils::security::{sanitize_for_xml, detect_injection_attempt};
 use crate::services::cache_service::{CacheService, ChatMessage as CachedMessage};
+use crate::services::prompt_router::PromptRouter;
 
 /// 사용자 의도 분류 (LLM 기반)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -21,6 +22,8 @@ pub enum Intent {
     JudgmentExecution,
     /// 데이터 시각화 / BI 인사이트 요청
     DataVisualization,
+    /// 차트/그래프 분석 요청 (확장 프롬프트 사용)
+    ChartAnalysis,
     /// 설정 변경 (MCP 서버 등)
     SettingsChange,
     /// 일반 질문 (시스템 사용법, 도움말 등)
@@ -272,14 +275,18 @@ impl ChatService {
 Classify the user's message into one of the following intents:
 - workflow_management: User wants to create, modify, delete, or view workflows
 - judgment_execution: User wants to execute a judgment/decision on data
-- data_visualization: User wants to see charts, dashboards, or BI insights (trends, success rates, analysis)
+- chart_analysis: User explicitly wants to SEE CHARTS/GRAPHS with specific operational data (라인별 생산량, 월별 매출, 가동률 게이지, CCP 합격률, 창고별 재고 등)
+- data_visualization: User wants general BI insights or trend analysis (without specific chart type request)
 - settings_change: User wants to modify system settings (MCP servers, API keys, etc.)
 - general_query: General questions, data queries, help, or usage
 
 IMPORTANT:
 - If the user is asking to "see data", "show data", "데이터 보여줘", "데이터 조회" → classify as general_query
-- Only classify as data_visualization when user explicitly asks for insights, trends, analysis, or charts about OPERATIONAL DATA (성공률, 불량률, 생산량, etc.)
-- Raw data queries should be general_query, not data_visualization
+- chart_analysis vs data_visualization:
+  * chart_analysis: User requests SPECIFIC CHART TYPES with keywords like: 라인별, 월별, 설비별, 창고별, 품목별, 공급업체별, 교대별, 작업자별, CCP, 가동률, OEE, 합격률, 불량률, 온도, 재고, 생산량, 매출, 비가동 - EVEN IF combined with "분석", "현황", "추이", "트렌드"
+  * data_visualization: ONLY for general analysis/insights request WITHOUT any specific category keywords (e.g., "전반적인 현황", "종합 분석", "전체 트렌드")
+- Raw data queries should be general_query, not data_visualization or chart_analysis
+- KEY RULE: If the query contains ANY specific category keyword (라인별, 월별, 설비별, 창고별, 품목별, CCP, 가동률, OEE, 온도, 재고, 생산량, 매출 등) → ALWAYS classify as chart_analysis, regardless of whether "분석" or "현황" is also present
 - Questions about the company itself (회사, 기업, 조직, 퓨어웰, 우리 회사, 회사 소개, 회사 정보) → ALWAYS classify as general_query (these are company information queries, NOT data analysis)
 - Questions about company strategy, DX, digital transformation, business planning → classify as general_query (these need company knowledge, not chart analysis)
 - Questions asking for EXPLANATIONS or METHODS (설명해줘, 방법, 어떻게, 절차, 알려줘, 뭐야) → ALWAYS classify as general_query (these need knowledge base, not charts)
@@ -290,7 +297,7 @@ IMPORTANT:
 
 Respond in JSON format:
 {
-  "intent": "workflow_management|judgment_execution|data_visualization|settings_change|general_query",
+  "intent": "workflow_management|judgment_execution|chart_analysis|data_visualization|settings_change|general_query",
   "confidence": 0.0-1.0,
   "reasoning": "Brief explanation (optional)"
 }
@@ -298,9 +305,24 @@ Respond in JSON format:
 Examples:
 - "워크플로우 만들어줘" → workflow_management
 - "재고 데이터로 판단 실행해줘" → judgment_execution
-- "지난 주 성공률 분석해줘" → data_visualization (asking for OPERATIONAL data analysis)
+- "라인별 생산량 보여줘" → chart_analysis (specific chart: production by line)
+- "라인별 생산량 분석" → chart_analysis (has "라인별" specific keyword!)
+- "월별 매출 차트" → chart_analysis (specific chart: monthly sales)
+- "월별 매출 분석해줘" → chart_analysis (has "월별" specific keyword!)
+- "가동률 게이지" → chart_analysis (specific chart: OEE gauge)
+- "CCP 합격률 현황" → chart_analysis (specific chart: CCP pass rate)
+- "CCP 현황 분석" → chart_analysis (has "CCP" specific keyword!)
+- "창고별 재고 비율" → chart_analysis (specific chart: inventory by warehouse)
+- "재고 현황 분석" → chart_analysis (has "재고" specific keyword!)
+- "온도 변화 추이" → chart_analysis (specific chart: temperature trend)
+- "온도 분석해줘" → chart_analysis (has "온도" specific keyword!)
+- "생산량 현황" → chart_analysis (has "생산량" specific keyword!)
+- "설비별 비가동 분석" → chart_analysis (has "설비별", "비가동" specific keywords!)
+- "전반적인 현황 분석해줘" → data_visualization (no specific category keyword)
+- "종합 분석" → data_visualization (general analysis, no specific chart)
+- "전체적인 품질 현황 알려줘" → data_visualization (general BI insight)
 - "온도가 90도 이상인 데이터 보여줘" → general_query (asking for raw data)
-- "불량률 트렌드 보여줘" → data_visualization (asking for trends)
+- "불량률 트렌드 보여줘" → chart_analysis (specific trend chart request)
 - "MCP 서버 연결 설정 변경" → settings_change
 - "TriFlow 사용법 알려줘" → general_query
 - "데이터 조회해줘" → general_query (raw data query)
@@ -352,7 +374,7 @@ Examples:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.3,
-            "max_tokens": 1024
+            "max_tokens": 8192
         });
 
         println!("📤 Sending request to Claude API...");
@@ -416,14 +438,20 @@ Examples:
         );
 
         // Intent enum으로 변환
+        // 📌 2024-12-08: 모든 데이터/분석 관련 질문을 ChartAnalysis로 라우팅
+        // - data_visualization, general_query도 ChartAnalysis로 처리
+        // - prompt_router.rs의 템플릿이 적용되도록 통합
         let intent = match analysis.intent.as_str() {
             "workflow_management" => Intent::WorkflowManagement,
             "judgment_execution" => Intent::JudgmentExecution,
-            "data_visualization" => Intent::DataVisualization,
+            "chart_analysis" => Intent::ChartAnalysis,
+            "data_visualization" => Intent::ChartAnalysis, // 📌 ChartAnalysis로 통합!
             "settings_change" => Intent::SettingsChange,
-            "general_query" => Intent::GeneralQuery,
-            _ => Intent::GeneralQuery, // 기본값
+            "general_query" => Intent::ChartAnalysis, // 📌 ChartAnalysis로 통합!
+            _ => Intent::ChartAnalysis, // 📌 기본값도 ChartAnalysis
         };
+
+        println!("📌 Intent 강제 변환: {} → {:?}", analysis.intent, intent);
 
         Ok(intent)
     }
@@ -794,18 +822,54 @@ Examples:
             serde_json::Value::Null
         };
 
-        let json_result = serde_json::json!({
-            "title": chart_response.title,
-            "chart_type": format!("{:?}", chart_response.chart_type).to_lowercase(),
-            "description": chart_response.description,
-            "data": data_value,
-            "data_keys": chart_response.data_keys,
-            "x_axis_key": chart_response.x_axis_key,
-            "insight": insight,
-            "insights": [insight.clone()],  // BI Service 호환용
-            "component_code": serde_json::Value::Null,
-            "recommendations": ["MES 데이터 기반 분석 결과입니다."],
-        });
+        // 차트 타입에 따라 적절한 데이터 키 사용
+        let json_result = if chart_response.bar_line_data.is_some() {
+            serde_json::json!({
+                "title": chart_response.title,
+                "chart_type": format!("{:?}", chart_response.chart_type).to_lowercase(),
+                "description": chart_response.description,
+                "bar_line_data": data_value,
+                "data_keys": chart_response.data_keys,
+                "x_axis_key": chart_response.x_axis_key,
+                "insight": insight,
+                "insights": [insight.clone()],
+                "component_code": serde_json::Value::Null,
+                "recommendations": ["MES 데이터 기반 분석 결과입니다."],
+            })
+        } else if chart_response.pie_data.is_some() {
+            serde_json::json!({
+                "title": chart_response.title,
+                "chart_type": format!("{:?}", chart_response.chart_type).to_lowercase(),
+                "description": chart_response.description,
+                "pie_data": data_value,
+                "insight": insight,
+                "insights": [insight.clone()],
+                "component_code": serde_json::Value::Null,
+                "recommendations": ["MES 데이터 기반 분석 결과입니다."],
+            })
+        } else if chart_response.gauge_data.is_some() {
+            serde_json::json!({
+                "title": chart_response.title,
+                "chart_type": format!("{:?}", chart_response.chart_type).to_lowercase(),
+                "description": chart_response.description,
+                "gauge_data": chart_response.gauge_data,
+                "insight": insight,
+                "insights": [insight.clone()],
+                "component_code": serde_json::Value::Null,
+                "recommendations": ["MES 데이터 기반 분석 결과입니다."],
+            })
+        } else {
+            serde_json::json!({
+                "title": chart_response.title,
+                "chart_type": format!("{:?}", chart_response.chart_type).to_lowercase(),
+                "description": chart_response.description,
+                "data": data_value,
+                "insight": insight,
+                "insights": [insight.clone()],
+                "component_code": serde_json::Value::Null,
+                "recommendations": ["MES 데이터 기반 분석 결과입니다."],
+            })
+        };
 
         println!("✅ Chart Service 호출 성공: title={}", chart_response.title);
 
@@ -915,7 +979,7 @@ Examples:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.3,
-            "max_tokens": 1024
+            "max_tokens": 8192
         });
 
         let response = self
@@ -2017,7 +2081,7 @@ Examples:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.7,  // 대화형 응답은 약간 더 창의적으로
-            "max_tokens": 4096  // 긴 답변(전략 제안, 상세 설명 등) 대응
+            "max_tokens": 8192  // 긴 답변(전략 제안, 상세 설명 등) 대응
         });
 
         let response = self
@@ -2054,6 +2118,140 @@ Examples:
                 clean_content.to_string()
             }
         );
+
+        Ok(clean_content.to_string())
+    }
+
+    /// 차트 분석 요청에 대한 응답 생성 (프롬프트 라우터 사용)
+    ///
+    /// 사용자의 차트/그래프 요청을 분석하여 확장된 프롬프트 템플릿과 함께
+    /// LLM을 호출하여 차트 데이터 + 분석 텍스트를 생성합니다.
+    ///
+    /// # Arguments
+    /// * `message` - 사용자 메시지 (예: "라인별 생산량 보여줘", "CCP 합격률 현황")
+    /// * `history` - 최근 대화 이력
+    ///
+    /// # Returns
+    /// * `String` - 차트 JSON + 분석 텍스트가 포함된 응답
+    pub async fn generate_chart_response(
+        &self,
+        message: &str,
+        history: Vec<ChatMessage>,
+    ) -> Result<String> {
+        println!("📊 [generate_chart_response] Processing chart analysis request");
+        println!("   Message: {}", message);
+        println!("   History count: {} messages", history.len());
+        if history.is_empty() {
+            println!("   ⚠️ [WARNING] No conversation history - this is a NEW session");
+        } else {
+            println!("   ✅ History available - continuing conversation context");
+        }
+
+        // 1. 프롬프트 라우터로 확장 프롬프트 생성
+        let router = PromptRouter::new();
+        let expanded_prompt = router.get_final_prompt(message);
+
+        println!("📋 [generate_chart_response] Expanded prompt length: {} chars", expanded_prompt.len());
+
+        // 2. 대화 이력을 Claude 메시지 형식으로 변환
+        let mut messages: Vec<serde_json::Value> = history
+            .iter()
+            .map(|msg| {
+                json!({
+                    "role": msg.role.clone(),
+                    "content": msg.content.clone()
+                })
+            })
+            .collect();
+
+        // 3. 확장된 프롬프트를 현재 사용자 메시지로 추가
+        messages.push(json!({
+            "role": "user",
+            "content": expanded_prompt
+        }));
+
+        // 4. 시스템 프롬프트 - 차트 분석 전문가 역할 (템플릿 응답 규칙 최우선 적용)
+        let system_prompt = r#"당신은 퓨어웰 음료㈜ (PUREWELL Beverage Co.)의 AI 분석 전문가입니다.
+
+핵심 역할:
+1. 제공된 SQL 쿼리와 판단 기준을 기반으로 데이터를 분석합니다
+2. 분석 결과를 명확한 한국어로 설명합니다
+3. 응답 형식 예시에 맞춰 구조화된 응답을 생성합니다
+4. 차트 렌더링을 위한 JSON 데이터를 포함합니다
+
+🚨 최우선 규칙 - [7. 응답 규칙] 섹션 엄격 준수:
+아래 사용자 메시지에 [7. 응답 규칙] 섹션이 포함되어 있다면, 해당 규칙을 반드시 최우선으로 따르세요.
+
+구체적 준수 사항:
+1. 수치 표시 형식을 정확히 따를 것:
+   - 온도: 소수점 1자리 (예: 89.5℃)
+   - 금액: 억원 단위 소수점 1자리 (예: 12.5억원)
+   - 수량: 천단위 콤마 (예: 12,450병)
+   - 백분율: 소수점 1~3자리 (템플릿 지시에 따름)
+
+2. 필수 포함 항목을 빠뜨리지 말 것:
+   - CCP 이탈 시 LOT ID 명시 (필수!)
+   - 전월/전년 대비 화살표(↑↓) 표시
+   - 이상 징후 발견 시 원인 분석 포함
+   - 권장사항은 구체적이고 실행 가능하게
+
+3. 시각적 표현을 템플릿 지시대로 사용할 것:
+   - 상태 아이콘: ✅정상, ⚠️주의, 🚨경고
+   - 색상 언급: 빨간색/노란색 강조
+   - 표/테이블 형식 준수
+
+4. 도메인별 특수 규칙:
+   - HACCP/CCP: 100% 합격률이 필수조건임을 명시
+   - OEE: 3요소(가동률/성능/품질) 모두 분석
+   - 품질검사: PASS/HOLD/REJECT 3상태 구분
+
+기본 응답 규칙 (위 규칙과 충돌 시 [7. 응답 규칙] 우선):
+- 항상 한국어로 응답합니다
+- 차트 JSON은 [6. 차트 렌더링 데이터] 섹션 형식을 정확히 따릅니다
+- 판단 기준(Threshold)에 따라 상태를 표시합니다
+
+중요: 응답 끝에 반드시 차트 JSON을 다음 형식으로 포함하세요:
+```json:chart
+{차트 데이터 JSON}
+```"#;
+
+        // 5. Claude API 호출
+        let request_body = json!({
+            "model": "claude-sonnet-4-5-20250929",
+            "system": system_prompt,
+            "messages": messages,
+            "temperature": 0.3,  // 데이터 분석은 정확성 우선
+            "max_tokens": 8192   // 차트 JSON 포함으로 더 긴 응답 허용
+        });
+
+        let response = self
+            .http_client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &self.claude_api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let status = response.status();
+        let response_text = response.text().await?;
+
+        if !status.is_success() {
+            println!("❌ [generate_chart_response] API Error: {} - {}", status, response_text);
+            return Err(anyhow::anyhow!("Claude API 오류: {}", status));
+        }
+
+        // 6. 응답 파싱
+        let response_json: serde_json::Value = serde_json::from_str(&response_text)?;
+        let content = response_json["content"][0]["text"]
+            .as_str()
+            .unwrap_or("차트 분석 응답을 생성하지 못했습니다.");
+
+        // 마크다운 코드 블록 제거 (JSON 부분 제외)
+        let clean_content = strip_markdown_code_block(content);
+
+        println!("✅ [generate_chart_response] Chart response generated: {} chars", clean_content.len());
 
         Ok(clean_content.to_string())
     }
@@ -2135,7 +2333,7 @@ Bad Response: "판매 주문에서 20건의 데이터를 찾았습니다." (This
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.3,  // 데이터 분석은 정확성 우선
-            "max_tokens": 2048
+            "max_tokens": 8192
         });
 
         let response = self
@@ -2216,7 +2414,7 @@ Examples:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.3,
-            "max_tokens": 1024
+            "max_tokens": 8192
         });
 
         let response = self
@@ -2306,7 +2504,7 @@ Examples:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.3,  // 정확한 JSON 생성을 위해 낮은 temperature
-            "max_tokens": 4096   // 긴 워크플로우 대응
+            "max_tokens": 8192   // 긴 워크플로우 대응
         });
 
         let response = self

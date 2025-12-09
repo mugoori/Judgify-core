@@ -75,6 +75,7 @@ export interface ChatMessageResponse {
   intent: string;
   action_result?: any;
   table_data?: TableData;
+  chart_data?: ChartResponse;  // 차트 분석 응답 데이터
 }
 
 export const sendChatMessage = (request: ChatMessageRequest): Promise<ChatMessageResponse> =>

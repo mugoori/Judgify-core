@@ -1,0 +1,392 @@
+==============================================================
+퓨어웰 음료 AI Agent - 재고이동 현황 분석 (BAR 차트)
+==============================================================
+
+[1. 데이터 조회 SQL]
+----------------------------------------------------------
+-- 이동유형별 재고이동 현황 (최근 30일)
+SELECT
+    movement_type,
+    COUNT(*) as movement_count,
+    SUM(qty) as total_qty,
+    COUNT(DISTINCT item_cd) as item_count
+FROM inventory_movement
+WHERE movement_date >= date('now', '-30 days')
+GROUP BY movement_type
+ORDER BY total_qty DESC;
+
+-- 창고간 이동 현황
+SELECT
+    fw.wh_nm as from_warehouse,
+    tw.wh_nm as to_warehouse,
+    COUNT(*) as transfer_count,
+    SUM(im.qty) as total_qty
+FROM inventory_movement im
+JOIN warehouse_mst fw ON im.from_warehouse = fw.wh_cd
+JOIN warehouse_mst tw ON im.to_warehouse = tw.wh_cd
+WHERE im.movement_type = 'TRANSFER'
+  AND im.movement_date >= date('now', '-30 days')
+GROUP BY im.from_warehouse, im.to_warehouse
+ORDER BY total_qty DESC;
+
+-- 일별 재고이동 추이
+SELECT
+    DATE(movement_date) as date,
+    movement_type,
+    SUM(qty) as total_qty,
+    COUNT(*) as count
+FROM inventory_movement
+WHERE movement_date >= date('now', '-30 days')
+GROUP BY DATE(movement_date), movement_type
+ORDER BY date, movement_type;
+
+-- 품목별 이동 현황 (TOP 10)
+SELECT
+    i.item_nm,
+    i.item_type,
+    im.movement_type,
+    SUM(im.qty) as total_qty,
+    COUNT(*) as movement_count
+FROM inventory_movement im
+JOIN item_mst i ON im.item_cd = i.item_cd
+WHERE im.movement_date >= date('now', '-30 days')
+GROUP BY im.item_cd, im.movement_type
+ORDER BY total_qty DESC
+LIMIT 20;
+
+-- 폐기(SCRAP) 상세 내역
+SELECT
+    i.item_nm,
+    im.qty,
+    im.reason,
+    im.movement_date,
+    w.wh_nm as warehouse
+FROM inventory_movement im
+JOIN item_mst i ON im.item_cd = i.item_cd
+JOIN warehouse_mst w ON im.from_warehouse = w.wh_cd
+WHERE im.movement_type = 'SCRAP'
+  AND im.movement_date >= date('now', '-30 days')
+ORDER BY im.movement_date DESC;
+
+-- 조정(ADJUST) 상세 내역
+SELECT
+    i.item_nm,
+    im.qty,
+    im.reason,
+    im.movement_date,
+    w.wh_nm as warehouse,
+    CASE WHEN im.qty > 0 THEN '증가' ELSE '감소' END as adjust_type
+FROM inventory_movement im
+JOIN item_mst i ON im.item_cd = i.item_cd
+JOIN warehouse_mst w ON COALESCE(im.to_warehouse, im.from_warehouse) = w.wh_cd
+WHERE im.movement_type = 'ADJUST'
+  AND im.movement_date >= date('now', '-30 days')
+ORDER BY im.movement_date DESC;
+
+-- 창고별 입출고 요약
+SELECT
+    w.wh_nm,
+    SUM(CASE WHEN im.movement_type = 'IN' THEN im.qty ELSE 0 END) as total_in,
+    SUM(CASE WHEN im.movement_type = 'OUT' THEN im.qty ELSE 0 END) as total_out,
+    SUM(CASE WHEN im.movement_type = 'TRANSFER' AND im.to_warehouse = w.wh_cd
+             THEN im.qty ELSE 0 END) as transfer_in,
+    SUM(CASE WHEN im.movement_type = 'TRANSFER' AND im.from_warehouse = w.wh_cd
+             THEN im.qty ELSE 0 END) as transfer_out,
+    SUM(CASE WHEN im.movement_type = 'SCRAP' THEN im.qty ELSE 0 END) as scrapped
+FROM warehouse_mst w
+LEFT JOIN inventory_movement im ON (w.wh_cd = im.from_warehouse OR w.wh_cd = im.to_warehouse)
+    AND im.movement_date >= date('now', '-30 days')
+GROUP BY w.wh_cd
+ORDER BY total_in DESC;
+----------------------------------------------------------
+
+[2. 퓨어웰 재고이동 기준 정보]
+----------------------------------------------------------
+[이동유형 정의]
+| 유형 | 코드 | 설명 | 승인 필요 |
+|------|------|------|----------|
+| 입고 | IN | 외부에서 창고로 입고 | 입고검사 후 |
+| 출고 | OUT | 창고에서 외부로 출고 | 출고지시서 |
+| 창고이동 | TRANSFER | 창고 간 재고 이동 | 이동요청서 |
+| 조정 | ADJUST | 재고 실사 후 조정 | 관리자 승인 |
+| 폐기 | SCRAP | 유통기한/불량 폐기 | 품질팀 승인 |
+
+[창고별 역할]
+- WH001 (원료창고): 원자재 보관
+- WH002 (부자재창고): 부자재/포장재 보관
+- WH003 (완제품창고): 완제품 보관
+- WH004 (출하대기): 출고 대기 제품
+- WH005 (불량창고): 불량/폐기 대기
+
+[월간 정상 이동량 기준]
+- 입고 (IN): 55,000L/월
+- 출고 (OUT): 95,000L/월
+- 창고이동 (TRANSFER): 30,000L/월
+- 조정 (ADJUST): 1,000L/월 이내
+- 폐기 (SCRAP): 500L/월 이내
+
+[재고실사 일정]
+- 일일 실사: 완제품 (WH003)
+- 주간 실사: 원료/부자재 (WH001, WH002)
+- 월말 실사: 전체 창고 일제 실사
+----------------------------------------------------------
+
+[3. 판단 기준 (Threshold)]
+----------------------------------------------------------
+[폐기(SCRAP) 비율 기준]
+- 전체 출고 대비 0.5% 이내: ✅ 우수
+- 전체 출고 대비 0.5-1%: ✅ 정상
+- 전체 출고 대비 1-2%: ⚠️ 주의 (원인 분석)
+- 전체 출고 대비 2% 초과: 🚨 심각 (긴급 점검)
+
+[조정(ADJUST) 비율 기준]
+- 전체 재고 대비 0.5% 이내: ✅ 정상
+- 전체 재고 대비 0.5-1%: ⚠️ 주의 (실사 정확도 점검)
+- 전체 재고 대비 1% 초과: 🚨 심각 (재고 관리 점검)
+
+[창고이동 빈도 기준]
+- 일 평균 20회 이내: ✅ 효율적
+- 일 평균 20-30회: ⚠️ 보통
+- 일 평균 30회 초과: 🔥 비효율 (동선 최적화 필요)
+
+[입출고 균형 기준]
+- 입고:출고 비율 1:1.5 ~ 1:2: ✅ 정상 (생산→판매 흐름)
+- 입고:출고 비율 1:1 미만: ⚠️ 재고 증가 경향
+- 입고:출고 비율 1:2.5 초과: ⚠️ 재고 감소 경향
+----------------------------------------------------------
+
+[4. 연관 분석 자동 수행]
+----------------------------------------------------------
+[폐기량 증가 시]
+→ qc_inspection에서 품질 불량 현황 확인
+→ 유통기한 임박 재고 조회
+→ 보관 환경 (온도/습도) 로그 확인
+→ 폐기 품목별 원인 분류 분석
+
+[조정량 증가 시]
+→ 재고 실사 정확도 분석
+→ 바코드/RFID 스캔 오류 현황
+→ 입출고 프로세스 누락 여부 확인
+→ 담당자별 조정 빈도 분석
+
+[창고이동 빈도 과다 시]
+→ 창고 배치 효율성 분석
+→ 제품 그룹별 창고 할당 최적화 검토
+→ 피킹 동선 최적화 분석
+→ 창고 용량 대비 적재율 확인
+
+[입출고 불균형 시]
+→ 생산계획 vs 판매계획 검토
+→ 재고 회전율 분석
+→ 장기 재고 품목 확인
+→ 수요 예측 정확도 점검
+----------------------------------------------------------
+
+[5. 응답 형식 예시]
+----------------------------------------------------------
+📦 **재고이동 현황 분석** (입출고/이동/조정/폐기)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         ✅ 총 이동량: **185,200L**
+         폐기율: 0.42% | 조정률: 0.28%
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 **이동유형별 현황** (최근 30일)
+
+| 유형 | 건수 | 수량 | 비율 | 전월비 | 상태 |
+|------|------|------|------|--------|------|
+| 입고 (IN) | 28건 | 54,200L | 29.3% | +8.5% | ✅ |
+| 출고 (OUT) | 156건 | 92,500L | 50.0% | +12.3% | ✅ |
+| 창고이동 (TRANSFER) | 85건 | 32,800L | 17.7% | +5.2% | ✅ |
+| 조정 (ADJUST) | 12건 | 4,920L | 2.7% | -15.3% | ✅ |
+| 폐기 (SCRAP) | 8건 | 780L | 0.4% | -22.1% | ✅ |
+
+🏭 **창고별 입출고 현황**
+
+| 창고 | 입고 | 출고 | 이동입 | 이동출 | 순변동 |
+|------|------|------|--------|--------|--------|
+| 원료창고 (WH001) | 35,200L | - | 2,500L | 8,200L | +29,500L |
+| 부자재창고 (WH002) | 19,000L | - | 1,800L | 5,600L | +15,200L |
+| 완제품창고 (WH003) | - | 78,500L | 25,500L | 18,200L | -71,200L |
+| 출하대기 (WH004) | - | 14,000L | 18,200L | - | +4,200L |
+| 불량창고 (WH005) | - | 780L | 3,000L | - | +2,220L |
+
+🔄 **창고 간 주요 이동 경로**
+
+| 출발 → 도착 | 건수 | 수량 | 비율 | 용도 |
+|-------------|------|------|------|------|
+| 완제품 → 출하대기 | 42건 | 18,200L | 55.5% | 출고 준비 |
+| 원료 → 생산현장 | 28건 | 8,200L | 25.0% | 생산 투입 |
+| 부자재 → 생산현장 | 15건 | 5,600L | 17.1% | 포장 투입 |
+| 불량창고 → 폐기 | 8건 | 780L | 2.4% | 폐기 처리 |
+
+⚠️ **폐기(SCRAP) 상세 내역**
+
+| 품목 | 수량 | 사유 | 일자 | 창고 |
+|------|------|------|------|------|
+| 비타민 워터 500ml | 320L | 유통기한 임박 | 12/05 | WH003 |
+| 발효 유산균 200ml | 180L | 품질 불량 | 12/03 | WH003 |
+| 과즙원료 | 150L | 변질 | 12/07 | WH001 |
+| PET병 500ml | 130개 | 파손 | 12/04 | WH002 |
+
+📋 **조정(ADJUST) 상세 내역**
+
+| 품목 | 조정량 | 사유 | 일자 | 창고 |
+|------|--------|------|------|------|
+| 퓨어웰 워터 1L | +850L | 월말 실사 | 12/01 | WH003 |
+| 에너지 드링크 250ml | -420L | 재고 실사 | 12/01 | WH003 |
+| 천연향료 | +120L | 계량 오차 | 12/03 | WH001 |
+
+📅 **일별 이동량 추이**
+
+| 주차 | 입고 | 출고 | 이동 | 일평균 |
+|------|------|------|------|--------|
+| 1주차 | 12,500L | 21,800L | 7,200L | 5,928L |
+| 2주차 | 14,200L | 24,100L | 8,500L | 6,685L |
+| 3주차 | 13,800L | 22,500L | 8,200L | 6,357L |
+| 4주차 | 13,700L | 24,100L | 8,900L | 6,671L |
+
+💡 **분석 인사이트**
+
+📊 **현황 요약**
+- 폐기율 0.42%로 목표(0.5%) 이내 달성 ✅
+- 조정률 0.28%로 정상 범위 ✅
+- 입고:출고 비율 1:1.7로 정상 흐름
+
+⚠️ **주의 사항**
+1. 비타민 워터 폐기 320L → 유통기한 관리 강화
+2. 발효 유산균 품질 불량 180L → 원인 분석 필요
+3. 완제품창고 순감소 71,200L → 재고 보충 검토
+
+💡 **권고 조치**
+1. 비타민 워터 FIFO 관리 강화 (유통기한 임박분 우선 출고)
+2. 발효 유산균 배양 공정 품질 점검
+3. 완제품 생산계획 조정 검토 (재고 수준 유지)
+
+📈 **효율화 제안**
+- 창고이동 빈도: 일평균 22회 → 동선 최적화로 18회 목표
+- 예상 절감: 물류 인건비 월 85만원
+
+⏰ 기준시점: 2024-12-08 15:30 | 데이터 범위: 최근 30일
+----------------------------------------------------------
+
+[6. 차트 렌더링 데이터 (JSON)]
+----------------------------------------------------------
+{
+  "chartType": "bar",
+  "title": "재고이동 현황",
+  "config": {
+    "style": "스택형 + 색상 구분",
+    "animation": true,
+    "orientation": "vertical",
+    "stacked": true,
+    "showValues": true
+  },
+  "data": {
+    "labels": ["입고 (IN)", "출고 (OUT)", "창고이동 (TRANSFER)", "조정 (ADJUST)", "폐기 (SCRAP)"],
+    "datasets": [
+      {
+        "name": "수량 (L)",
+        "data": [54200, 92500, 32800, 4920, 780],
+        "colors": ["#2ecc71", "#3498db", "#f39c12", "#9b59b6", "#e74c3c"]
+      }
+    ]
+  },
+  "breakdown": {
+    "byMovementType": [
+      {"type": "IN", "name": "입고", "count": 28, "qty": 54200, "ratio": 29.3, "color": "#2ecc71"},
+      {"type": "OUT", "name": "출고", "count": 156, "qty": 92500, "ratio": 50.0, "color": "#3498db"},
+      {"type": "TRANSFER", "name": "창고이동", "count": 85, "qty": 32800, "ratio": 17.7, "color": "#f39c12"},
+      {"type": "ADJUST", "name": "조정", "count": 12, "qty": 4920, "ratio": 2.7, "color": "#9b59b6"},
+      {"type": "SCRAP", "name": "폐기", "count": 8, "qty": 780, "ratio": 0.4, "color": "#e74c3c"}
+    ],
+    "byWarehouse": [
+      {
+        "name": "원료창고 (WH001)",
+        "in": 35200,
+        "out": 0,
+        "transferIn": 2500,
+        "transferOut": 8200,
+        "netChange": 29500
+      },
+      {
+        "name": "부자재창고 (WH002)",
+        "in": 19000,
+        "out": 0,
+        "transferIn": 1800,
+        "transferOut": 5600,
+        "netChange": 15200
+      },
+      {
+        "name": "완제품창고 (WH003)",
+        "in": 0,
+        "out": 78500,
+        "transferIn": 25500,
+        "transferOut": 18200,
+        "netChange": -71200
+      },
+      {
+        "name": "출하대기 (WH004)",
+        "in": 0,
+        "out": 14000,
+        "transferIn": 18200,
+        "transferOut": 0,
+        "netChange": 4200
+      },
+      {
+        "name": "불량창고 (WH005)",
+        "in": 0,
+        "out": 780,
+        "transferIn": 3000,
+        "transferOut": 0,
+        "netChange": 2220
+      }
+    ],
+    "transferRoutes": [
+      {"from": "완제품창고", "to": "출하대기", "count": 42, "qty": 18200, "ratio": 55.5},
+      {"from": "원료창고", "to": "생산현장", "count": 28, "qty": 8200, "ratio": 25.0},
+      {"from": "부자재창고", "to": "생산현장", "count": 15, "qty": 5600, "ratio": 17.1},
+      {"from": "불량창고", "to": "폐기", "count": 8, "qty": 780, "ratio": 2.4}
+    ],
+    "scrapDetails": [
+      {"item": "비타민 워터 500ml", "qty": 320, "reason": "유통기한 임박", "date": "12/05"},
+      {"item": "발효 유산균 200ml", "qty": 180, "reason": "품질 불량", "date": "12/03"},
+      {"item": "과즙원료", "qty": 150, "reason": "변질", "date": "12/07"},
+      {"item": "PET병 500ml", "qty": 130, "unit": "개", "reason": "파손", "date": "12/04"}
+    ],
+    "adjustDetails": [
+      {"item": "퓨어웰 워터 1L", "qty": 850, "reason": "월말 실사", "date": "12/01"},
+      {"item": "에너지 드링크 250ml", "qty": -420, "reason": "재고 실사", "date": "12/01"},
+      {"item": "천연향료", "qty": 120, "reason": "계량 오차", "date": "12/03"}
+    ],
+    "weeklyTrend": [
+      {"week": "1주차", "in": 12500, "out": 21800, "transfer": 7200, "daily": 5928},
+      {"week": "2주차", "in": 14200, "out": 24100, "transfer": 8500, "daily": 6685},
+      {"week": "3주차", "in": 13800, "out": 22500, "transfer": 8200, "daily": 6357},
+      {"week": "4주차", "in": 13700, "out": 24100, "transfer": 8900, "daily": 6671}
+    ]
+  },
+  "summary": {
+    "totalMovement": 185200,
+    "scrapRate": 0.42,
+    "adjustRate": 0.28,
+    "inOutRatio": "1:1.7",
+    "dailyAvgMovements": 22,
+    "status": "normal"
+  }
+}
+----------------------------------------------------------
+
+[7. 응답 규칙]
+----------------------------------------------------------
+1. 이동량은 L 단위, 천 단위 구분자 사용 (예: 92,500L)
+2. 폐기율/조정률은 소수점 2자리까지 표시 (예: 0.42%)
+3. 이동유형별 색상 구분: IN(녹색), OUT(청색), TRANSFER(주황), ADJUST(보라), SCRAP(빨강)
+4. 창고별 순변동(+/-) 명확히 표시
+5. 폐기/조정 내역은 상세 사유 포함
+6. 창고 간 이동 경로는 흐름도 형식으로 표시
+7. 일별/주별 추이로 패턴 분석
+8. 폐기 증가 시 품목별 원인 분석 필수
+9. 조정 증가 시 재고 실사 정확도 점검 권고
+10. 창고이동 빈도와 동선 효율화 제안 포함
+==============================================================

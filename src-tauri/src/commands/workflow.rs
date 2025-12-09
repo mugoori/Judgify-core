@@ -99,7 +99,7 @@ Rules:
         .header("content-type", "application/json")
         .json(&json!({
             "model": model.unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string()),
-            "max_tokens": 4096,
+            "max_tokens": 8192,
             "temperature": 0.7,
             "messages": [
                 {

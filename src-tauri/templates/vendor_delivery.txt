@@ -1,0 +1,283 @@
+==============================================================
+퓨어웰 음료 AI Agent - 공급업체별 납품현황 분석
+==============================================================
+
+[1. 데이터 조회 SQL]
+----------------------------------------------------------
+-- 공급업체별 납품 실적 집계 (최근 30일)
+SELECT
+    v.vendor_cd,
+    v.vendor_nm,
+    v.biz_type,
+    COUNT(DISTINCT i.inbound_no) as delivery_count,
+    SUM(id.inbound_qty) as total_qty,
+    SUM(id.inbound_qty * id.unit_price) as total_amount,
+    COUNT(DISTINCT po.po_no) as order_count
+FROM vendor_mst v
+LEFT JOIN inbound i ON v.vendor_cd = i.vendor_cd
+    AND i.inbound_date >= date('now', '-30 days')
+LEFT JOIN inbound_dtl id ON i.inbound_no = id.inbound_no
+LEFT JOIN purchase_order po ON i.po_no = po.po_no
+WHERE v.is_active = 1
+GROUP BY v.vendor_cd
+ORDER BY total_amount DESC;
+
+-- 납기 준수율 분석
+SELECT
+    v.vendor_cd,
+    v.vendor_nm,
+    COUNT(*) as total_orders,
+    SUM(CASE WHEN i.inbound_date <= po.expected_date THEN 1 ELSE 0 END) as on_time_count,
+    ROUND(SUM(CASE WHEN i.inbound_date <= po.expected_date THEN 1.0 ELSE 0.0 END) * 100 / COUNT(*), 1) as on_time_rate,
+    AVG(JULIANDAY(i.inbound_date) - JULIANDAY(po.expected_date)) as avg_delay_days
+FROM vendor_mst v
+JOIN inbound i ON v.vendor_cd = i.vendor_cd
+JOIN purchase_order po ON i.po_no = po.po_no
+WHERE i.inbound_date >= date('now', '-30 days')
+GROUP BY v.vendor_cd
+ORDER BY on_time_rate DESC;
+
+-- 품목별 공급업체 분석
+SELECT
+    v.vendor_cd,
+    v.vendor_nm,
+    im.item_cd,
+    im.item_nm,
+    im.item_type,
+    SUM(id.inbound_qty) as qty,
+    COUNT(DISTINCT i.inbound_no) as delivery_count
+FROM vendor_mst v
+JOIN inbound i ON v.vendor_cd = i.vendor_cd
+JOIN inbound_dtl id ON i.inbound_no = id.inbound_no
+JOIN item_mst im ON id.item_cd = im.item_cd
+WHERE i.inbound_date >= date('now', '-30 days')
+GROUP BY v.vendor_cd, im.item_cd
+ORDER BY v.vendor_nm, qty DESC;
+
+-- 입고 품질 현황 (수입검사 연계)
+SELECT
+    v.vendor_cd,
+    v.vendor_nm,
+    COUNT(q.inspection_no) as inspection_count,
+    SUM(CASE WHEN q.result = 'PASS' THEN 1 ELSE 0 END) as pass_count,
+    SUM(CASE WHEN q.result = 'FAIL' THEN 1 ELSE 0 END) as fail_count,
+    ROUND(SUM(CASE WHEN q.result = 'PASS' THEN 1.0 ELSE 0.0 END) * 100 / COUNT(*), 1) as pass_rate
+FROM vendor_mst v
+JOIN inbound i ON v.vendor_cd = i.vendor_cd
+JOIN inbound_dtl id ON i.inbound_no = id.inbound_no
+LEFT JOIN qc_inspection q ON id.lot_no = q.lot_no
+    AND q.inspection_type = 'INCOMING'
+WHERE i.inbound_date >= date('now', '-30 days')
+GROUP BY v.vendor_cd
+ORDER BY pass_rate ASC;
+----------------------------------------------------------
+
+[2. 퓨어웰 공급업체 관리 기준]
+----------------------------------------------------------
+| 구분 | 2023년 | 2024년 | 목표 | 비고 |
+|------|--------|--------|------|------|
+| 등록 업체 수 | 42개 | 48개 | - | 신규 6개 추가 |
+| 월 평균 입고 건수 | 156건 | 178건 | - | |
+| 납기 준수율 | 94.2% | 96.1% | 98%+ | 연간 목표 |
+| 입고 합격률 | 97.5% | 98.3% | 99%+ | HACCP 기준 |
+
+[공급업체 유형별 분류]
+- 원료업체: 18개 (주원료, 부원료, 첨가물)
+- 포장재업체: 12개 (PET, 라벨, 박스)
+- 부자재업체: 10개 (세정제, 소모품)
+- 장비/설비업체: 8개 (유지보수, 부품)
+
+[핵심 공급업체 (상위 5개)]
+1. (주)퓨어원료: 주원료 공급 (매출 35%)
+2. 한국포장: PET 용기 (매출 18%)
+3. 청정첨가물: 식품첨가물 (매출 12%)
+4. 대한라벨: 라벨/인쇄물 (매출 8%)
+5. 친환경박스: 포장재 (매출 6%)
+----------------------------------------------------------
+
+[3. 판단 기준 (Threshold)]
+----------------------------------------------------------
+[납기 준수율 기준]
+- 98% 이상: ✅ 우수 공급업체 - 거래 확대 검토
+- 95% ~ 98%: ✅ 정상 - 현행 유지
+- 90% ~ 95%: ⚠️ 주의 - 개선 협의 필요
+- 90% 미만: 🚨 위험 - 대체 공급업체 검토
+
+[입고 품질 합격률 기준]
+- 99% 이상: ✅ A등급 (우수)
+- 97% ~ 99%: ✅ B등급 (양호)
+- 95% ~ 97%: ⚠️ C등급 (주의)
+- 95% 미만: 🚨 D등급 (불량) - 거래 재검토
+
+[거래 집중도 기준]
+- Top 1 공급업체 비중 40% 초과: 🚨 과다 의존 위험
+- Top 3 공급업체 비중 70% 초과: ⚠️ 분산 필요
+- 적정 분산: 상위 5개 업체 80% 이내
+
+[입고량 변동 기준]
+- 전월 대비 +20% 이상: 🔥 급증 - 품질 관리 강화
+- 전월 대비 ±20%: ✅ 안정적
+- 전월 대비 -20% 이상: ⚠️ 공급 차질 주의
+----------------------------------------------------------
+
+[4. 연관 분석 자동 수행]
+----------------------------------------------------------
+[납기 지연 발생 시 자동 분석]
+→ 해당 공급업체의 최근 6개월 납기 이력 조회
+→ 품목별 지연 패턴 분석 (특정 품목 집중?)
+→ 계절성 요인 검토 (성수기/비수기)
+→ 대체 공급업체 가용성 확인
+
+[품질 불합격 발생 시]
+→ 동일 공급업체 최근 불합격 이력 조회
+→ 불합격 품목 및 원인 분석 (물리적/화학적/미생물)
+→ 해당 LOT 전수 검사 여부 결정
+→ 공급업체 품질 개선 요청서 자동 생성
+
+[신규 공급업체 평가 시]
+→ 기존 유사 품목 공급업체와 비교
+→ 가격 경쟁력 분석 (단가 비교)
+→ 납기 신뢰성 예측 (유사 업체 기준)
+
+[월말 결산 시 자동 분석]
+→ 공급업체별 거래 실적 리포트 생성
+→ 납기/품질 종합 평가 점수 산출
+→ 상위/하위 업체 하이라이트
+→ 차월 입고 계획 대비 재고 분석
+----------------------------------------------------------
+
+[5. 응답 형식 예시]
+----------------------------------------------------------
+🏭 **공급업체별 납품현황** (구매/입고 관리지표)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         📦 금월 총 입고: **178건** / 48개 업체
+         납기 준수율: **96.1%** | 입고 합격률: **98.3%**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 **공급업체별 납품 현황** (상위 10개)
+
+| 순위 | 공급업체 | 입고건수 | 입고금액 | 납기준수 | 합격률 | 등급 |
+|------|----------|----------|----------|----------|--------|------|
+| 1 | (주)퓨어원료 | 28건 | 8.5억 | 98.2% | 99.1% | ✅ A |
+| 2 | 한국포장 | 22건 | 4.2억 | 97.5% | 98.8% | ✅ A |
+| 3 | 청정첨가물 | 18건 | 2.8억 | 95.3% | 99.5% | ✅ B |
+| 4 | 대한라벨 | 15건 | 1.9억 | 94.1% | 97.2% | ⚠️ C |
+| 5 | 친환경박스 | 12건 | 1.4억 | 99.0% | 98.5% | ✅ A |
+| 6 | 세척전문 | 10건 | 0.8억 | 92.5% | 100% | ⚠️ C |
+| 7 | 글로벌원료 | 9건 | 2.1억 | 96.8% | 97.8% | ✅ B |
+| 8 | 프리미엄팩 | 8건 | 1.2억 | 100% | 99.2% | ✅ A |
+| 9 | 천연향료 | 7건 | 0.9억 | 88.5% | 96.5% | 🚨 D |
+| 10 | 스마트라벨 | 6건 | 0.6억 | 97.2% | 98.1% | ✅ B |
+
+📈 **품목 유형별 입고 현황**
+
+| 유형 | 입고건수 | 입고금액 | 비중 | 전월비 |
+|------|----------|----------|------|--------|
+| 주원료 | 62건 | 12.5억 | 52.1% | +5.2% ↑ |
+| 포장재 | 48건 | 6.8억 | 28.3% | +2.1% ↑ |
+| 부자재 | 42건 | 3.2억 | 13.3% | -1.5% ↓ |
+| 기타 | 26건 | 1.5억 | 6.3% | +0.8% ↑ |
+
+⚠️ **주의 필요 공급업체**
+
+**천연향료** (납기 88.5%, D등급)
+- 📍 최근 3개월 연속 납기 지연 발생
+- 📉 7건 중 4건 지연 (평균 3.2일 지연)
+- 🔍 원인: 수입 원료 통관 지연 (주요 원인)
+
+**권고 조치**
+1. ⚡ 안전재고 2주 → 3주로 확대 (즉시)
+2. 📋 대체 공급업체 견적 요청 (금주 내)
+3. 🤝 공급업체 미팅 요청 (납기 개선 협의)
+
+🏆 **우수 공급업체 하이라이트**
+
+**프리미엄팩** (납기 100%, A등급)
+- ✅ 3개월 연속 완벽 납기 달성
+- ✅ 품질 합격률 99.2% (최상위)
+- 💡 거래 확대 검토 권장
+
+📊 **거래 집중도 분석**
+
+| 구분 | 비중 | 상태 |
+|------|------|------|
+| Top 1 (퓨어원료) | 35.4% | ✅ 적정 |
+| Top 3 | 64.6% | ✅ 적정 |
+| Top 5 | 77.5% | ✅ 적정 |
+
+⏰ 기준시점: 2024-12-08 16:00 | 월간 마감: 말일 18:00
+----------------------------------------------------------
+
+[6. 차트 렌더링 데이터 (JSON)]
+----------------------------------------------------------
+{
+  "chartType": "bar",
+  "title": "공급업체별 납품현황",
+  "config": {
+    "style": "horizontal_gradient",
+    "animation": true,
+    "showRanking": true,
+    "colorByGrade": true
+  },
+  "data": {
+    "vendors": [
+      {"rank": 1, "name": "(주)퓨어원료", "deliveries": 28, "amount": 850000000, "onTimeRate": 98.2, "passRate": 99.1, "grade": "A"},
+      {"rank": 2, "name": "한국포장", "deliveries": 22, "amount": 420000000, "onTimeRate": 97.5, "passRate": 98.8, "grade": "A"},
+      {"rank": 3, "name": "청정첨가물", "deliveries": 18, "amount": 280000000, "onTimeRate": 95.3, "passRate": 99.5, "grade": "B"},
+      {"rank": 4, "name": "대한라벨", "deliveries": 15, "amount": 190000000, "onTimeRate": 94.1, "passRate": 97.2, "grade": "C"},
+      {"rank": 5, "name": "친환경박스", "deliveries": 12, "amount": 140000000, "onTimeRate": 99.0, "passRate": 98.5, "grade": "A"},
+      {"rank": 6, "name": "세척전문", "deliveries": 10, "amount": 80000000, "onTimeRate": 92.5, "passRate": 100, "grade": "C"},
+      {"rank": 7, "name": "글로벌원료", "deliveries": 9, "amount": 210000000, "onTimeRate": 96.8, "passRate": 97.8, "grade": "B"},
+      {"rank": 8, "name": "프리미엄팩", "deliveries": 8, "amount": 120000000, "onTimeRate": 100, "passRate": 99.2, "grade": "A"},
+      {"rank": 9, "name": "천연향료", "deliveries": 7, "amount": 90000000, "onTimeRate": 88.5, "passRate": 96.5, "grade": "D"},
+      {"rank": 10, "name": "스마트라벨", "deliveries": 6, "amount": 60000000, "onTimeRate": 97.2, "passRate": 98.1, "grade": "B"}
+    ]
+  },
+  "gradeColors": {
+    "A": "#28a745",
+    "B": "#17a2b8",
+    "C": "#ffc107",
+    "D": "#dc3545"
+  },
+  "thresholds": {
+    "onTimeRate": {"excellent": 98, "good": 95, "warning": 90},
+    "passRate": {"excellent": 99, "good": 97, "warning": 95}
+  },
+  "summary": {
+    "totalVendors": 48,
+    "totalDeliveries": 178,
+    "avgOnTimeRate": 96.1,
+    "avgPassRate": 98.3,
+    "gradeDistribution": {"A": 15, "B": 18, "C": 12, "D": 3}
+  },
+  "alerts": [
+    {
+      "vendor": "천연향료",
+      "type": "onTimeRate",
+      "value": 88.5,
+      "threshold": 90,
+      "severity": "critical",
+      "message": "납기 준수율 기준 미달"
+    }
+  ],
+  "concentration": {
+    "top1": 35.4,
+    "top3": 64.6,
+    "top5": 77.5,
+    "status": "healthy"
+  }
+}
+----------------------------------------------------------
+
+[7. 응답 규칙]
+----------------------------------------------------------
+1. 금액은 억원 단위로 소수점 1자리까지 표시 (예: 8.5억)
+2. 비율은 % 단위로 소수점 1자리까지 표시 (예: 98.2%)
+3. 공급업체 등급(A/B/C/D)은 납기준수율 + 합격률 종합
+4. 상위 10개 공급업체는 금액 기준 정렬하여 표시
+5. 주의/위험 공급업체는 별도 섹션으로 강조 표시
+6. 우수 공급업체 하이라이트로 긍정적 사례 제시
+7. 거래 집중도 분석으로 공급망 리스크 평가
+8. 구체적인 개선 조치 및 권장사항 제시
+==============================================================

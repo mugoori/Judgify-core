@@ -1,0 +1,455 @@
+==============================================================
+퓨어웰 음료 AI Agent - 교대별 실적 분석
+==============================================================
+
+[1. 데이터 조회 SQL]
+----------------------------------------------------------
+-- 교대별 생산 실적 요약 (금주)
+SELECT
+    s.shift_cd,
+    s.shift_nm,
+    s.start_time,
+    s.end_time,
+    COUNT(DISTINCT w.wo_no) as work_order_count,
+    SUM(w.plan_qty) as total_plan,
+    SUM(w.good_qty) as total_good,
+    SUM(w.reject_qty) as total_reject,
+    ROUND(SUM(w.good_qty) * 100.0 / NULLIF(SUM(w.plan_qty), 0), 1) as achievement_rate,
+    ROUND(SUM(w.good_qty) * 100.0 / NULLIF(SUM(w.good_qty + w.reject_qty), 0), 1) as yield_rate
+FROM shift_mst s
+LEFT JOIN mes_work_order w ON s.shift_cd = w.shift_cd
+WHERE w.plan_date >= date('now', '-7 days')
+GROUP BY s.shift_cd
+ORDER BY s.start_time;
+
+-- 교대별 일간 실적 추이
+SELECT
+    w.plan_date,
+    s.shift_nm,
+    SUM(w.plan_qty) as daily_plan,
+    SUM(w.good_qty) as daily_good,
+    ROUND(SUM(w.good_qty) * 100.0 / NULLIF(SUM(w.plan_qty), 0), 1) as daily_rate
+FROM mes_work_order w
+JOIN shift_mst s ON w.shift_cd = s.shift_cd
+WHERE w.plan_date >= date('now', '-7 days')
+GROUP BY w.plan_date, s.shift_cd
+ORDER BY w.plan_date, s.start_time;
+
+-- 교대별 라인별 실적
+SELECT
+    s.shift_nm,
+    w.line_cd,
+    l.line_nm,
+    SUM(w.plan_qty) as line_plan,
+    SUM(w.good_qty) as line_good,
+    SUM(w.reject_qty) as line_reject,
+    ROUND(SUM(w.good_qty) * 100.0 / NULLIF(SUM(w.plan_qty), 0), 1) as line_rate
+FROM mes_work_order w
+JOIN shift_mst s ON w.shift_cd = s.shift_cd
+JOIN line_mst l ON w.line_cd = l.line_cd
+WHERE w.plan_date >= date('now', '-7 days')
+GROUP BY s.shift_cd, w.line_cd
+ORDER BY s.start_time, l.line_cd;
+
+-- 교대별 작업자 현황
+SELECT
+    s.shift_nm,
+    COUNT(DISTINCT o.operator_id) as operator_count,
+    SUM(CASE WHEN o.skill_level = 'EXPERT' THEN 1 ELSE 0 END) as expert_count,
+    SUM(CASE WHEN o.skill_level = 'SENIOR' THEN 1 ELSE 0 END) as senior_count,
+    SUM(CASE WHEN o.skill_level = 'INTERMEDIATE' THEN 1 ELSE 0 END) as intermediate_count,
+    SUM(CASE WHEN o.skill_level = 'JUNIOR' THEN 1 ELSE 0 END) as junior_count
+FROM shift_mst s
+LEFT JOIN operator_mst o ON s.shift_cd = o.shift_cd
+WHERE o.is_active = 1
+GROUP BY s.shift_cd
+ORDER BY s.start_time;
+
+-- 교대별 비가동 시간
+SELECT
+    s.shift_nm,
+    SUM(d.duration_min) as total_downtime_min,
+    ROUND(SUM(d.duration_min) / 60.0, 1) as downtime_hours,
+    COUNT(*) as downtime_events,
+    d.reason_category
+FROM downtime_event d
+JOIN shift_mst s ON d.shift_cd = s.shift_cd
+WHERE d.start_time >= datetime('now', '-7 days')
+GROUP BY s.shift_cd, d.reason_category
+ORDER BY s.start_time, total_downtime_min DESC;
+
+-- 교대별 품질 현황
+SELECT
+    s.shift_nm,
+    COUNT(q.inspection_no) as inspection_count,
+    SUM(CASE WHEN q.result = 'PASS' THEN 1 ELSE 0 END) as pass_count,
+    SUM(CASE WHEN q.result = 'FAIL' THEN 1 ELSE 0 END) as fail_count,
+    ROUND(SUM(CASE WHEN q.result = 'PASS' THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 1) as pass_rate
+FROM qc_inspection q
+JOIN shift_mst s ON q.shift_cd = s.shift_cd
+WHERE q.inspection_time >= datetime('now', '-7 days')
+GROUP BY s.shift_cd
+ORDER BY s.start_time;
+
+-- 교대별 알람 발생 현황
+SELECT
+    s.shift_nm,
+    COUNT(*) as alarm_count,
+    SUM(CASE WHEN a.alarm_level = 'CRITICAL' THEN 1 ELSE 0 END) as critical_count,
+    SUM(CASE WHEN a.alarm_level = 'WARNING' THEN 1 ELSE 0 END) as warning_count
+FROM alarm_event a
+JOIN shift_mst s ON a.shift_cd = s.shift_cd
+WHERE a.alarm_time >= datetime('now', '-7 days')
+GROUP BY s.shift_cd
+ORDER BY s.start_time;
+
+-- 교대간 인수인계 현황
+SELECT
+    from_shift.shift_nm as from_shift,
+    to_shift.shift_nm as to_shift,
+    COUNT(*) as handover_count,
+    SUM(CASE WHEN h.status = 'COMPLETED' THEN 1 ELSE 0 END) as completed,
+    SUM(CASE WHEN h.issues_pending > 0 THEN 1 ELSE 0 END) as with_issues
+FROM shift_handover h
+JOIN shift_mst from_shift ON h.from_shift_cd = from_shift.shift_cd
+JOIN shift_mst to_shift ON h.to_shift_cd = to_shift.shift_cd
+WHERE h.handover_time >= datetime('now', '-7 days')
+GROUP BY h.from_shift_cd, h.to_shift_cd
+ORDER BY from_shift.start_time;
+----------------------------------------------------------
+
+[2. 퓨어웰 교대 관리 기준]
+----------------------------------------------------------
+| 교대 | 시간 | 근무시간 | 휴식 | 인원 |
+|------|------|---------|------|------|
+| A조 (주간) | 06:00~14:00 | 8시간 | 점심 1시간 | 16명 |
+| B조 (오후) | 14:00~22:00 | 8시간 | 저녁 1시간 | 16명 |
+| C조 (야간) | 22:00~06:00 | 8시간 | 심야 1시간 | 14명 |
+
+[교대별 생산 목표]
+| 교대 | 일 목표 생산량 | 계획 달성률 | 수율 |
+|------|---------------|-----------|------|
+| A조 | 35,000L | 98% | 98% |
+| B조 | 35,000L | 98% | 98% |
+| C조 | 30,000L | 95% | 97% |
+
+[교대별 특성]
+- A조 (주간): 정비팀 상주, 품질팀 풀가동, 최적 조건
+- B조 (오후): 기본 지원, 표준 운영
+- C조 (야간): 최소 지원, 피로도 고려, 목표 완화
+
+[인수인계 기준]
+- 교대 30분 전 인계 시작
+- 필수 항목: 생산현황, 설비상태, 품질이슈, 안전사항
+- 미해결 이슈는 반드시 문서화
+----------------------------------------------------------
+
+[3. 판단 기준 (Threshold)]
+----------------------------------------------------------
+[계획 달성률 기준]
+- 100%+: ✅ 초과달성
+- 95% ~ 100%: ✅ 정상 달성
+- 90% ~ 95%: ⚠️ 소폭 미달
+- 85% ~ 90%: 🔶 미달 (원인 분석)
+- 85% 미만: 🚨 심각 미달
+
+[수율 기준]
+- 99%+: ✅ 최우수
+- 97% ~ 99%: ✅ 정상
+- 95% ~ 97%: ⚠️ 주의
+- 93% ~ 95%: 🔶 경고
+- 93% 미만: 🚨 심각
+
+[교대간 편차 기준]
+- 달성률 편차 5% 이내: ✅ 균형
+- 달성률 편차 5~10%: ⚠️ 소폭 불균형
+- 달성률 편차 10% 초과: 🚨 심각 불균형
+
+[비가동 시간 기준 (교대당)]
+- 30분 미만: ✅ 정상
+- 30분 ~ 1시간: ⚠️ 주의
+- 1시간 ~ 2시간: 🔶 경고
+- 2시간 초과: 🚨 심각
+
+[품질 합격률 기준]
+- 99%+: ✅ 최우수
+- 97% ~ 99%: ✅ 정상
+- 95% ~ 97%: ⚠️ 주의
+- 95% 미만: 🚨 심각
+
+[야간조 특별 기준]
+- 목표 대비 90%+: ✅ 양호 (야간 특성 고려)
+- 알람 발생률 +20% 이내: ✅ 허용 범위
+----------------------------------------------------------
+
+[4. 연관 분석 자동 수행]
+----------------------------------------------------------
+[교대별 실적 편차 발생시]
+→ 작업자 구성 비교 (기술수준 분포)
+→ 비가동 이력 비교 (downtime_event)
+→ 알람 발생 빈도 비교 (alarm_event)
+→ 품질 검사 결과 비교 (qc_inspection)
+→ 설비 가동률 비교
+
+[야간조 실적 저하시]
+→ 피로도 관련 지표 분석
+→ 야간 수당 대비 생산성
+→ 조명/환경 요인 점검
+→ 야간 전용 SOP 준수 여부
+
+[특정 교대 품질 저하시]
+→ 해당 교대 불량 유형 분석
+→ 작업자별 품질 기여도
+→ 설비 정비 이력 연계
+→ 원자재 LOT별 품질 영향
+
+[비가동 시간 과다시]
+→ 비가동 유형별 분석
+→ 설비별 비가동 빈도
+→ 계획외 정지 vs 계획 정지
+→ 정비 대응 시간 분석
+
+[인수인계 이슈 발생시]
+→ 미해결 이슈 이력
+→ 다음 교대 영향 분석
+→ 반복 이슈 패턴 분석
+----------------------------------------------------------
+
+[5. 응답 형식 예시]
+----------------------------------------------------------
+🔄 **교대별 실적 분석** (금주)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         금주 총 생산: **645,000L**
+         평균 달성률: **96.2%** | 평균 수율: 97.8%
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 **교대별 종합 실적**
+
+| 교대 | 계획 | 양품 | 불량 | 달성률 | 수율 | 상태 |
+|------|------|------|------|--------|------|------|
+| A조 (주간) | 245,000L | 241,500L | 3,100L | 98.6% | 98.7% | ✅ 최우수 |
+| B조 (오후) | 245,000L | 235,800L | 4,200L | 96.2% | 98.3% | ✅ 정상 |
+| C조 (야간) | 180,000L | 167,700L | 5,500L | 93.2% | 96.8% | ⚠️ 미달 |
+
+📈 **일자별 교대 실적 추이**
+
+| 일자 | A조 달성률 | B조 달성률 | C조 달성률 | 일 평균 |
+|------|-----------|-----------|-----------|---------|
+| 12/08 | 99.2% | 97.5% | 94.1% | 96.9% |
+| 12/07 | 98.1% | 95.8% | 92.5% | 95.5% |
+| 12/06 | 98.8% | 96.9% | 93.8% | 96.5% |
+| 12/05 | 97.9% | 95.2% | 91.8% | 95.0% |
+| 12/04 | 99.0% | 97.0% | 94.5% | 96.8% |
+
+🏭 **교대별 라인 실적**
+
+**A조 (주간)** - 달성률 98.6% ✅
+| 라인 | 계획 | 양품 | 달성률 |
+|------|------|------|--------|
+| 1라인 (음료) | 98,000L | 97,200L | 99.2% |
+| 2라인 (발효) | 73,500L | 72,100L | 98.1% |
+| 3라인 (기능성) | 49,000L | 48,200L | 98.4% |
+| 4라인 (OEM) | 24,500L | 24,000L | 98.0% |
+
+**C조 (야간)** - 달성률 93.2% ⚠️
+| 라인 | 계획 | 양품 | 달성률 |
+|------|------|------|--------|
+| 1라인 (음료) | 72,000L | 68,400L | 95.0% |
+| 2라인 (발효) | 54,000L | 49,680L | 92.0% |
+| 3라인 (기능성) | 36,000L | 32,760L | 91.0% |
+| 4라인 (OEM) | 18,000L | 16,860L | 93.7% |
+
+👷 **교대별 인력 구성**
+
+| 교대 | 인원 | EXPERT | SENIOR | 중급 | 초급 | 경험도 |
+|------|------|--------|--------|------|------|--------|
+| A조 | 16명 | 2명 | 6명 | 5명 | 3명 | ✅ 최적 |
+| B조 | 16명 | 2명 | 5명 | 6명 | 3명 | ✅ 양호 |
+| C조 | 14명 | 1명 | 4명 | 5명 | 4명 | ⚠️ 보완필요 |
+
+⏱️ **교대별 비가동 현황**
+
+| 교대 | 총 비가동 | 설비고장 | 자재대기 | 품질검사 | 기타 |
+|------|----------|----------|----------|----------|------|
+| A조 | 2.5시간 | 1.2시간 | 0.5시간 | 0.5시간 | 0.3시간 |
+| B조 | 3.8시간 | 1.8시간 | 1.2시간 | 0.5시간 | 0.3시간 |
+| C조 | 5.2시간 | 2.5시간 | 1.5시간 | 0.8시간 | 0.4시간 |
+
+🔔 **교대별 알람 현황**
+
+| 교대 | 총 알람 | CRITICAL | WARNING | 미해결 |
+|------|--------|----------|---------|--------|
+| A조 | 32건 | 1건 | 12건 | 0건 |
+| B조 | 45건 | 2건 | 18건 | 1건 |
+| C조 | 58건 | 3건 | 25건 | 2건 |
+
+📋 **품질 검사 현황**
+
+| 교대 | 검사 | 합격 | 불합격 | 합격률 |
+|------|------|------|--------|--------|
+| A조 | 85건 | 84건 | 1건 | 98.8% |
+| B조 | 82건 | 80건 | 2건 | 97.6% |
+| C조 | 68건 | 65건 | 3건 | 95.6% |
+
+⚠️ **C조 (야간) 개선 필요사항**
+
+**문제점 분석**
+- 📉 달성률 93.2% (목표 95% 대비 -1.8%p)
+- 🔧 비가동 5.2시간 (A조 대비 +2.7시간)
+- 🚨 알람 58건 (A조 대비 +81%)
+- 👷 EXPERT 1명 (인력 보강 필요)
+
+**원인 분석**
+1. 야간 피로도 증가 → 작업 효율 저하
+2. 정비팀 부재 → 설비 대응 지연
+3. 숙련인력 부족 → 이상 대처 미흡
+
+💡 **권고 조치**
+
+⚡ **즉시 조치**
+1. C조 EXPERT 1명 추가 배치 검토
+2. 야간 정비 당직자 배치
+
+📋 **주간 개선 계획**
+1. C조 휴식 시간 조정 (피로도 관리)
+2. 야간 전용 점검 체크리스트 강화
+3. 2라인 야간 가동률 개선 (92% → 95%)
+
+🔄 **인수인계 개선**
+1. 미해결 알람 즉시 인계 의무화
+2. 비가동 원인 상세 기록 강화
+3. 품질 이슈 LOT 명확 전달
+
+⏰ 기준시점: 2024-12-08 14:00 | 주간 마감: 금요일 18:00
+----------------------------------------------------------
+
+[6. 차트 렌더링 데이터 (JSON)]
+----------------------------------------------------------
+{
+  "chartType": "bar",
+  "title": "교대별 실적",
+  "config": {
+    "style": "grouped",
+    "groups": ["A조 (주간)", "B조 (오후)", "C조 (야간)"],
+    "metrics": ["달성률", "수율"],
+    "showTarget": true,
+    "colorByStatus": true,
+    "animation": true
+  },
+  "data": {
+    "shifts": [
+      {
+        "shift": "A조 (주간)",
+        "time": "06:00~14:00",
+        "plan": 245000,
+        "good": 241500,
+        "reject": 3100,
+        "achievementRate": 98.6,
+        "yieldRate": 98.7,
+        "status": "excellent"
+      },
+      {
+        "shift": "B조 (오후)",
+        "time": "14:00~22:00",
+        "plan": 245000,
+        "good": 235800,
+        "reject": 4200,
+        "achievementRate": 96.2,
+        "yieldRate": 98.3,
+        "status": "normal"
+      },
+      {
+        "shift": "C조 (야간)",
+        "time": "22:00~06:00",
+        "plan": 180000,
+        "good": 167700,
+        "reject": 5500,
+        "achievementRate": 93.2,
+        "yieldRate": 96.8,
+        "status": "warning"
+      }
+    ]
+  },
+  "summary": {
+    "totalPlan": 670000,
+    "totalGood": 645000,
+    "totalReject": 12800,
+    "avgAchievement": 96.2,
+    "avgYield": 97.8,
+    "shiftVariance": 5.4
+  },
+  "dailyTrend": [
+    {"date": "12/08", "a": 99.2, "b": 97.5, "c": 94.1, "avg": 96.9},
+    {"date": "12/07", "a": 98.1, "b": 95.8, "c": 92.5, "avg": 95.5},
+    {"date": "12/06", "a": 98.8, "b": 96.9, "c": 93.8, "avg": 96.5},
+    {"date": "12/05", "a": 97.9, "b": 95.2, "c": 91.8, "avg": 95.0},
+    {"date": "12/04", "a": 99.0, "b": 97.0, "c": 94.5, "avg": 96.8}
+  ],
+  "byLine": {
+    "A조": [
+      {"line": "1라인", "plan": 98000, "good": 97200, "rate": 99.2},
+      {"line": "2라인", "plan": 73500, "good": 72100, "rate": 98.1},
+      {"line": "3라인", "plan": 49000, "good": 48200, "rate": 98.4},
+      {"line": "4라인", "plan": 24500, "good": 24000, "rate": 98.0}
+    ],
+    "C조": [
+      {"line": "1라인", "plan": 72000, "good": 68400, "rate": 95.0},
+      {"line": "2라인", "plan": 54000, "good": 49680, "rate": 92.0},
+      {"line": "3라인", "plan": 36000, "good": 32760, "rate": 91.0},
+      {"line": "4라인", "plan": 18000, "good": 16860, "rate": 93.7}
+    ]
+  },
+  "workforce": [
+    {"shift": "A조", "total": 16, "expert": 2, "senior": 6, "intermediate": 5, "junior": 3, "experience": "optimal"},
+    {"shift": "B조", "total": 16, "expert": 2, "senior": 5, "intermediate": 6, "junior": 3, "experience": "good"},
+    {"shift": "C조", "total": 14, "expert": 1, "senior": 4, "intermediate": 5, "junior": 4, "experience": "needs_improvement"}
+  ],
+  "downtime": [
+    {"shift": "A조", "total": 2.5, "equipment": 1.2, "material": 0.5, "quality": 0.5, "other": 0.3},
+    {"shift": "B조", "total": 3.8, "equipment": 1.8, "material": 1.2, "quality": 0.5, "other": 0.3},
+    {"shift": "C조", "total": 5.2, "equipment": 2.5, "material": 1.5, "quality": 0.8, "other": 0.4}
+  ],
+  "alarms": [
+    {"shift": "A조", "total": 32, "critical": 1, "warning": 12, "unresolved": 0},
+    {"shift": "B조", "total": 45, "critical": 2, "warning": 18, "unresolved": 1},
+    {"shift": "C조", "total": 58, "critical": 3, "warning": 25, "unresolved": 2}
+  ],
+  "quality": [
+    {"shift": "A조", "inspections": 85, "passed": 84, "failed": 1, "passRate": 98.8},
+    {"shift": "B조", "inspections": 82, "passed": 80, "failed": 2, "passRate": 97.6},
+    {"shift": "C조", "inspections": 68, "passed": 65, "failed": 3, "passRate": 95.6}
+  ],
+  "thresholds": {
+    "achievementRate": {
+      "excellent": 98,
+      "normal": 95,
+      "warning": 90,
+      "critical": 85
+    },
+    "yieldRate": {
+      "excellent": 99,
+      "normal": 97,
+      "warning": 95,
+      "critical": 93
+    },
+    "shiftVariance": {
+      "balanced": 5,
+      "unbalanced": 10
+    }
+  }
+}
+----------------------------------------------------------
+
+[7. 응답 규칙]
+----------------------------------------------------------
+1. 교대별 실적은 동일 형식 테이블로 비교 용이하게
+2. 생산량은 천 단위 구분자 사용 (예: 245,000L)
+3. 달성률/수율은 소수점 1자리까지 (예: 98.6%)
+4. 교대간 편차는 명확히 강조 (특히 야간조)
+5. 라인별 상세는 문제 교대만 확장 표시
+6. 인력 구성은 기술수준별로 분석
+7. 비가동/알람/품질 연계 분석 필수
+8. 야간조 특성 고려한 별도 기준 적용
+9. 관리자 보고용이므로 개선 권고 우선
+==============================================================

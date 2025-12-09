@@ -1,0 +1,428 @@
+==============================================================
+퓨어웰 음료 AI Agent - 금속검출 이력 분석 (LINE 차트)
+==============================================================
+
+[1. 데이터 조회 SQL]
+----------------------------------------------------------
+-- 일별 금속검출 현황 (최근 30일)
+SELECT
+    DATE(detection_time) as date,
+    COUNT(*) as total_checks,
+    SUM(CASE WHEN metal_detected = 1 THEN 1 ELSE 0 END) as detected_count,
+    SUM(CASE WHEN metal_detected = 0 THEN 1 ELSE 0 END) as passed_count,
+    ROUND(SUM(CASE WHEN metal_detected = 0 THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 2) as pass_rate
+FROM metal_detection_log
+WHERE detection_time >= date('now', '-30 days')
+GROUP BY DATE(detection_time)
+ORDER BY date;
+
+-- 금속유형별 검출 현황
+SELECT
+    metal_type,
+    COUNT(*) as detection_count,
+    SUM(CASE WHEN action_taken = 'REJECTED' THEN 1 ELSE 0 END) as rejected_count,
+    SUM(CASE WHEN action_taken = 'REINSPECTED' THEN 1 ELSE 0 END) as reinspected_count
+FROM metal_detection_log
+WHERE metal_detected = 1
+  AND detection_time >= date('now', '-30 days')
+GROUP BY metal_type
+ORDER BY detection_count DESC;
+
+-- 라인별 금속검출 현황
+SELECT
+    l.line_nm,
+    COUNT(*) as total_checks,
+    SUM(CASE WHEN m.metal_detected = 1 THEN 1 ELSE 0 END) as detected_count,
+    ROUND(SUM(CASE WHEN m.metal_detected = 1 THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 4) as detection_rate
+FROM metal_detection_log m
+JOIN line_mst l ON m.line_cd = l.line_cd
+WHERE m.detection_time >= date('now', '-30 days')
+GROUP BY m.line_cd
+ORDER BY detection_rate DESC;
+
+-- 제품별 금속검출 현황
+SELECT
+    i.item_nm,
+    COUNT(*) as total_checks,
+    SUM(CASE WHEN m.metal_detected = 1 THEN 1 ELSE 0 END) as detected_count,
+    ROUND(SUM(CASE WHEN m.metal_detected = 1 THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 4) as detection_rate
+FROM metal_detection_log m
+JOIN item_mst i ON m.item_cd = i.item_cd
+WHERE m.detection_time >= date('now', '-30 days')
+GROUP BY m.item_cd
+ORDER BY detection_rate DESC;
+
+-- 검출 상세 내역 (최근 검출 건)
+SELECT
+    m.detection_time,
+    l.line_nm,
+    i.item_nm,
+    m.metal_type,
+    m.detection_value,
+    m.threshold_value,
+    m.action_taken,
+    m.operator_id,
+    m.lot_no
+FROM metal_detection_log m
+JOIN line_mst l ON m.line_cd = l.line_cd
+JOIN item_mst i ON m.item_cd = i.item_cd
+WHERE m.metal_detected = 1
+  AND m.detection_time >= date('now', '-30 days')
+ORDER BY m.detection_time DESC
+LIMIT 20;
+
+-- 시간대별 검출 패턴
+SELECT
+    strftime('%H', detection_time) as hour,
+    COUNT(*) as total_checks,
+    SUM(CASE WHEN metal_detected = 1 THEN 1 ELSE 0 END) as detected_count,
+    ROUND(SUM(CASE WHEN metal_detected = 1 THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 4) as detection_rate
+FROM metal_detection_log
+WHERE detection_time >= date('now', '-7 days')
+GROUP BY strftime('%H', detection_time)
+ORDER BY hour;
+
+-- 월별 금속검출 추이
+SELECT
+    strftime('%Y-%m', detection_time) as month,
+    COUNT(*) as total_checks,
+    SUM(CASE WHEN metal_detected = 1 THEN 1 ELSE 0 END) as detected_count,
+    ROUND(SUM(CASE WHEN metal_detected = 0 THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 2) as pass_rate
+FROM metal_detection_log
+WHERE detection_time >= date('now', '-6 months')
+GROUP BY strftime('%Y-%m', detection_time)
+ORDER BY month;
+
+-- 조치 현황 분석
+SELECT
+    action_taken,
+    COUNT(*) as count,
+    metal_type,
+    AVG(detection_value) as avg_detection_value
+FROM metal_detection_log
+WHERE metal_detected = 1
+  AND detection_time >= date('now', '-30 days')
+GROUP BY action_taken, metal_type
+ORDER BY count DESC;
+----------------------------------------------------------
+
+[2. 퓨어웰 금속검출 기준 정보]
+----------------------------------------------------------
+[HACCP 금속검출 기준]
+| 금속 유형 | 검출 한계 | Fe (철) | SUS (스테인리스) | Non-Fe (비철) |
+|----------|----------|---------|------------------|---------------|
+| 검출 감도 | 최소 | 1.0mm | 1.5mm | 2.0mm |
+| 경고 임계 | 권장 | 0.8mm | 1.2mm | 1.5mm |
+| 검출기 정밀도 | 표준 | ±0.1mm | ±0.15mm | ±0.2mm |
+
+[금속검출기 사양]
+- 모델: LOMA IQ4 (영국산)
+- 설치 위치: 각 라인 충진 후 단계
+- 검사 속도: 60개/분
+- 자가진단: 2시간마다 테스트 피스 검사
+
+[검출 시 조치 절차]
+1. 자동 배출 (REJECTED): 검출 즉시 라인에서 제외
+2. 재검사 (REINSPECTED): 오검출 의심 시 재검사
+3. 라인 정지 (LINE_STOP): 연속 3회 검출 시
+4. 로트 격리 (LOT_HOLD): 동일 로트 전량 격리
+
+[일일 금속검출 검사 횟수]
+- 1라인 (음료): 약 2,400회/일
+- 2라인 (발효음료): 약 1,800회/일
+- 3라인 (기능성): 약 1,500회/일
+- 4라인 (OEM): 약 2,100회/일
+- 전체: 약 7,800회/일
+----------------------------------------------------------
+
+[3. 판단 기준 (Threshold)]
+----------------------------------------------------------
+[금속검출 합격률 기준] ※ HACCP 필수
+- 합격률 100%: ✅ 완벽 (검출 0건)
+- 합격률 99.99% 이상: ✅ 우수 (허용 범위)
+- 합격률 99.95-99.99%: ⚠️ 주의 (모니터링 강화)
+- 합격률 99.95% 미만: 🚨 심각 (즉시 조치)
+
+[일일 검출 건수 기준]
+- 0건: ✅ 완벽
+- 1-2건: ⚠️ 주의 (원인 분석)
+- 3-5건: 🔶 경고 (라인 점검)
+- 5건 초과: 🚨 심각 (라인 정지 검토)
+
+[연속 검출 기준]
+- 동일 라인 1회: ⚠️ 모니터링
+- 동일 라인 2회 연속: 🔶 라인 점검
+- 동일 라인 3회 연속: 🚨 라인 정지 (HACCP 규정)
+
+[금속 유형별 위험도]
+- Fe (철): 🔶 중위험 (설비 마모 가능성)
+- SUS (스테인리스): 🚨 고위험 (설비 파손 가능성)
+- Non-Fe (비철금속): ⚠️ 저위험 (외부 유입 가능성)
+----------------------------------------------------------
+
+[4. 연관 분석 자동 수행]
+----------------------------------------------------------
+[금속 검출 발생 시]
+→ equipment_mst에서 해당 라인 설비 상태 확인
+→ downtime_event에서 최근 설비 정비 이력 확인
+→ operator_mst에서 해당 시간 작업자 확인
+→ 동일 로트 다른 제품 검사 현황 확인
+
+[Fe (철) 검출 시]
+→ 충진기, 캡핑기 마모 상태 점검
+→ 컨베이어 체인 상태 확인
+→ 정기 점검 일정 확인
+
+[SUS (스테인리스) 검출 시]
+→ 믹싱 탱크, 파이프 연결부 점검
+→ 펌프 임펠러 상태 확인
+→ 용접 부위 점검 필요
+
+[Non-Fe (비철금속) 검출 시]
+→ 원자재 입고 검사 이력 확인
+→ 포장재 품질 확인
+→ 외부 작업자 출입 이력 확인
+
+[합격률 하락 시]
+→ 검출기 교정 상태 확인 (최근 교정일)
+→ 테스트 피스 검사 결과 확인
+→ 환경 요인 (온도, 습도, 진동) 점검
+----------------------------------------------------------
+
+[5. 응답 형식 예시]
+----------------------------------------------------------
+🔍 **금속검출 이력 분석** (HACCP CCP 핵심지표)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         ✅ 금속검출 합격률: **99.987%**
+         총 검사: 234,000회 | 검출: 3건
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📈 **일별 금속검출 현황** (최근 7일)
+
+| 일자 | 검사 횟수 | 검출 | 합격률 | 상태 |
+|------|----------|------|--------|------|
+| 12/08 | 7,820회 | 0건 | 100% | ✅ |
+| 12/07 | 7,650회 | 1건 | 99.987% | ✅ |
+| 12/06 | 7,890회 | 0건 | 100% | ✅ |
+| 12/05 | 7,720회 | 1건 | 99.987% | ✅ |
+| 12/04 | 7,580회 | 0건 | 100% | ✅ |
+| 12/03 | 7,850회 | 1건 | 99.987% | ✅ |
+| 12/02 | 7,690회 | 0건 | 100% | ✅ |
+
+🏭 **라인별 금속검출 현황**
+
+| 라인 | 검사 횟수 | 검출 | 검출률 | 상태 |
+|------|----------|------|--------|------|
+| 1라인 (음료) | 72,000회 | 1건 | 0.0014% | ✅ |
+| 2라인 (발효) | 54,000회 | 1건 | 0.0019% | ✅ |
+| 3라인 (기능성) | 45,000회 | 1건 | 0.0022% | ✅ |
+| 4라인 (OEM) | 63,000회 | 0건 | 0% | ✅ |
+
+🔬 **금속유형별 검출 현황**
+
+| 금속 유형 | 검출 건수 | 평균 크기 | 조치 | 위험도 |
+|----------|----------|----------|------|--------|
+| Fe (철) | 2건 | 1.2mm | 배출 | 🔶 중 |
+| SUS (스테인리스) | 0건 | - | - | - |
+| Non-Fe (비철) | 1건 | 2.3mm | 배출 | ⚠️ 저 |
+
+📋 **검출 상세 내역** (최근 3건)
+
+| 일시 | 라인 | 제품 | 금속 | 크기 | 조치 | 로트 |
+|------|------|------|------|------|------|------|
+| 12/07 14:23 | 2라인 | 발효유산균 200ml | Fe | 1.1mm | 배출 | L241207-02 |
+| 12/05 09:15 | 1라인 | 퓨어웰워터 500ml | Fe | 1.3mm | 배출 | L241205-01 |
+| 12/03 16:42 | 3라인 | 비타민워터 350ml | Non-Fe | 2.3mm | 배출 | L241203-03 |
+
+⏰ **시간대별 검출 패턴**
+
+| 시간대 | 검사 횟수 | 검출 | 특이사항 |
+|--------|----------|------|----------|
+| 06-10시 | 58,500회 | 1건 | 조업 시작 |
+| 10-14시 | 62,400회 | 0건 | 정상 가동 |
+| 14-18시 | 59,800회 | 2건 | 교대 시간 |
+| 18-22시 | 53,300회 | 0건 | 야간 가동 |
+
+📊 **월별 합격률 추이**
+
+| 월 | 검사 횟수 | 검출 | 합격률 | 전월비 |
+|----|----------|------|--------|--------|
+| 12월 | 234,000회 | 3건 | 99.987% | +0.002% ↑ |
+| 11월 | 228,500회 | 4건 | 99.982% | -0.003% ↓ |
+| 10월 | 241,200회 | 3건 | 99.988% | +0.001% ↑ |
+| 09월 | 225,800회 | 3건 | 99.987% | - |
+
+💡 **분석 인사이트**
+
+📊 **현황 요약**
+- 금속검출 합격률 99.987%로 HACCP 기준 충족 ✅
+- 월간 검출 3건 모두 즉시 배출 처리 완료
+- Fe(철) 검출 2건 → 설비 마모 점검 권장
+
+⚠️ **주의 사항**
+1. 12/07 2라인 Fe 검출 → 충진기 점검 필요
+2. 12/03 3라인 Non-Fe 검출 → 외부 유입 경로 확인
+3. 14-18시 검출 집중 → 교대 시간 주의 강화
+
+💡 **권고 조치**
+1. 2라인 충진기 노즐 정밀 점검 (Fe 검출 원인)
+2. 3라인 원자재 입고 검사 강화 (Non-Fe 원인)
+3. 교대 시간 금속검출기 테스트 빈도 증가 (2시간→1시간)
+
+🛡️ **HACCP 적합성**
+- CCP2 (금속검출): ✅ 적합
+- 한계기준 준수: ✅
+- 모니터링 기록: ✅ 완전
+- 개선조치: ⏳ 진행 중
+
+⏰ 기준시점: 2024-12-08 15:30 | 데이터 범위: 최근 30일
+----------------------------------------------------------
+
+[6. 차트 렌더링 데이터 (JSON)]
+----------------------------------------------------------
+{
+  "chartType": "line",
+  "title": "금속검출 이력",
+  "config": {
+    "style": "마커 포함 선형 + 검출 이벤트 표시",
+    "animation": true,
+    "showPoints": true,
+    "showEvents": true,
+    "fillArea": false
+  },
+  "data": {
+    "labels": ["12/02", "12/03", "12/04", "12/05", "12/06", "12/07", "12/08"],
+    "datasets": [
+      {
+        "name": "합격률 (%)",
+        "data": [100, 99.987, 100, 99.987, 100, 99.987, 100],
+        "color": "#2ecc71",
+        "yAxisID": "y-rate"
+      },
+      {
+        "name": "검출 건수",
+        "data": [0, 1, 0, 1, 0, 1, 0],
+        "color": "#e74c3c",
+        "yAxisID": "y-count",
+        "type": "scatter",
+        "pointStyle": "triangle"
+      }
+    ]
+  },
+  "axes": {
+    "y-rate": {
+      "position": "left",
+      "label": "합격률 (%)",
+      "min": 99.9,
+      "max": 100
+    },
+    "y-count": {
+      "position": "right",
+      "label": "검출 건수",
+      "min": 0,
+      "max": 5
+    }
+  },
+  "annotations": [
+    {
+      "type": "line",
+      "yValue": 99.95,
+      "yAxisID": "y-rate",
+      "label": "HACCP 한계선",
+      "color": "#e74c3c",
+      "style": "dashed"
+    }
+  ],
+  "events": [
+    {"date": "12/03", "type": "Non-Fe", "line": "3라인", "size": "2.3mm"},
+    {"date": "12/05", "type": "Fe", "line": "1라인", "size": "1.3mm"},
+    {"date": "12/07", "type": "Fe", "line": "2라인", "size": "1.1mm"}
+  ],
+  "breakdown": {
+    "byLine": [
+      {"name": "1라인 (음료)", "checks": 72000, "detected": 1, "rate": 0.0014, "status": "normal"},
+      {"name": "2라인 (발효)", "checks": 54000, "detected": 1, "rate": 0.0019, "status": "normal"},
+      {"name": "3라인 (기능성)", "checks": 45000, "detected": 1, "rate": 0.0022, "status": "normal"},
+      {"name": "4라인 (OEM)", "checks": 63000, "detected": 0, "rate": 0, "status": "excellent"}
+    ],
+    "byMetalType": [
+      {"type": "Fe", "name": "철", "count": 2, "avgSize": 1.2, "risk": "medium", "color": "#f39c12"},
+      {"type": "SUS", "name": "스테인리스", "count": 0, "avgSize": null, "risk": "high", "color": "#e74c3c"},
+      {"type": "Non-Fe", "name": "비철금속", "count": 1, "avgSize": 2.3, "risk": "low", "color": "#3498db"}
+    ],
+    "byTimeSlot": [
+      {"slot": "06-10시", "checks": 58500, "detected": 1, "note": "조업 시작"},
+      {"slot": "10-14시", "checks": 62400, "detected": 0, "note": "정상 가동"},
+      {"slot": "14-18시", "checks": 59800, "detected": 2, "note": "교대 시간"},
+      {"slot": "18-22시", "checks": 53300, "detected": 0, "note": "야간 가동"}
+    ],
+    "monthlyTrend": [
+      {"month": "9월", "checks": 225800, "detected": 3, "passRate": 99.987},
+      {"month": "10월", "checks": 241200, "detected": 3, "passRate": 99.988},
+      {"month": "11월", "checks": 228500, "detected": 4, "passRate": 99.982},
+      {"month": "12월", "checks": 234000, "detected": 3, "passRate": 99.987}
+    ],
+    "detectionDetails": [
+      {
+        "datetime": "2024-12-07 14:23",
+        "line": "2라인",
+        "product": "발효유산균 200ml",
+        "metalType": "Fe",
+        "size": 1.1,
+        "action": "REJECTED",
+        "lotNo": "L241207-02"
+      },
+      {
+        "datetime": "2024-12-05 09:15",
+        "line": "1라인",
+        "product": "퓨어웰워터 500ml",
+        "metalType": "Fe",
+        "size": 1.3,
+        "action": "REJECTED",
+        "lotNo": "L241205-01"
+      },
+      {
+        "datetime": "2024-12-03 16:42",
+        "line": "3라인",
+        "product": "비타민워터 350ml",
+        "metalType": "Non-Fe",
+        "size": 2.3,
+        "action": "REJECTED",
+        "lotNo": "L241203-03"
+      }
+    ]
+  },
+  "haccp": {
+    "ccp": "CCP2",
+    "status": "compliant",
+    "criticalLimit": 99.95,
+    "currentValue": 99.987,
+    "monitoringComplete": true,
+    "correctiveActionRequired": false
+  },
+  "summary": {
+    "totalChecks": 234000,
+    "totalDetected": 3,
+    "passRate": 99.987,
+    "feCount": 2,
+    "susCount": 0,
+    "nonFeCount": 1,
+    "status": "normal"
+  }
+}
+----------------------------------------------------------
+
+[7. 응답 규칙]
+----------------------------------------------------------
+1. 합격률은 소수점 3자리까지 표시 (예: 99.987%)
+2. 검출 건수는 정수로 표시, 0건도 명확히 표기
+3. HACCP CCP 관련 지표임을 강조 (법적 의무)
+4. 금속유형별(Fe/SUS/Non-Fe) 구분 필수
+5. 라인별, 시간대별 패턴 분석 포함
+6. 검출 상세 내역 (일시, 라인, 제품, 로트번호) 필수
+7. 연속 검출 시 즉시 경고 (HACCP 규정)
+8. 검출 원인 추정 및 조치 방안 제시
+9. 설비 점검/교정 권고사항 포함
+10. HACCP 적합성 판정 결과 명시
+==============================================================

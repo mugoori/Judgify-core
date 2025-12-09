@@ -259,7 +259,7 @@ IMPORTANT: Return ONLY valid JSON, no additional text."#,
     async fn call_claude_api(&self, prompt: &str) -> anyhow::Result<String> {
         let request = ClaudeRequest {
             model: self.model.clone(),
-            max_tokens: 4096, // ✅ Claude는 max_tokens 필수!
+            max_tokens: 8192, // ✅ Claude는 max_tokens 필수!
             messages: vec![ClaudeMessage {
                 role: "user".to_string(),
                 content: prompt.to_string(),

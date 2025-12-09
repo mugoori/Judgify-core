@@ -1,0 +1,373 @@
+==============================================================
+퓨어웰 음료 AI Agent - 점검 이행률 분석 (설비/안전/품질 점검)
+==============================================================
+
+[1. 데이터 조회 SQL]
+----------------------------------------------------------
+-- 금일/금주 점검 이행률 요약
+SELECT
+    COUNT(*) as total_checks,
+    SUM(CASE WHEN overall_result = 'OK' THEN 1 ELSE 0 END) as passed_count,
+    SUM(CASE WHEN overall_result = 'NG' THEN 1 ELSE 0 END) as failed_count,
+    SUM(CASE WHEN overall_result IS NULL THEN 1 ELSE 0 END) as pending_count,
+    ROUND(SUM(CASE WHEN overall_result IS NOT NULL THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 1) as compliance_rate
+FROM checklist_result
+WHERE check_time >= datetime('now', '-7 days');
+
+-- 점검 유형별 이행률 (GAUGE용 상세)
+SELECT
+    checklist_type,
+    COUNT(*) as total_scheduled,
+    SUM(CASE WHEN overall_result IS NOT NULL THEN 1 ELSE 0 END) as completed,
+    SUM(CASE WHEN overall_result = 'OK' THEN 1 ELSE 0 END) as passed,
+    SUM(CASE WHEN overall_result = 'NG' THEN 1 ELSE 0 END) as failed,
+    ROUND(SUM(CASE WHEN overall_result IS NOT NULL THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 1) as compliance_rate,
+    ROUND(SUM(CASE WHEN overall_result = 'OK' THEN 1.0 ELSE 0.0 END) /
+          NULLIF(SUM(CASE WHEN overall_result IS NOT NULL THEN 1 ELSE 0 END), 0) * 100, 1) as pass_rate
+FROM checklist_result
+WHERE check_time >= datetime('now', '-7 days')
+GROUP BY checklist_type
+ORDER BY compliance_rate ASC;
+
+-- 설비별 점검 현황
+SELECT
+    c.equip_cd,
+    e.equip_nm,
+    e.line_cd,
+    COUNT(*) as total_checks,
+    SUM(CASE WHEN c.overall_result IS NOT NULL THEN 1 ELSE 0 END) as completed,
+    SUM(CASE WHEN c.overall_result = 'NG' THEN 1 ELSE 0 END) as failed,
+    ROUND(SUM(CASE WHEN c.overall_result IS NOT NULL THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 1) as compliance_rate
+FROM checklist_result c
+LEFT JOIN equipment_mst e ON c.equip_cd = e.equip_cd
+WHERE c.check_time >= datetime('now', '-7 days')
+GROUP BY c.equip_cd
+ORDER BY compliance_rate ASC
+LIMIT 10;
+
+-- 작업자별 점검 이행률
+SELECT
+    c.checker_id,
+    o.operator_nm,
+    COUNT(*) as assigned_checks,
+    SUM(CASE WHEN c.overall_result IS NOT NULL THEN 1 ELSE 0 END) as completed,
+    SUM(CASE WHEN c.overall_result = 'OK' THEN 1 ELSE 0 END) as passed,
+    ROUND(SUM(CASE WHEN c.overall_result IS NOT NULL THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 1) as compliance_rate
+FROM checklist_result c
+LEFT JOIN operator_mst o ON c.checker_id = o.operator_id
+WHERE c.check_time >= datetime('now', '-7 days')
+GROUP BY c.checker_id
+ORDER BY compliance_rate ASC;
+
+-- 미이행 점검 상세 (조치 필요)
+SELECT
+    c.checklist_id,
+    c.checklist_type,
+    c.equip_cd,
+    e.equip_nm,
+    c.scheduled_time,
+    c.checker_id,
+    o.operator_nm,
+    ROUND((julianday('now') - julianday(c.scheduled_time)) * 24, 1) as overdue_hours
+FROM checklist_result c
+LEFT JOIN equipment_mst e ON c.equip_cd = e.equip_cd
+LEFT JOIN operator_mst o ON c.checker_id = o.operator_id
+WHERE c.overall_result IS NULL
+  AND c.scheduled_time < datetime('now')
+ORDER BY c.scheduled_time ASC;
+
+-- NG 판정 점검 상세
+SELECT
+    c.checklist_id,
+    c.check_time,
+    c.checklist_type,
+    c.equip_cd,
+    e.equip_nm,
+    c.fail_items,
+    c.checker_id,
+    o.operator_nm,
+    c.remark
+FROM checklist_result c
+LEFT JOIN equipment_mst e ON c.equip_cd = e.equip_cd
+LEFT JOIN operator_mst o ON c.checker_id = o.operator_id
+WHERE c.check_time >= datetime('now', '-7 days')
+  AND c.overall_result = 'NG'
+ORDER BY c.check_time DESC;
+
+-- 일자별 이행률 추이
+SELECT
+    DATE(check_time) as check_date,
+    COUNT(*) as total,
+    SUM(CASE WHEN overall_result IS NOT NULL THEN 1 ELSE 0 END) as completed,
+    ROUND(SUM(CASE WHEN overall_result IS NOT NULL THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 1) as daily_rate
+FROM checklist_result
+WHERE check_time >= datetime('now', '-7 days')
+GROUP BY DATE(check_time)
+ORDER BY check_date;
+----------------------------------------------------------
+
+[2. 퓨어웰 점검 관리 기준]
+----------------------------------------------------------
+| 점검 유형 | 주기 | 대상 | 소요시간 | 담당 |
+|----------|------|------|----------|------|
+| DAILY_EQUIP | 일간 | 주요 설비 | 15분/대 | 설비담당 |
+| SHIFT_START | 교대시작 | 전 설비 | 30분 | 교대조장 |
+| SHIFT_END | 교대종료 | 전 설비 | 20분 | 교대조장 |
+| WEEKLY_PM | 주간 | 전 설비 | 2시간 | 설비팀 |
+| MONTHLY_PM | 월간 | 주요 설비 | 4시간 | 설비팀 |
+| SAFETY | 일간 | 안전설비 | 10분 | 안전담당 |
+| QUALITY | 4시간 | 품질관련 | 15분 | QC담당 |
+| CIP | CIP 후 | 세척설비 | 20분 | 생산담당 |
+
+[점검 이행률 목표]
+| 점검 유형 | 이행률 목표 | 합격률 목표 |
+|----------|-----------|-----------|
+| SAFETY (안전) | 100% 필수 | 100% |
+| QUALITY (품질) | 100% 필수 | 98% |
+| DAILY_EQUIP | 98% | 95% |
+| SHIFT_START/END | 95% | 95% |
+| WEEKLY_PM | 100% | 90% |
+| MONTHLY_PM | 100% | 90% |
+
+[미이행시 조치 기준]
+- 안전 점검 미이행: 즉시 생산 중단 경고
+- 품질 점검 미이행: 해당 LOT 출하 보류
+- 설비 점검 미이행: 설비팀장 보고
+----------------------------------------------------------
+
+[3. 판단 기준 (Threshold)]
+----------------------------------------------------------
+[전체 이행률 기준]
+- 100%: ✅ 완벽 이행 - 모범 운영
+- 95% ~ 100%: ✅ 정상 - 목표 달성
+- 90% ~ 95%: ⚠️ 주의 - 이행 강화 필요
+- 85% ~ 90%: 🔶 경고 - 관리자 개입 필요
+- 85% 미만: 🚨 심각 - 긴급 점검 체계 재정비
+
+[점검 유형별 이행률 기준]
+- SAFETY/QUALITY: 100% 필수 (미달시 🚨)
+- DAILY_EQUIP: 98%+ ✅, 95-98% ⚠️, <95% 🚨
+- SHIFT: 95%+ ✅, 90-95% ⚠️, <90% 🚨
+- PM (예방정비): 100% 필수
+
+[합격률 기준 (완료된 점검 중)]
+- 98%+: ✅ 우수 - 설비 상태 양호
+- 95% ~ 98%: ✅ 정상
+- 90% ~ 95%: ⚠️ 주의 - 설비 점검 강화
+- 90% 미만: 🚨 심각 - 설비 정밀 진단
+
+[미이행 점검 지연시간]
+- 1시간 미만: ⚠️ 소폭 지연
+- 1~4시간: 🔶 지연 - 즉시 실시
+- 4시간 초과: 🚨 심각 지연 - 에스컬레이션
+
+[NG 판정 후속조치]
+- 즉시 조치 필요: 안전/품질 관련 NG
+- 24시간 내 조치: 설비 기능 관련 NG
+- 주간 계획 반영: 예방정비 관련 NG
+----------------------------------------------------------
+
+[4. 연관 분석 자동 수행]
+----------------------------------------------------------
+[이행률 미달시]
+→ 미이행 점검 상세 목록 조회
+→ 담당자별 미이행 현황 분석
+→ 점검 유형별 미이행 패턴 분석
+→ 교대별 이행률 비교
+
+[NG 판정 발생시]
+→ 해당 설비 최근 점검 이력 조회
+→ 동일 항목 반복 NG 패턴 분석
+→ 관련 알람 이력 연계 분석 (alarm_event)
+→ 비가동 이력 연계 분석 (downtime_event)
+→ 정비 작업 지시 자동 생성 권고
+
+[안전 점검 관련]
+→ 안전 점검 NG시 즉시 알림
+→ 관련 설비 가동 중지 권고
+→ 안전 담당자 긴급 통보
+
+[품질 점검 관련]
+→ 품질 점검 NG시 생산 LOT 연계
+→ 해당 LOT 격리 여부 확인
+→ CCP 검사 연계 분석
+
+[설비별 점검 추이]
+→ 설비별 NG 빈도 분석
+→ 예방정비 효과 분석
+→ 설비 노후화 지표 산출
+----------------------------------------------------------
+
+[5. 응답 형식 예시]
+----------------------------------------------------------
+📋 **점검 이행률 현황** (설비/안전/품질)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         ✅ 금주 이행률: **96.8%**
+         목표: 98% | 완료: 242/250건
+         NG: 8건 | 미이행: 8건
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 **점검 유형별 이행률**
+
+| 점검 유형 | 예정 | 완료 | 이행률 | 합격률 | 상태 |
+|----------|------|------|--------|--------|------|
+| SAFETY (안전) | 28 | 28 | 100% | 100% | ✅ |
+| QUALITY (품질) | 42 | 42 | 100% | 97.6% | ✅ |
+| DAILY_EQUIP | 70 | 68 | 97.1% | 95.6% | ✅ |
+| SHIFT_START | 42 | 40 | 95.2% | 97.5% | ✅ |
+| SHIFT_END | 42 | 39 | 92.9% | 94.9% | ⚠️ |
+| WEEKLY_PM | 14 | 14 | 100% | 92.9% | ✅ |
+| CIP | 12 | 11 | 91.7% | 100% | ⚠️ |
+
+🏭 **설비별 점검 현황** (이행률 낮은 순)
+
+| 설비 | 라인 | 예정 | 완료 | 이행률 | NG |
+|------|------|------|------|--------|-----|
+| 살균기#2 | 2라인 | 15 | 13 | 86.7% | 2 |
+| 충진기#1 | 1라인 | 18 | 16 | 88.9% | 1 |
+| 냉각탱크#2 | 2라인 | 12 | 11 | 91.7% | 1 |
+| 균질기#2 | 2라인 | 10 | 10 | 100% | 2 |
+
+👤 **작업자별 이행률** (낮은 순)
+
+| 작업자 | 담당 | 이행률 | 미이행 |
+|--------|------|--------|--------|
+| 김설비 | 2라인 설비 | 88.9% | 2건 |
+| 박점검 | 1라인 설비 | 92.3% | 1건 |
+| 이품질 | QC | 95.0% | 1건 |
+
+⚠️ **미이행 점검** (즉시 실시 필요)
+
+| 점검 유형 | 설비 | 예정시간 | 지연시간 | 담당자 |
+|----------|------|----------|----------|--------|
+| DAILY_EQUIP | 살균기#2 | 06:00 | 8.5시간 🚨 | 김설비 |
+| CIP | 충진기#1 | 08:00 | 6.5시간 🚨 | - |
+| SHIFT_END | 냉각탱크#2 | 14:00 | 0.5시간 | 박점검 |
+
+❌ **NG 판정 점검** (후속조치 필요)
+
+| 일시 | 점검유형 | 설비 | NG 항목 | 담당 |
+|------|---------|------|---------|------|
+| 12/08 09:30 | QUALITY | 균질기#2 | 압력 이상 | 이품질 |
+| 12/07 14:00 | WEEKLY_PM | 살균기#2 | 밸브 누수 | 김설비 |
+| 12/07 10:00 | DAILY_EQUIP | 충진기#1 | 센서 오류 | 박점검 |
+
+📈 **일자별 이행률 추이**
+
+| 일자 | 예정 | 완료 | 이행률 | 전일비 |
+|------|------|------|--------|--------|
+| 12/08 | 36 | 34 | 94.4% | -2.4% ↓ |
+| 12/07 | 38 | 37 | 97.4% | +1.2% ↑ |
+| 12/06 | 35 | 34 | 97.1% | +0.3% ↑ |
+| 12/05 | 36 | 35 | 97.2% | +2.0% ↑ |
+| 12/04 | 34 | 32 | 94.1% | -1.5% ↓ |
+
+💡 **권고 조치**
+
+⚡ **즉시 조치**
+1. 살균기#2 일간 점검 - 8.5시간 지연 (김설비 연락)
+2. 충진기#1 CIP 후 점검 - 6.5시간 지연
+
+📋 **금주 개선 권고**
+1. 2라인 설비 점검 강화 (이행률 86.7% → 95% 목표)
+2. 교대 종료 점검 프로세스 재정비 (92.9% → 95%)
+3. 김설비 업무 부하 점검 (미이행 2건 최다)
+
+🔧 **NG 후속조치**
+1. 균질기#2 압력 이상 - 설비팀 점검 요청
+2. 살균기#2 밸브 누수 - 부품 교체 일정 수립
+3. 충진기#1 센서 오류 - 센서 교정 또는 교체
+
+⏰ 기준시점: 2024-12-08 14:30 | 일일 마감: 18:00
+----------------------------------------------------------
+
+[6. 차트 렌더링 데이터 (JSON)]
+----------------------------------------------------------
+{
+  "chartType": "gauge",
+  "title": "점검 이행률",
+  "config": {
+    "style": "semicircle",
+    "animation": true,
+    "showNeedle": true,
+    "showTarget": true,
+    "gradient": true
+  },
+  "data": {
+    "value": 96.8,
+    "min": 0,
+    "max": 100,
+    "unit": "%"
+  },
+  "thresholds": [
+    {"min": 0, "max": 85, "color": "#dc3545", "label": "심각"},
+    {"min": 85, "max": 90, "color": "#fd7e14", "label": "경고"},
+    {"min": 90, "max": 95, "color": "#ffc107", "label": "주의"},
+    {"min": 95, "max": 100, "color": "#28a745", "label": "정상"}
+  ],
+  "target": {
+    "value": 98,
+    "label": "목표",
+    "lineStyle": "dashed",
+    "color": "#6f42c1"
+  },
+  "summary": {
+    "totalScheduled": 250,
+    "completed": 242,
+    "passed": 234,
+    "failed": 8,
+    "pending": 8,
+    "passRate": 96.7
+  },
+  "byType": [
+    {"type": "SAFETY", "scheduled": 28, "completed": 28, "rate": 100, "passRate": 100, "status": "normal"},
+    {"type": "QUALITY", "scheduled": 42, "completed": 42, "rate": 100, "passRate": 97.6, "status": "normal"},
+    {"type": "DAILY_EQUIP", "scheduled": 70, "completed": 68, "rate": 97.1, "passRate": 95.6, "status": "normal"},
+    {"type": "SHIFT_START", "scheduled": 42, "completed": 40, "rate": 95.2, "passRate": 97.5, "status": "normal"},
+    {"type": "SHIFT_END", "scheduled": 42, "completed": 39, "rate": 92.9, "passRate": 94.9, "status": "warning"},
+    {"type": "WEEKLY_PM", "scheduled": 14, "completed": 14, "rate": 100, "passRate": 92.9, "status": "normal"},
+    {"type": "CIP", "scheduled": 12, "completed": 11, "rate": 91.7, "passRate": 100, "status": "warning"}
+  ],
+  "equipmentBottom5": [
+    {"equip": "살균기#2", "line": "2라인", "scheduled": 15, "completed": 13, "rate": 86.7, "ng": 2},
+    {"equip": "충진기#1", "line": "1라인", "scheduled": 18, "completed": 16, "rate": 88.9, "ng": 1},
+    {"equip": "냉각탱크#2", "line": "2라인", "scheduled": 12, "completed": 11, "rate": 91.7, "ng": 1},
+    {"equip": "균질기#2", "line": "2라인", "scheduled": 10, "completed": 10, "rate": 100, "ng": 2}
+  ],
+  "pendingChecks": [
+    {"type": "DAILY_EQUIP", "equip": "살균기#2", "scheduledTime": "06:00", "overdueHours": 8.5, "checker": "김설비"},
+    {"type": "CIP", "equip": "충진기#1", "scheduledTime": "08:00", "overdueHours": 6.5, "checker": null},
+    {"type": "SHIFT_END", "equip": "냉각탱크#2", "scheduledTime": "14:00", "overdueHours": 0.5, "checker": "박점검"}
+  ],
+  "ngChecks": [
+    {"time": "12/08 09:30", "type": "QUALITY", "equip": "균질기#2", "failItems": "압력 이상", "checker": "이품질"},
+    {"time": "12/07 14:00", "type": "WEEKLY_PM", "equip": "살균기#2", "failItems": "밸브 누수", "checker": "김설비"},
+    {"time": "12/07 10:00", "type": "DAILY_EQUIP", "equip": "충진기#1", "failItems": "센서 오류", "checker": "박점검"}
+  ],
+  "dailyTrend": [
+    {"date": "12/08", "scheduled": 36, "completed": 34, "rate": 94.4, "change": -2.4},
+    {"date": "12/07", "scheduled": 38, "completed": 37, "rate": 97.4, "change": 1.2},
+    {"date": "12/06", "scheduled": 35, "completed": 34, "rate": 97.1, "change": 0.3},
+    {"date": "12/05", "scheduled": 36, "completed": 35, "rate": 97.2, "change": 2.0},
+    {"date": "12/04", "scheduled": 34, "completed": 32, "rate": 94.1, "change": -1.5}
+  ],
+  "operatorPerformance": [
+    {"operator": "김설비", "role": "2라인 설비", "rate": 88.9, "pending": 2},
+    {"operator": "박점검", "role": "1라인 설비", "rate": 92.3, "pending": 1},
+    {"operator": "이품질", "role": "QC", "rate": 95.0, "pending": 1}
+  ]
+}
+----------------------------------------------------------
+
+[7. 응답 규칙]
+----------------------------------------------------------
+1. 이행률은 소수점 1자리까지 표시 (예: 96.8%)
+2. 안전/품질 점검은 100% 필수임을 강조
+3. 미이행 점검은 지연시간과 함께 긴급도 표시
+4. NG 판정 항목은 후속조치 상태와 함께 표시
+5. 작업자별 이행률은 업무 부하 분석용으로 제공
+6. 설비별 현황은 이행률 낮은 순으로 표시
+7. 일자별 추이는 전일 대비 증감 방향 표시
+8. 관리자/팀장 보고용이므로 액션 아이템 우선
+==============================================================

@@ -19,13 +19,8 @@ pub enum ChartType {
     Gauge,
 }
 
-/// 차트 데이터 포인트 (Bar/Line 차트용)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChartDataPoint {
-    pub name: String,
-    #[serde(flatten)]
-    pub values: std::collections::HashMap<String, f64>,
-}
+// 참고: Bar/Line 차트 데이터는 serde_json::Value로 직접 생성하여 평탄화된 JSON 구조 보장
+// 예: { "name": "1라인", "total_output": 12450, "scrap_qty": 250 }
 
 /// 파이 차트 데이터
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,8 +46,10 @@ pub struct ChartResponse {
     pub chart_type: ChartType,
     pub title: String,
     pub description: String,
+    /// Bar/Line 차트 데이터 - 평탄화된 JSON 객체 배열
+    /// 예: [{ "name": "1라인", "total_output": 12450 }, ...]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub bar_line_data: Option<Vec<ChartDataPoint>>,
+    pub bar_line_data: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pie_data: Option<Vec<PieChartData>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -190,9 +187,9 @@ impl ChartService {
    SELECT line_cd, ROUND(SUM(reject_qty)*100.0/NULLIF(SUM(good_qty+reject_qty),0),2) as defect_rate
    FROM filling_lot GROUP BY line_cd
 
-2. **월별 생산량 추이**:
-   SELECT strftime('%Y-%m', plan_date) as month, SUM(good_qty) as production
-   FROM mes_work_order WHERE status='COMPLETED' GROUP BY month ORDER BY month
+2. **월별 생산량 추이** (fg_lot 테이블 사용):
+   SELECT strftime('%Y-%m', production_dt) as month, SUM(qty) as production
+   FROM fg_lot GROUP BY month ORDER BY month
 
 3. **CCP 합격률**:
    SELECT ccp_type, ROUND(SUM(CASE WHEN result='PASS' THEN 1 ELSE 0 END)*100.0/COUNT(*),1) as pass_rate
@@ -261,7 +258,7 @@ impl ChartService {
 
         let request_body = json!({
             "model": "claude-sonnet-4-5-20250929",
-            "max_tokens": 1024,
+            "max_tokens": 8192,
             "system": system_prompt,
             "messages": [
                 {"role": "user", "content": user_request}
@@ -383,7 +380,7 @@ impl ChartService {
                 // 항상 "name" 키를 사용 (ChartDataPoint 구조체의 필드명과 일치)
                 let x_axis_key = "name".to_string();
                 let colors = ["#3b82f6", "#22c55e", "#ef4444", "#f59e0b", "#8b5cf6", "#06b6d4"];
-                let data_keys = plan.data_keys.clone()
+                let data_keys: Vec<DataKeyConfig> = plan.data_keys.clone()
                     .map(|keys| {
                         // LLM이 color를 생성하지 않은 경우 기본값 할당
                         keys.into_iter().enumerate().map(|(i, mut dk)| {
@@ -403,24 +400,39 @@ impl ChartService {
                         }).collect()
                     });
 
-                let chart_data: Vec<ChartDataPoint> = rows.iter().map(|row| {
+                // serde_json::Value로 직접 평탄화된 JSON 객체 생성
+                // Recharts 기대 형식: { "name": "1라인", "total_output": 12450, "scrap_qty": 250 }
+                println!("[CHART_DEBUG] columns: {:?}", columns);
+                println!("[CHART_DEBUG] rows count: {}", rows.len());
+                println!("[CHART_DEBUG] data_keys: {:?}", data_keys.iter().map(|dk| dk.key.clone()).collect::<Vec<String>>());
+
+                let chart_data: Vec<serde_json::Value> = rows.iter().map(|row| {
                     let name = row.get(0)
                         .and_then(|v| v.as_str().map(|s| s.to_string()))
                         .or_else(|| row.get(0).and_then(|v| v.as_i64().map(|n| n.to_string())))
                         .unwrap_or_default();
 
-                    let mut values = std::collections::HashMap::new();
+                    let mut obj = serde_json::Map::new();
+                    obj.insert("name".to_string(), serde_json::Value::String(name));
+
                     for (i, col) in columns.iter().enumerate().skip(1) {
                         if let Some(val) = row.get(i) {
                             if let Some(n) = val.as_f64() {
-                                values.insert(col.clone(), n);
+                                if let Some(num) = serde_json::Number::from_f64(n) {
+                                    obj.insert(col.clone(), serde_json::Value::Number(num));
+                                }
                             } else if let Some(n) = val.as_i64() {
-                                values.insert(col.clone(), n as f64);
+                                obj.insert(col.clone(), serde_json::Value::Number(serde_json::Number::from(n)));
                             }
                         }
                     }
-                    ChartDataPoint { name, values }
+                    serde_json::Value::Object(obj)
                 }).collect();
+
+                // 디버그: 생성된 chart_data 출력
+                if let Ok(json_str) = serde_json::to_string_pretty(&chart_data) {
+                    println!("[CHART_DEBUG] chart_data: {}", json_str);
+                }
 
                 Ok(ChartResponse {
                     chart_type,
@@ -503,11 +515,17 @@ impl ChartService {
         let data_summary = match &chart_response.chart_type {
             ChartType::Bar | ChartType::Line => {
                 if let Some(data) = &chart_response.bar_line_data {
-                    let summary: Vec<String> = data.iter().map(|point| {
-                        let values: Vec<String> = point.values.iter()
-                            .map(|(k, v)| format!("{}={:.1}", k, v))
+                    let summary: Vec<String> = data.iter().filter_map(|point| {
+                        // serde_json::Value에서 필드 추출
+                        let obj = point.as_object()?;
+                        let name = obj.get("name")?.as_str().unwrap_or("unknown");
+                        let values: Vec<String> = obj.iter()
+                            .filter(|(k, _)| *k != "name")
+                            .filter_map(|(k, v)| {
+                                v.as_f64().map(|n| format!("{}={:.1}", k, n))
+                            })
                             .collect();
-                        format!("{}: {}", point.name, values.join(", "))
+                        Some(format!("{}: {}", name, values.join(", ")))
                     }).collect();
                     summary.join("; ")
                 } else {
@@ -556,7 +574,7 @@ impl ChartService {
 
         let request_body = json!({
             "model": "claude-sonnet-4-5-20250929",
-            "max_tokens": 256,
+            "max_tokens": 8192,
             "system": system_prompt,
             "messages": [
                 {"role": "user", "content": user_content}

@@ -103,7 +103,7 @@ impl LLMEngine {
             "model": "claude-sonnet-4-5-20250929",
             "messages": messages,
             "temperature": 0.3,
-            "max_tokens": 1024,
+            "max_tokens": 8192,
         });
 
         let http_response = self
@@ -226,7 +226,7 @@ impl LLMEngine {
             "model": "claude-sonnet-4-5-20250929",
             "messages": messages,
             "temperature": 0.7,
-            "max_tokens": 2048,
+            "max_tokens": 8192,
         });
 
         let http_response = self
