@@ -1,0 +1,315 @@
+==============================================================
+퓨어웰 음료 AI Agent - 평균 불량률 분석 (품질 핵심지표)
+==============================================================
+
+[1. 데이터 조회 SQL]
+----------------------------------------------------------
+-- 금일 전체 평균 불량률 산출
+SELECT
+    SUM(qty_input) as total_input,
+    SUM(qty_output) as total_output,
+    SUM(scrap_qty) as total_scrap,
+    ROUND(SUM(scrap_qty) * 100.0 / NULLIF(SUM(qty_input), 0), 3) as defect_rate,
+    ROUND(SUM(qty_output) * 100.0 / NULLIF(SUM(qty_input), 0), 2) as yield_rate
+FROM operation_exec
+WHERE DATE(end_dt) = DATE('now')
+  AND result_flag IN ('PASS', 'PARTIAL');
+
+-- 라인별 불량률 상세
+SELECT
+    l.line_id,
+    l.line_name,
+    l.line_type,
+    SUM(o.qty_input) as input_qty,
+    SUM(o.qty_output) as output_qty,
+    SUM(o.scrap_qty) as scrap_qty,
+    ROUND(SUM(o.scrap_qty) * 100.0 / NULLIF(SUM(o.qty_input), 0), 3) as defect_rate,
+    COUNT(DISTINCT o.mes_order_id) as batch_count
+FROM operation_exec o
+JOIN mes_work_order m ON o.mes_order_id = m.mes_order_id
+JOIN line_mst l ON m.line_id = l.line_id
+WHERE DATE(o.end_dt) = DATE('now')
+GROUP BY l.line_id, l.line_name, l.line_type
+ORDER BY defect_rate DESC;
+
+-- 공정별 불량률 분석
+SELECT
+    o.operation_type,
+    CASE o.operation_type
+        WHEN 'MIXING' THEN '배합'
+        WHEN 'FERMENT' THEN '발효'
+        WHEN 'PASTEUR' THEN '살균'
+        WHEN 'FILL' THEN '충진'
+        WHEN 'PACK' THEN '포장'
+        ELSE o.operation_type
+    END as operation_name,
+    SUM(o.qty_input) as input_qty,
+    SUM(o.scrap_qty) as scrap_qty,
+    ROUND(SUM(o.scrap_qty) * 100.0 / NULLIF(SUM(o.qty_input), 0), 3) as defect_rate
+FROM operation_exec o
+WHERE DATE(o.end_dt) = DATE('now')
+GROUP BY o.operation_type
+ORDER BY defect_rate DESC;
+
+-- 불량 유형별 분석 (품질검사 기준)
+SELECT
+    d.defect_code,
+    d.defect_name,
+    d.defect_category,
+    d.severity,
+    COUNT(q.test_id) as occurrence_count,
+    SUM(q.fail_qty) as total_fail_qty
+FROM qc_test q
+JOIN defect_mst d ON q.defect_code = d.defect_code
+WHERE DATE(q.test_dt) = DATE('now')
+  AND q.result_flag = 'FAIL'
+GROUP BY d.defect_code, d.defect_name, d.defect_category, d.severity
+ORDER BY total_fail_qty DESC
+LIMIT 10;
+
+-- 시간대별 불량률 추이 (연관 분석용)
+SELECT
+    strftime('%H', o.end_dt) as hour,
+    SUM(o.qty_input) as input_qty,
+    SUM(o.scrap_qty) as scrap_qty,
+    ROUND(SUM(o.scrap_qty) * 100.0 / NULLIF(SUM(o.qty_input), 0), 3) as defect_rate
+FROM operation_exec o
+WHERE DATE(o.end_dt) = DATE('now')
+GROUP BY strftime('%H', o.end_dt)
+ORDER BY hour;
+
+-- 주간 불량률 트렌드 (연관 분석용)
+SELECT
+    DATE(end_dt) as work_date,
+    ROUND(SUM(scrap_qty) * 100.0 / NULLIF(SUM(qty_input), 0), 3) as defect_rate
+FROM operation_exec
+WHERE DATE(end_dt) >= DATE('now', '-7 days')
+GROUP BY DATE(end_dt)
+ORDER BY work_date;
+----------------------------------------------------------
+
+[2. 불량 유형 분류 체계 (퓨어웰)]
+----------------------------------------------------------
+| 분류 | 코드 | 불량유형 | 발생공정 | 심각도 |
+|------|------|----------|----------|--------|
+| 공정불량 | DEF-01 | 배합비율 이상 | 배합 | 중 |
+| 공정불량 | DEF-02 | 발효도 미달/과다 | 발효 | 상 |
+| 공정불량 | DEF-03 | 살균온도 미달 | 살균 | 최상 |
+| 충진불량 | DEF-11 | 충진량 과부족 | 충진 | 중 |
+| 충진불량 | DEF-12 | 캡핑 불량 | 충진 | 상 |
+| 충진불량 | DEF-13 | 라벨 불량 | 충진 | 하 |
+| 포장불량 | DEF-21 | 박스 파손 | 포장 | 하 |
+| 포장불량 | DEF-22 | 수량 오차 | 포장 | 중 |
+| 이물불량 | DEF-31 | 이물 혼입 | 전공정 | 최상 |
+| 외관불량 | DEF-41 | 용기 변형/파손 | 전공정 | 중 |
+
+[불량률 산출 공식]
+불량률(%) = (스크랩 수량 / 투입 수량) × 100
+수율(%) = (양품 수량 / 투입 수량) × 100
+PPM = 불량률 × 10,000
+
+[퓨어웰 품질 목표]
+- 목표 불량률: 2.0% 이하 (수율 98% 이상)
+- 현재 고객 클레임률: 0.08%
+- 목표 PPM: 200 이하
+----------------------------------------------------------
+
+[3. 판단 기준 (Threshold)]
+----------------------------------------------------------
+[불량률 등급 기준 - 낮을수록 좋음]
+- 1.0% 이하: 🏆 EXCELLENT - 탁월한 품질 수준
+- 1.0% ~ 1.5%: ✅ GOOD - 목표 초과 달성
+- 1.5% ~ 2.0%: ⚠️ NORMAL - 목표 내, 개선 여지
+- 2.0% ~ 3.0%: 🔶 WARNING - 목표 초과, 원인분석 필요
+- 3.0% 초과: 🚨 CRITICAL - 긴급 품질회의 소집
+
+[공정별 허용 불량률]
+| 공정 | 허용기준 | 경고기준 | 위험기준 |
+|------|----------|----------|----------|
+| 배합 | 0.5% | 1.0% | 1.5% |
+| 발효 | 1.0% | 1.5% | 2.0% |
+| 살균 | 0.3% | 0.5% | 1.0% |
+| 충진 | 1.5% | 2.0% | 3.0% |
+| 포장 | 0.5% | 1.0% | 1.5% |
+
+[불량 심각도별 대응]
+- 최상(살균/이물): 🚨 즉시 라인 정지, 전수 검사
+- 상(발효/캡핑): ⚠️ 해당 LOT 격리, 원인분석
+- 중(충진량/배합): 🔶 모니터링 강화, 조정
+- 하(라벨/박스): ℹ️ 기록 후 계속 생산
+----------------------------------------------------------
+
+[4. 연관 분석 자동 수행]
+----------------------------------------------------------
+[불량률 2% 초과 시]
+→ 불량 TOP 3 유형 상세 분석
+→ 해당 라인/공정 최근 7일 불량 추이
+→ 동일 제품의 과거 불량 패턴 조회
+→ 원자재 LOT별 불량 연관성 분석
+
+[특정 공정 불량률 급증 시]
+→ 설비 상태 및 최근 PM 이력 조회
+→ 작업자별 불량 발생률 비교
+→ 원자재 변경 이력 확인
+→ 환경 조건(온도/습도) 변화 점검
+
+[충진 불량 집중 발생 시]
+→ 충진기 노즐별 편차 분석
+→ 캡핑 토크 설정값 점검
+→ 라벨러 센서 정렬 상태 확인
+→ 용기 공급 불량 연관성 점검
+
+[이물 불량 발생 시]
+→ 해당 LOT 전수 재검사 지시
+→ 이물 유형 분석 (금속/플라스틱/섬유)
+→ 발생 공정 추적 (원자재/설비/환경)
+→ 설비 청소 기록 및 점검 일지 확인
+----------------------------------------------------------
+
+[5. 응답 형식 예시]
+----------------------------------------------------------
+📊 **평균 불량률 현황** (품질 핵심지표)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         ⚠️ 현재 불량률: **1.87%**
+         목표: 2.0% | 수율: 98.13%
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📈 **라인별 불량률 현황**
+
+| 라인 | 투입량 | 양품 | 불량 | 불량률 | 상태 |
+|------|--------|------|------|--------|------|
+| 1라인 | 15,200 | 14,950 | 250 | 1.64% | ✅ |
+| 2라인 | 19,800 | 19,380 | 420 | 2.12% | 🔶 |
+| 3라인 | 17,500 | 17,220 | 280 | 1.60% | ✅ |
+| Pilot | 2,800 | 2,690 | 110 | 3.93% | 🚨 |
+| **합계** | **55,300** | **54,240** | **1,060** | **1.92%** | ⚠️ |
+
+🔍 **공정별 불량 분석**
+
+| 공정 | 불량수 | 비율 | 허용기준 | 상태 |
+|------|--------|------|----------|------|
+| 충진 | 580 | 54.7% | 1.5% | 🔶 |
+| 포장 | 210 | 19.8% | 0.5% | ⚠️ |
+| 발효 | 150 | 14.2% | 1.0% | ✅ |
+| 배합 | 80 | 7.5% | 0.5% | ✅ |
+| 살균 | 40 | 3.8% | 0.3% | ✅ |
+
+🚨 **불량 유형 TOP 5**
+
+| 순위 | 불량유형 | 건수 | 수량 | 주요 원인 |
+|------|----------|------|------|-----------|
+| 1 | 충진량 과부족 | 42 | 320 | 노즐 막힘/마모 |
+| 2 | 캡핑 불량 | 28 | 180 | 토크 설정 편차 |
+| 3 | 라벨 틀어짐 | 15 | 150 | 센서 정렬 불량 |
+| 4 | 발효도 과다 | 8 | 120 | 온도 관리 미흡 |
+| 5 | 박스 파손 | 12 | 80 | 포장라인 충격 |
+
+⚠️ **주의 필요 항목**
+
+🔶 **2라인 불량률 상승** (1.85% → 2.12%)
+- 10시~12시 충진 불량 집중 발생 (68%)
+- 원인: 2-A 충진기 3번 노즐 충진량 +5% 편차
+- 조치: 노즐 교정 완료 (12:30), 모니터링 중
+
+🚨 **Pilot 라인 불량률 급증** (2.8% → 3.93%)
+- 신제품 테스트 중 발효도 조절 어려움
+- 원인: 신규 유산균 배양 최적 조건 미확정
+- 조치: R&D팀 공정조건 재검토 진행 중
+
+💡 **개선 권고사항**
+
+⚡ **즉시 조치**
+- 2라인 충진기 전체 노즐 점검 (17:00 생산 종료 후)
+- Pilot 라인 발효 조건 표준화 미팅 (R&D/생산/QC)
+
+📋 **단기 개선 (금주 내)**
+- 충진 불량 감소를 위한 노즐 교체 주기 단축 (3개월 → 2개월)
+- 캡핑 토크 자동 보정 시스템 도입 검토
+
+📊 **품질회의 안건**
+- 2라인 충진 공정 FMEA 재검토
+- Pilot 라인 신제품 공정 안정화 일정 협의
+
+⏰ 기준시점: 2024-12-08 15:00 | 일일 마감 집계: 18:00
+----------------------------------------------------------
+
+[6. 차트 렌더링 데이터 (JSON)]
+----------------------------------------------------------
+{
+  "chartType": "gauge",
+  "title": "평균 불량률",
+  "config": {
+    "style": "invertedGauge",
+    "animation": true,
+    "lowerIsBetter": true,
+    "showYieldRate": true
+  },
+  "data": {
+    "value": 1.87,
+    "min": 0,
+    "max": 5,
+    "unit": "%",
+    "yieldRate": 98.13
+  },
+  "thresholds": [
+    {"min": 0, "max": 1.0, "color": "#007bff", "label": "EXCELLENT"},
+    {"min": 1.0, "max": 1.5, "color": "#28a745", "label": "GOOD"},
+    {"min": 1.5, "max": 2.0, "color": "#ffc107", "label": "NORMAL"},
+    {"min": 2.0, "max": 3.0, "color": "#fd7e14", "label": "WARNING"},
+    {"min": 3.0, "max": 5.0, "color": "#dc3545", "label": "CRITICAL"}
+  ],
+  "target": {
+    "value": 2.0,
+    "label": "목표 상한",
+    "lineStyle": "dashed",
+    "color": "#dc3545"
+  },
+  "lineBreakdown": [
+    {"line": "1라인", "defectRate": 1.64, "status": "good", "trend": "stable"},
+    {"line": "2라인", "defectRate": 2.12, "status": "warning", "trend": "up"},
+    {"line": "3라인", "defectRate": 1.60, "status": "good", "trend": "down"},
+    {"line": "Pilot", "defectRate": 3.93, "status": "critical", "trend": "up"}
+  ],
+  "processBreakdown": [
+    {"process": "충진", "defects": 580, "percentage": 54.7},
+    {"process": "포장", "defects": 210, "percentage": 19.8},
+    {"process": "발효", "defects": 150, "percentage": 14.2},
+    {"process": "배합", "defects": 80, "percentage": 7.5},
+    {"process": "살균", "defects": 40, "percentage": 3.8}
+  ],
+  "defectTypes": [
+    {"type": "충진량 과부족", "count": 320, "severity": "medium"},
+    {"type": "캡핑 불량", "count": 180, "severity": "high"},
+    {"type": "라벨 틀어짐", "count": 150, "severity": "low"},
+    {"type": "발효도 과다", "count": 120, "severity": "high"},
+    {"type": "박스 파손", "count": 80, "severity": "low"}
+  ],
+  "weeklyTrend": [
+    {"date": "12-02", "defectRate": 1.65},
+    {"date": "12-03", "defectRate": 1.72},
+    {"date": "12-04", "defectRate": 1.58},
+    {"date": "12-05", "defectRate": 1.81},
+    {"date": "12-06", "defectRate": 1.95},
+    {"date": "12-07", "defectRate": 1.78},
+    {"date": "12-08", "defectRate": 1.87}
+  ],
+  "trendIndicator": {
+    "direction": "up",
+    "change": 0.09,
+    "period": "전일 대비"
+  }
+}
+----------------------------------------------------------
+
+[7. 응답 규칙]
+----------------------------------------------------------
+1. 불량률은 "낮을수록 좋음"을 명확히 표시
+2. 라인별/공정별/유형별 다각도 분석 제공
+3. 불량률 상승 라인/공정은 원인과 함께 경고 표시
+4. 불량 유형별 심각도와 권장 대응 수준 안내
+5. 수율(양품률)을 함께 표시하여 긍정적 지표 제공
+6. 시간대별/일별 트렌드로 악화/개선 추이 파악
+7. 불량 집중 공정에 대한 구체적 개선안 제시
+8. 품질회의 안건으로 활용 가능한 요약 정보 포함
+==============================================================

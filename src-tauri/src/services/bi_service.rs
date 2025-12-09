@@ -852,7 +852,7 @@ Return ONLY valid JSON, no additional text."#;
 
         let claude_request = ClaudeRequest {
             model: "claude-sonnet-4-5-20250929".to_string(),
-            max_tokens: 2048, // ✅ Claude는 max_tokens 필수
+            max_tokens: 8192, // ✅ Claude는 max_tokens 필수
             messages: vec![ClaudeMessage {
                 role: "user".to_string(),
                 content: format!("{}\n\nUser request: {}", system_prompt, prompt),
@@ -1004,7 +1004,7 @@ Return JSON only."#,
         // ✅ Phase 2: Claude API 호출
         let claude_request = ClaudeRequest {
             model: "claude-sonnet-4-5-20250929".to_string(),
-            max_tokens: 2048, // ✅ Claude는 max_tokens 필수
+            max_tokens: 8192, // ✅ Claude는 max_tokens 필수
             messages: vec![ClaudeMessage {
                 role: "user".to_string(),
                 content: format!("{}\n\n{}", system_prompt, prompt),

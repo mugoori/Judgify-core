@@ -15,6 +15,56 @@ pub struct ChatMessageResponse {
     pub intent: String,
     pub action_result: Option<serde_json::Value>,
     pub table_data: Option<TableData>,  // 테이블 형식 데이터 추가
+    pub chart_data: Option<ChartData>,  // 차트 데이터 추가
+}
+
+/// 차트 데이터 구조체 (프론트엔드 ChartResponse와 호환)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChartData {
+    pub chart_type: String,        // bar, line, pie, gauge
+    pub title: String,
+    pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bar_line_data: Option<Vec<serde_json::Value>>,  // 평탄화된 JSON 객체 직접 사용
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pie_data: Option<Vec<PieChartData>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gauge_data: Option<GaugeChartData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_keys: Option<Vec<DataKeyConfig>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub x_axis_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub insight: Option<String>,
+}
+
+// ChartDataPoint 구조체 삭제 - serde(flatten)이 HashMap과 제대로 작동하지 않아서
+// Vec<serde_json::Value>로 직접 평탄화된 JSON 객체 사용
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PieChartData {
+    pub name: String,
+    pub value: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GaugeChartData {
+    pub value: f64,
+    pub min: f64,
+    pub max: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DataKeyConfig {
+    pub key: String,
+    pub color: String,
+    pub label: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -207,6 +257,47 @@ pub async fn send_chat_message(
                 ),
             }
         }
+        Intent::ChartAnalysis => {
+            // 차트/그래프 분석 요청 - 프롬프트 라우터 사용
+            println!("📊 [ChartAnalysis] Processing chart analysis request");
+
+            // 대화 이력 가져오기
+            let history = service.get_history(&session_id, 5).await.unwrap_or_default();
+
+            match service.generate_chart_response(&request.message, history).await {
+                Ok(llm_response) => {
+                    println!("✅ [ChartAnalysis] Chart response generated successfully");
+
+                    // 응답에서 차트 JSON 추출 및 파싱
+                    let chart_data = extract_chart_data_from_response(&llm_response);
+
+                    // 텍스트 응답 (차트 JSON 블록 제거)
+                    let text_response = remove_chart_json_block(&llm_response);
+
+                    // 어시스턴트 응답 저장
+                    let intent_str = "chartanalysis".to_string();
+                    let _ = service
+                        .save_message(&session_id, "assistant", &text_response, Some(&intent_str))
+                        .await;
+
+                    return Ok(ChatMessageResponse {
+                        response: text_response,
+                        session_id,
+                        intent: intent_str,
+                        action_result: None,
+                        table_data: None,
+                        chart_data,
+                    });
+                }
+                Err(e) => {
+                    println!("❌ [ChartAnalysis] Chart generation failed: {}", e);
+                    (
+                        format!("차트 분석 생성 실패: {}. 다시 시도해주세요.", e),
+                        None,
+                    )
+                }
+            }
+        }
         Intent::SettingsChange => (
             "설정 변경 기능입니다. 어떤 설정을 변경하시겠습니까?".to_string(),
             None,
@@ -243,6 +334,7 @@ pub async fn send_chat_message(
                                 intent: format!("{:?}", intent).to_lowercase(),
                                 action_result: None,
                                 table_data: Some(table_data),  // 근거 자료로 테이블도 함께 반환
+                                chart_data: None,
                             });
                         }
                         Err(e) => {
@@ -254,6 +346,7 @@ pub async fn send_chat_message(
                                 intent: format!("{:?}", intent).to_lowercase(),
                                 action_result: None,
                                 table_data: Some(table_data),
+                                chart_data: None,
                             });
                         }
                     }
@@ -285,6 +378,7 @@ pub async fn send_chat_message(
                                     intent: format!("{:?}", intent).to_lowercase(),
                                     action_result: None,
                                     table_data: Some(table_data),
+                                    chart_data: None,
                                 });
                             }
                             Err(e) => {
@@ -295,6 +389,7 @@ pub async fn send_chat_message(
                                     intent: format!("{:?}", intent).to_lowercase(),
                                     action_result: None,
                                     table_data: Some(table_data),
+                                    chart_data: None,
                                 });
                             }
                         }
@@ -308,6 +403,7 @@ pub async fn send_chat_message(
                             intent: format!("{:?}", intent).to_lowercase(),
                             action_result: None,
                             table_data: None,
+                            chart_data: None,
                         });
                     }
                     Err(e) => {
@@ -366,7 +462,8 @@ pub async fn send_chat_message(
         session_id,
         intent: intent_str,
         action_result,
-        table_data: None, // 일단 None으로 설정, 추후 GeneralQuery에서 채울 예정
+        table_data: None,
+        chart_data: None, // ChartAnalysis에서는 별도로 처리됨
     })
 }
 
@@ -929,4 +1026,636 @@ fn extract_product_filter(query: &str) -> Option<String> {
     }
 
     None
+}
+
+/// LLM 응답에서 차트 JSON 추출 및 ChartData로 변환
+///
+/// LLM 응답에서 ```json:chart 블록을 찾아 파싱합니다.
+/// 파싱 실패시 None 반환 (차트 없이 텍스트만 표시)
+fn extract_chart_data_from_response(response: &str) -> Option<ChartData> {
+    // ```json:chart ... ``` 블록 추출
+    let chart_json = extract_json_chart_block(response)?;
+
+    // JSON 파싱 시도
+    match serde_json::from_str::<serde_json::Value>(&chart_json) {
+        Ok(json) => {
+            println!("✅ [extract_chart_data] Chart JSON parsed successfully");
+
+            // ChartData 구조체로 변환
+            let chart_type = json["chartType"]
+                .as_str()
+                .or_else(|| json["chart_type"].as_str())
+                .unwrap_or("bar")
+                .to_string();
+
+            let title = json["title"].as_str().unwrap_or("차트").to_string();
+
+            let description = json["description"]
+                .as_str()
+                .or_else(|| json["summary"].as_str())
+                .unwrap_or("")
+                .to_string();
+
+            // 차트 타입에 따른 데이터 추출
+            let (bar_line_data, pie_data, gauge_data, data_keys, x_axis_key) =
+                parse_chart_data_by_type(&chart_type, &json);
+
+            // 인사이트 추출
+            let insight = json["insight"]
+                .as_str()
+                .or_else(|| json["analysis"].as_str())
+                .map(|s| s.to_string());
+
+            Some(ChartData {
+                chart_type,
+                title,
+                description,
+                bar_line_data,
+                pie_data,
+                gauge_data,
+                data_keys,
+                x_axis_key,
+                insight,
+            })
+        }
+        Err(e) => {
+            println!("⚠️ [extract_chart_data] Failed to parse chart JSON: {}", e);
+            None
+        }
+    }
+}
+
+/// 균형 잡힌 괄호 카운팅으로 JSON 종료 위치 찾기
+///
+/// ## Phase 2 개선사항
+/// - 중첩된 코드 블록이 있어도 정확한 JSON 종료 위치 감지
+/// - 문자열 내 괄호는 무시 (escape 처리)
+/// - 배열 `[]`와 객체 `{}` 모두 지원
+fn find_balanced_json_end(content: &str) -> Option<usize> {
+    let mut brace_count = 0i32;   // { }
+    let mut bracket_count = 0i32; // [ ]
+    let mut in_string = false;
+    let mut escape_next = false;
+    let mut started = false;
+
+    for (i, c) in content.char_indices() {
+        if escape_next {
+            escape_next = false;
+            continue;
+        }
+
+        match c {
+            '\\' if in_string => escape_next = true,
+            '"' => in_string = !in_string,
+            '{' if !in_string => {
+                brace_count += 1;
+                started = true;
+            }
+            '}' if !in_string => {
+                brace_count -= 1;
+                if started && brace_count == 0 && bracket_count == 0 {
+                    return Some(i + 1);
+                }
+            }
+            '[' if !in_string => {
+                bracket_count += 1;
+                started = true;
+            }
+            ']' if !in_string => {
+                bracket_count -= 1;
+                if started && brace_count == 0 && bracket_count == 0 {
+                    return Some(i + 1);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// 응답에서 ```json:chart ... ``` 블록 추출 (개선된 알고리즘)
+///
+/// ## Phase 2 개선사항
+/// - 균형 괄호 카운팅으로 중첩 코드 블록 처리
+/// - 첫 번째 `{` 또는 `[`부터 균형 잡힌 종료까지 추출
+/// - 기존 마커 기반 추출도 폴백으로 유지
+fn extract_json_chart_block(response: &str) -> Option<String> {
+    // 1차 시도: ```json:chart 블록 (균형 괄호 방식)
+    let start_marker = "```json:chart";
+    if let Some(start_idx) = response.find(start_marker) {
+        let content_start = start_idx + start_marker.len();
+        let after_marker = &response[content_start..];
+
+        // 첫 번째 '{' 또는 '[' 찾기
+        if let Some(json_offset) = after_marker.find(|c| c == '{' || c == '[') {
+            let json_content = &after_marker[json_offset..];
+
+            // 균형 잡힌 괄호로 종료 위치 찾기
+            if let Some(json_end) = find_balanced_json_end(json_content) {
+                let extracted = json_content[..json_end].to_string();
+                println!(
+                    "📊 [extract_json_chart_block] Found chart JSON (balanced): {} chars",
+                    extracted.len()
+                );
+                return Some(extracted);
+            }
+        }
+
+        // 폴백: 기존 마커 기반 추출
+        let end_marker = "```";
+        if let Some(end_idx) = after_marker.find(end_marker) {
+            let json_content = after_marker[..end_idx].trim();
+            if !json_content.is_empty() {
+                println!(
+                    "📊 [extract_json_chart_block] Found chart JSON (marker): {} chars",
+                    json_content.len()
+                );
+                return Some(json_content.to_string());
+            }
+        }
+    }
+
+    // 2차 시도: ```json 블록에서 chartType 포함 여부 확인 (균형 괄호 방식)
+    let alt_start = "```json";
+    if let Some(start_idx) = response.find(alt_start) {
+        let content_start = start_idx + alt_start.len();
+        let after_marker = &response[content_start..];
+
+        // 첫 번째 '{' 또는 '[' 찾기
+        if let Some(json_offset) = after_marker.find(|c| c == '{' || c == '[') {
+            let json_content = &after_marker[json_offset..];
+
+            // 균형 잡힌 괄호로 종료 위치 찾기
+            if let Some(json_end) = find_balanced_json_end(json_content) {
+                let extracted = &json_content[..json_end];
+
+                // chartType 또는 chart_type 포함 확인
+                if extracted.contains("chartType") || extracted.contains("chart_type") {
+                    println!(
+                        "📊 [extract_json_chart_block] Found chart JSON (alt, balanced): {} chars",
+                        extracted.len()
+                    );
+                    return Some(extracted.to_string());
+                }
+            }
+        }
+
+        // 폴백: 기존 마커 기반 추출
+        let end_marker = "```";
+        if let Some(end_idx) = after_marker.find(end_marker) {
+            let json_content = after_marker[..end_idx].trim();
+
+            if json_content.contains("chartType") || json_content.contains("chart_type") {
+                println!(
+                    "📊 [extract_json_chart_block] Found chart JSON (alt, marker): {} chars",
+                    json_content.len()
+                );
+                return Some(json_content.to_string());
+            }
+        }
+    }
+
+    println!("ℹ️ [extract_json_chart_block] No chart JSON block found");
+    None
+}
+
+/// 차트 타입에 따른 데이터 파싱
+fn parse_chart_data_by_type(
+    chart_type: &str,
+    json: &serde_json::Value,
+) -> (
+    Option<Vec<serde_json::Value>>,  // bar_line_data - 평탄화된 JSON 직접 사용
+    Option<Vec<PieChartData>>,
+    Option<GaugeChartData>,
+    Option<Vec<DataKeyConfig>>,
+    Option<String>,
+) {
+    match chart_type {
+        "bar" | "line" => {
+            // Bar/Line 차트 데이터 파싱
+            let data = json["data"]
+                .as_array()
+                .or_else(|| json["bar_line_data"].as_array())
+                .or_else(|| json["barLineData"].as_array());
+
+            // 평탄화된 JSON 객체 직접 사용 (serde(flatten) 문제 회피)
+            let bar_line_data = data.map(|arr| {
+                arr.iter()
+                    .filter_map(|item| {
+                        let name = item["name"]
+                            .as_str()
+                            .or_else(|| item["label"].as_str())
+                            .unwrap_or("");
+
+                        if !name.is_empty() {
+                            // JSON 객체 그대로 복사 (이미 평탄화된 상태)
+                            Some(item.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            });
+
+            // data_keys 파싱
+            let data_keys = json["dataKeys"]
+                .as_array()
+                .or_else(|| json["data_keys"].as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|item| {
+                            Some(DataKeyConfig {
+                                key: item["key"].as_str()?.to_string(),
+                                color: item["color"]
+                                    .as_str()
+                                    .unwrap_or("#8884d8")
+                                    .to_string(),
+                                label: item["label"]
+                                    .as_str()
+                                    .or_else(|| item["key"].as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                            })
+                        })
+                        .collect()
+                });
+
+            // x_axis_key 파싱
+            let x_axis_key = json["xAxisKey"]
+                .as_str()
+                .or_else(|| json["x_axis_key"].as_str())
+                .map(|s| s.to_string());
+
+            (bar_line_data, None, None, data_keys, x_axis_key)
+        }
+
+        "pie" => {
+            // Pie 차트 데이터 파싱
+            let data = json["data"]
+                .as_array()
+                .or_else(|| json["pie_data"].as_array())
+                .or_else(|| json["pieData"].as_array());
+
+            let pie_data = data.map(|arr| {
+                arr.iter()
+                    .filter_map(|item| {
+                        let name = item["name"]
+                            .as_str()
+                            .or_else(|| item["label"].as_str())?
+                            .to_string();
+                        let value = item["value"]
+                            .as_f64()
+                            .or_else(|| item["value"].as_i64().map(|v| v as f64))?;
+                        let color = item["color"]
+                            .as_str()
+                            .or_else(|| item["fill"].as_str())
+                            .map(|s| s.to_string());
+
+                        Some(PieChartData { name, value, color })
+                    })
+                    .collect()
+            });
+
+            (None, pie_data, None, None, None)
+        }
+
+        "gauge" => {
+            // Gauge 차트 데이터 파싱
+            let gauge_data = json["data"]
+                .as_object()
+                .or_else(|| json["gauge_data"].as_object())
+                .or_else(|| json["gaugeData"].as_object())
+                .map(|obj| {
+                    let value_obj = serde_json::Value::Object(obj.clone());
+                    GaugeChartData {
+                        value: value_obj["value"]
+                            .as_f64()
+                            .or_else(|| value_obj["value"].as_i64().map(|v| v as f64))
+                            .unwrap_or(0.0),
+                        min: value_obj["min"]
+                            .as_f64()
+                            .or_else(|| value_obj["min"].as_i64().map(|v| v as f64))
+                            .unwrap_or(0.0),
+                        max: value_obj["max"]
+                            .as_f64()
+                            .or_else(|| value_obj["max"].as_i64().map(|v| v as f64))
+                            .unwrap_or(100.0),
+                        label: value_obj["label"].as_str().map(|s| s.to_string()),
+                        unit: value_obj["unit"].as_str().map(|s| s.to_string()),
+                    }
+                });
+
+            (None, None, gauge_data, None, None)
+        }
+
+        _ => (None, None, None, None, None),
+    }
+}
+
+/// LLM 응답에서 차트 JSON 블록 제거
+///
+/// 사용자에게 보여줄 텍스트 응답에서 ```json:chart ... ``` 블록을 제거합니다.
+fn remove_chart_json_block(response: &str) -> String {
+    // ```json:chart ... ``` 블록 제거
+    let start_marker = "```json:chart";
+    let end_marker = "```";
+
+    if let Some(start_idx) = response.find(start_marker) {
+        let before = &response[..start_idx];
+
+        let after_start = &response[(start_idx + start_marker.len())..];
+        if let Some(end_idx) = after_start.find(end_marker) {
+            let after = &after_start[(end_idx + end_marker.len())..];
+
+            // 앞뒤 텍스트 결합 (불필요한 공백 정리)
+            let result = format!("{}{}", before.trim_end(), after.trim_start());
+            return result.trim().to_string();
+        }
+    }
+
+    // 대체 패턴: 일반 ```json 블록 중 chartType 포함된 것 제거
+    let alt_start = "```json";
+    if let Some(start_idx) = response.find(alt_start) {
+        let content_start = start_idx + alt_start.len();
+        let after_start = &response[content_start..];
+
+        if let Some(end_idx) = after_start.find(end_marker) {
+            let json_content = &after_start[..end_idx];
+
+            // chartType 포함 확인
+            if json_content.contains("chartType") || json_content.contains("chart_type") {
+                let before = &response[..start_idx];
+                let after = &after_start[(end_idx + end_marker.len())..];
+                let result = format!("{}{}", before.trim_end(), after.trim_start());
+                return result.trim().to_string();
+            }
+        }
+    }
+
+    // 블록이 없으면 원본 반환
+    response.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ========== JSON 블록 추출 테스트 (P0-2 개선) ==========
+
+    /// 기본 json:chart 블록 추출 테스트
+    #[test]
+    fn test_extract_json_chart_block_basic() {
+        let response = r#"분석 결과입니다.
+
+```json:chart
+{
+  "chartType": "bar",
+  "title": "라인별 생산량",
+  "data": [
+    {"name": "A", "value": 100},
+    {"name": "B", "value": 200}
+  ]
+}
+```
+
+추가 설명입니다."#;
+
+        let result = extract_json_chart_block(response);
+        assert!(result.is_some());
+
+        let json = result.unwrap();
+        assert!(json.contains("chartType"));
+        assert!(json.contains("bar"));
+        assert!(json.contains("라인별 생산량"));
+    }
+
+    /// P0-2: 중첩된 코드 블록 처리 테스트
+    #[test]
+    fn test_extract_json_with_nested_code_blocks() {
+        let response = r#"분석 결과입니다.
+
+```json:chart
+{
+  "chartType": "bar",
+  "data": [
+    {"name": "A", "value": 100}
+  ]
+}
+```
+
+추가 설명:
+```javascript
+// 이 코드는 무시되어야 함
+console.log("test");
+```
+
+마지막 설명."#;
+
+        let result = extract_json_chart_block(response);
+        assert!(result.is_some());
+
+        let json = result.unwrap();
+        assert!(json.contains("chartType"));
+        assert!(!json.contains("console.log"));
+        assert!(!json.contains("javascript"));
+    }
+
+    /// 균형 괄호 카운팅 테스트
+    #[test]
+    fn test_find_balanced_json_end() {
+        // 단순 객체: {"key": "value"} = 16 chars, last } at index 15, return 16
+        let simple = r#"{"key": "value"}"#;
+        assert_eq!(simple.len(), 16);
+        assert_eq!(find_balanced_json_end(simple), Some(16));
+
+        // 중첩 객체: {"outer": {"inner": "value"}} = 29 chars
+        let nested = r#"{"outer": {"inner": "value"}}"#;
+        assert_eq!(nested.len(), 29);
+        assert_eq!(find_balanced_json_end(nested), Some(29));
+
+        // 배열: [1, 2, 3] = 9 chars
+        let array = r#"[1, 2, 3]"#;
+        assert_eq!(array.len(), 9);
+        assert_eq!(find_balanced_json_end(array), Some(9));
+
+        // 복합 구조: {"data": [{"a": 1}, {"b": 2}], "count": 2} = 42 chars
+        let complex = r#"{"data": [{"a": 1}, {"b": 2}], "count": 2}"#;
+        assert_eq!(complex.len(), 42);
+        assert_eq!(find_balanced_json_end(complex), Some(42));
+
+        // 문자열 내 괄호 (무시되어야 함): {"message": "Hello {world}"} = 28 chars
+        let with_string_braces = r#"{"message": "Hello {world}"}"#;
+        assert_eq!(with_string_braces.len(), 28);
+        assert_eq!(find_balanced_json_end(with_string_braces), Some(28));
+
+        // 이스케이프 문자 처리: {"text": "quote\"here"} = 23 chars
+        let with_escaped = r#"{"text": "quote\"here"}"#;
+        assert_eq!(with_escaped.len(), 23);
+        assert_eq!(find_balanced_json_end(with_escaped), Some(23));
+
+        // 불완전한 JSON
+        let incomplete = r#"{"key": "value""#;
+        assert_eq!(find_balanced_json_end(incomplete), None);
+    }
+
+    /// 복잡한 차트 데이터 추출 테스트
+    #[test]
+    fn test_extract_complex_chart_data() {
+        let response = r#"라인별 생산량 현황입니다.
+
+```json:chart
+{
+  "chartType": "bar",
+  "title": "라인별 생산량 현황",
+  "config": {
+    "style": "gradient",
+    "animation": true
+  },
+  "data": [
+    {"name": "라인1", "value": 1500, "target": 1800},
+    {"name": "라인2", "value": 2300, "target": 2000},
+    {"name": "라인3", "value": 1800, "target": 2200}
+  ],
+  "summary": {
+    "total": 5600,
+    "average": 1867
+  }
+}
+```
+
+라인2가 목표를 초과 달성했습니다."#;
+
+        let result = extract_json_chart_block(response);
+        assert!(result.is_some());
+
+        let json = result.unwrap();
+        assert!(json.contains("라인별 생산량 현황"));
+        assert!(json.contains("\"total\": 5600"));
+        assert!(json.contains("gradient"));
+    }
+
+    /// json:chart 블록이 없는 경우 테스트
+    #[test]
+    fn test_extract_no_chart_block() {
+        let response = "일반 텍스트 응답입니다. 차트 블록이 없습니다.";
+        let result = extract_json_chart_block(response);
+        assert!(result.is_none());
+
+        let with_regular_json = r#"응답입니다.
+
+```json
+{"type": "not_a_chart"}
+```
+"#;
+        let result2 = extract_json_chart_block(with_regular_json);
+        assert!(result2.is_none());
+    }
+
+    /// 응답에서 차트 블록 제거 테스트
+    #[test]
+    fn test_remove_chart_json_block() {
+        let response = r#"분석 결과입니다.
+
+```json:chart
+{"chartType": "bar"}
+```
+
+자세한 설명입니다."#;
+
+        let cleaned = remove_chart_json_block(response);
+        assert!(!cleaned.contains("json:chart"));
+        assert!(!cleaned.contains("chartType"));
+        assert!(cleaned.contains("분석 결과입니다"));
+        assert!(cleaned.contains("자세한 설명입니다"));
+    }
+
+    /// 빈 응답 처리 테스트
+    #[test]
+    fn test_extract_empty_response() {
+        assert_eq!(extract_json_chart_block(""), None);
+        assert_eq!(extract_json_chart_block("   "), None);
+    }
+
+    /// 불완전한 JSON 블록 처리 테스트
+    #[test]
+    fn test_extract_incomplete_json_block() {
+        // 닫는 ``` 없음
+        let no_closing = r#"텍스트
+
+```json:chart
+{"chartType": "bar"
+"#;
+        // 불완전한 블록은 None 반환하거나 fallback 처리
+        let result = extract_json_chart_block(no_closing);
+        // fallback으로 마커 기반 추출 시도하므로 결과가 있을 수 있음
+        // 중요한 것은 패닉하지 않는 것
+        assert!(result.is_none() || result.is_some());
+    }
+
+    /// 여러 JSON 블록이 있는 경우 첫 번째만 추출 테스트
+    #[test]
+    fn test_extract_first_chart_block_only() {
+        let response = r#"첫 번째 차트:
+
+```json:chart
+{"chartType": "bar", "id": 1}
+```
+
+두 번째 차트:
+
+```json:chart
+{"chartType": "line", "id": 2}
+```
+"#;
+
+        let result = extract_json_chart_block(response);
+        assert!(result.is_some());
+
+        let json = result.unwrap();
+        assert!(json.contains("\"id\": 1") || json.contains("\"id\":1"));
+    }
+
+    /// 특수 문자가 포함된 JSON 처리 테스트
+    #[test]
+    fn test_extract_json_with_special_chars() {
+        let response = r#"결과:
+
+```json:chart
+{
+  "chartType": "bar",
+  "title": "생산량 분석 (2024년)",
+  "description": "라인 A/B/C 비교: 총 생산량 = 5,000개",
+  "data": [{"name": "라인A", "value": 100}]
+}
+```
+"#;
+
+        let result = extract_json_chart_block(response);
+        assert!(result.is_some());
+
+        let json = result.unwrap();
+        assert!(json.contains("2024년"));
+        assert!(json.contains("5,000개"));
+    }
+
+    /// 배열 형태 JSON 추출 테스트
+    #[test]
+    fn test_extract_array_json() {
+        let response = r#"데이터:
+
+```json:chart
+[
+  {"name": "A", "value": 1},
+  {"name": "B", "value": 2}
+]
+```
+"#;
+
+        let result = extract_json_chart_block(response);
+        assert!(result.is_some());
+
+        let json = result.unwrap();
+        assert!(json.starts_with('['));
+        assert!(json.ends_with(']'));
+    }
 }

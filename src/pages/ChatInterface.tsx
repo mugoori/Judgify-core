@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, memo } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { sendChatMessage, getChatHistory, getSystemStatus, type ChatMessageRequest, type ChatMessageResponse, type ChartResponse, type DataKeyConfig, type PieChartData } from '@/lib/tauri-api-wrapper';
 import { useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
@@ -68,14 +70,58 @@ const formatYAxisValue = (value: number): string => {
 // Recharts 필요: { name: "12-01", "살균온도": 85.5, "냉각온도": 4.2 }
 const flattenChartData = (data: any[] | undefined): any[] => {
   if (!data) return [];
-  return data.map(item => {
+  // 디버그: 원본 데이터 확인
+  console.log('[DEBUG] flattenChartData 입력:', JSON.stringify(data, null, 2));
+
+  const result = data.map(item => {
     const { name, values, ...rest } = item;
     // values 객체가 있으면 펼치고, 없으면 그대로 사용
     if (values && typeof values === 'object') {
+      console.log('[DEBUG] values 객체 발견 - 평탄화 진행');
       return { name, ...values, ...rest };
     }
+    // 이미 평탄화된 데이터 (백엔드에서 serde_json::Value로 직접 생성)
+    console.log('[DEBUG] 이미 평탄화된 데이터:', item);
     return item;
   });
+
+  console.log('[DEBUG] flattenChartData 출력:', JSON.stringify(result, null, 2));
+  return result;
+};
+
+// data_keys 자동 추출 (백엔드에서 제공하지 않을 경우 데이터에서 추출)
+// 첫 번째 데이터 객체에서 'name' 키를 제외한 숫자 값을 가진 키들을 추출
+const extractDataKeys = (data: any[] | undefined, providedDataKeys: DataKeyConfig[] | undefined): DataKeyConfig[] => {
+  // 백엔드에서 data_keys를 제공한 경우 그대로 사용
+  if (providedDataKeys && providedDataKeys.length > 0) {
+    console.log('[DEBUG] 제공된 data_keys 사용:', providedDataKeys);
+    return providedDataKeys;
+  }
+
+  // 데이터가 없으면 빈 배열 반환
+  if (!data || data.length === 0) {
+    console.log('[DEBUG] 데이터 없음 - 빈 data_keys 반환');
+    return [];
+  }
+
+  // 첫 번째 데이터 객체에서 숫자 값을 가진 키들 추출
+  const firstItem = data[0];
+  const keys = Object.keys(firstItem).filter(key => {
+    // 'name' 키는 x축 라벨이므로 제외
+    if (key === 'name') return false;
+    // 숫자 값을 가진 키만 포함
+    const value = firstItem[key];
+    return typeof value === 'number';
+  });
+
+  const extractedKeys: DataKeyConfig[] = keys.map((key, idx) => ({
+    key,
+    label: key,
+    color: MODERN_COLORS[idx % MODERN_COLORS.length],
+  }));
+
+  console.log('[DEBUG] 자동 추출된 data_keys:', extractedKeys);
+  return extractedKeys;
 };
 
 // 모던 색상 배열 (Bar/Line 차트용)
@@ -140,7 +186,111 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
             : 'bg-muted'
         }`}
       >
-        <p className="whitespace-pre-wrap">{message.content}</p>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            // 테이블 커스텀 스타일링
+            table: ({ children }) => (
+              <div className="overflow-x-auto my-4 rounded-lg border border-gray-300 dark:border-gray-600">
+                <table className="min-w-full border-collapse">
+                  {children}
+                </table>
+              </div>
+            ),
+            thead: ({ children }) => (
+              <thead className="bg-slate-700 text-white">
+                {children}
+              </thead>
+            ),
+            th: ({ children }) => (
+              <th className="border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">
+                {children}
+              </th>
+            ),
+            tbody: ({ children }) => (
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+                {children}
+              </tbody>
+            ),
+            tr: ({ children }) => (
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors even:bg-gray-50/50 dark:even:bg-gray-800/30">
+                {children}
+              </tr>
+            ),
+            td: ({ children }) => (
+              <td className="border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm whitespace-nowrap">
+                {children}
+              </td>
+            ),
+            // 기존 텍스트 스타일 유지
+            p: ({ children }) => (
+              <p className="whitespace-pre-wrap mb-2 last:mb-0">{children}</p>
+            ),
+            // 코드 블록 스타일링
+            code: ({ children, className }) => {
+              const isInline = !className;
+              return isInline ? (
+                <code className="bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono">
+                  {children}
+                </code>
+              ) : (
+                <code className="block bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto my-2 text-sm font-mono">
+                  {children}
+                </code>
+              );
+            },
+            pre: ({ children }) => (
+              <pre className="bg-gray-100 dark:bg-gray-800 rounded-lg overflow-x-auto my-2">
+                {children}
+              </pre>
+            ),
+            // 리스트 스타일링
+            ul: ({ children }) => (
+              <ul className="list-disc list-inside my-2 space-y-1">{children}</ul>
+            ),
+            ol: ({ children }) => (
+              <ol className="list-decimal list-inside my-2 space-y-1">{children}</ol>
+            ),
+            li: ({ children }) => (
+              <li className="ml-2">{children}</li>
+            ),
+            // 강조 스타일
+            strong: ({ children }) => (
+              <strong className="font-bold">{children}</strong>
+            ),
+            em: ({ children }) => (
+              <em className="italic">{children}</em>
+            ),
+            // 링크 스타일
+            a: ({ href, children }) => (
+              <a href={href} className="text-blue-500 hover:text-blue-600 underline" target="_blank" rel="noopener noreferrer">
+                {children}
+              </a>
+            ),
+            // 헤딩 스타일
+            h1: ({ children }) => (
+              <h1 className="text-xl font-bold mt-4 mb-2">{children}</h1>
+            ),
+            h2: ({ children }) => (
+              <h2 className="text-lg font-bold mt-3 mb-2">{children}</h2>
+            ),
+            h3: ({ children }) => (
+              <h3 className="text-base font-bold mt-2 mb-1">{children}</h3>
+            ),
+            // 인용문 스타일
+            blockquote: ({ children }) => (
+              <blockquote className="border-l-4 border-gray-400 dark:border-gray-500 pl-4 my-2 italic text-gray-600 dark:text-gray-400">
+                {children}
+              </blockquote>
+            ),
+            // 수평선
+            hr: () => (
+              <hr className="my-4 border-gray-300 dark:border-gray-600" />
+            ),
+          }}
+        >
+          {message.content}
+        </ReactMarkdown>
 
         {/* 테이블 데이터 표시 - 접을 수 있는 근거 자료 */}
         {message.tableData && (
@@ -218,11 +368,21 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
             {(message.chartData.chart_type === 'bar' || message.chartData.chart_type === 'line') &&
               message.chartData.bar_line_data && (
                 <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/30">
+                  {/* 디버그: data_keys 확인 */}
+                  {console.log('[DEBUG] chart_type:', message.chartData.chart_type)}
+                  {console.log('[DEBUG] data_keys:', JSON.stringify(message.chartData.data_keys, null, 2))}
+                  {console.log('[DEBUG] x_axis_key:', message.chartData.x_axis_key)}
                   <ResponsiveContainer width="100%" height={320}>
                     {message.chartData.chart_type === 'bar' ? (
-                      <RechartsBarChart data={flattenChartData(message.chartData.bar_line_data)} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                      (() => {
+                        const flattenedData = flattenChartData(message.chartData.bar_line_data);
+                        const dataKeys = extractDataKeys(flattenedData, message.chartData.data_keys);
+                        console.log('[DEBUG] Bar 차트 - flattenedData:', flattenedData);
+                        console.log('[DEBUG] Bar 차트 - 사용할 dataKeys:', dataKeys);
+                        return (
+                      <RechartsBarChart data={flattenedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                         <defs>
-                          {message.chartData.data_keys?.map((dk: DataKeyConfig, idx: number) => (
+                          {dataKeys.map((dk: DataKeyConfig, idx: number) => (
                             <linearGradient key={`gradient-${dk.key}`} id={`gradient-${dk.key}`} x1="0" y1="0" x2="0" y2="1">
                               <stop offset="0%" stopColor={MODERN_COLORS[idx % MODERN_COLORS.length]} stopOpacity={1} />
                               <stop offset="100%" stopColor={MODERN_COLORS[idx % MODERN_COLORS.length]} stopOpacity={0.6} />
@@ -273,7 +433,7 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                           iconSize={8}
                           formatter={(value) => <span className="text-slate-300 text-sm ml-1">{value}</span>}
                         />
-                        {message.chartData.data_keys?.map((dk: DataKeyConfig, _idx: number) => (
+                        {dataKeys.map((dk: DataKeyConfig, _idx: number) => (
                           <Bar
                             key={dk.key}
                             dataKey={dk.key}
@@ -285,10 +445,18 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                           />
                         ))}
                       </RechartsBarChart>
+                        );
+                      })()
                     ) : (
-                      <RechartsLineChart data={flattenChartData(message.chartData.bar_line_data)} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                      (() => {
+                        const flattenedData = flattenChartData(message.chartData.bar_line_data);
+                        const dataKeys = extractDataKeys(flattenedData, message.chartData.data_keys);
+                        console.log('[DEBUG] Line 차트 - flattenedData:', flattenedData);
+                        console.log('[DEBUG] Line 차트 - 사용할 dataKeys:', dataKeys);
+                        return (
+                      <RechartsLineChart data={flattenedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                         <defs>
-                          {message.chartData.data_keys?.map((dk: DataKeyConfig, idx: number) => (
+                          {dataKeys.map((dk: DataKeyConfig, idx: number) => (
                             <linearGradient key={`area-gradient-${dk.key}`} id={`area-gradient-${dk.key}`} x1="0" y1="0" x2="0" y2="1">
                               <stop offset="0%" stopColor={MODERN_COLORS[idx % MODERN_COLORS.length]} stopOpacity={0.3} />
                               <stop offset="100%" stopColor={MODERN_COLORS[idx % MODERN_COLORS.length]} stopOpacity={0} />
@@ -346,7 +514,7 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                           iconSize={8}
                           formatter={(value) => <span className="text-slate-300 text-sm ml-1">{value}</span>}
                         />
-                        {message.chartData.data_keys?.map((dk: DataKeyConfig, idx: number) => (
+                        {dataKeys.map((dk: DataKeyConfig, idx: number) => (
                           <Line
                             key={dk.key}
                             type="monotone"
@@ -362,6 +530,8 @@ const MessageBubble = memo(({ message, index }: { message: Message; index: numbe
                           />
                         ))}
                       </RechartsLineChart>
+                        );
+                      })()
                     )}
                   </ResponsiveContainer>
                 </div>
@@ -827,37 +997,9 @@ export default function ChatInterface() {
       console.log('🏁 [Mutation] Pending flag set:', localStorage.getItem('chat-pending-request'));
       console.log('🏁 [Mutation] Session ID:', request.session_id);
 
-      // 📊 차트 요청 감지 시 차트 API 먼저 시도
-      if (isChartRequest(request.message)) {
-        console.log('📊 [Mutation] Chart request detected, trying generateChart API');
-        try {
-          const chartResult = await invoke<{
-            success: boolean;
-            chart?: ChartResponse;
-            error?: string;
-          }>('generate_chart', { request: request.message });
-
-          if (chartResult.success && chartResult.chart) {
-            console.log('✅ [Mutation] Chart generated successfully:', chartResult.chart.title);
-            // 차트 결과를 ChatMessageResponse 형태로 변환
-            return {
-              response: `${chartResult.chart.description}`,
-              session_id: request.session_id || sessionId || crypto.randomUUID(),
-              intent: 'data_visualization',
-              action_result: undefined,
-              table_data: undefined,
-              chart_data: chartResult.chart,
-            } as ChatMessageResponse & { chart_data: ChartResponse };
-          } else {
-            console.log('⚠️ [Mutation] Chart generation failed:', chartResult.error);
-            // 실패시 일반 채팅으로 fallback
-          }
-        } catch (chartError) {
-          console.log('⚠️ [Mutation] Chart API error, falling back to chat:', chartError);
-          // 차트 API 실패시 일반 채팅으로 fallback
-        }
-      }
-
+      // 📌 2024-12-08: 모든 요청을 sendChatMessage로 전송
+      // 백엔드의 Intent::ChartAnalysis → generate_chart_response() → PromptRouter 사용
+      // (기존 isChartRequest() 분기 제거 - generate_chart API는 PromptRouter를 우회함)
       return await sendChatMessage(request);
     },
     onSuccess: (response: ChatMessageResponse & { chart_data?: ChartResponse }) => {

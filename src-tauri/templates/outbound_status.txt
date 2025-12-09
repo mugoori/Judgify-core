@@ -1,0 +1,334 @@
+==============================================================
+퓨어웰 음료 AI Agent - 출고 현황 분석
+==============================================================
+
+[1. 데이터 조회 SQL]
+----------------------------------------------------------
+-- 금일/금주 출고 현황 요약
+SELECT
+    COUNT(DISTINCT o.outbound_no) as total_outbound,
+    SUM(d.ship_qty) as total_ship_qty,
+    SUM(CASE WHEN o.status = 'SHIPPED' THEN 1 ELSE 0 END) as shipped_count,
+    SUM(CASE WHEN o.status = 'PENDING' THEN 1 ELSE 0 END) as pending_count,
+    SUM(CASE WHEN o.status = 'PICKING' THEN 1 ELSE 0 END) as picking_count,
+    ROUND(SUM(CASE WHEN o.status = 'SHIPPED' THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 1) as completion_rate
+FROM outbound o
+JOIN outbound_dtl d ON o.outbound_no = d.outbound_no
+WHERE o.ship_date >= date('now', '-7 days');
+
+-- 고객별 출고 현황
+SELECT
+    c.cust_nm,
+    c.biz_type,
+    COUNT(DISTINCT o.outbound_no) as outbound_count,
+    SUM(d.ship_qty) as total_qty,
+    SUM(d.ship_qty * d.unit_price) as total_amount,
+    ROUND(SUM(CASE WHEN o.status = 'SHIPPED' THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 1) as ship_rate
+FROM outbound o
+JOIN outbound_dtl d ON o.outbound_no = d.outbound_no
+JOIN customer_mst c ON o.cust_cd = c.cust_cd
+WHERE o.ship_date >= date('now', '-7 days')
+GROUP BY c.cust_cd
+ORDER BY total_amount DESC;
+
+-- 일자별 출고 추이
+SELECT
+    DATE(o.ship_date) as ship_day,
+    COUNT(DISTINCT o.outbound_no) as daily_outbound,
+    SUM(d.ship_qty) as daily_qty,
+    SUM(d.ship_qty * d.unit_price) as daily_amount
+FROM outbound o
+JOIN outbound_dtl d ON o.outbound_no = d.outbound_no
+WHERE o.ship_date >= date('now', '-7 days')
+GROUP BY DATE(o.ship_date)
+ORDER BY ship_day;
+
+-- 제품별 출고 현황
+SELECT
+    i.item_nm,
+    i.item_type,
+    SUM(d.ship_qty) as total_shipped,
+    COUNT(DISTINCT o.outbound_no) as order_count,
+    AVG(d.unit_price) as avg_price
+FROM outbound_dtl d
+JOIN outbound o ON d.outbound_no = o.outbound_no
+JOIN item_mst i ON d.item_cd = i.item_cd
+WHERE o.ship_date >= date('now', '-7 days')
+GROUP BY d.item_cd
+ORDER BY total_shipped DESC
+LIMIT 10;
+
+-- 출고 지연 현황
+SELECT
+    o.outbound_no,
+    c.cust_nm,
+    o.req_date,
+    o.ship_date,
+    JULIANDAY(o.ship_date) - JULIANDAY(o.req_date) as delay_days,
+    o.status,
+    o.remark
+FROM outbound o
+JOIN customer_mst c ON o.cust_cd = c.cust_cd
+WHERE o.ship_date >= date('now', '-30 days')
+  AND o.ship_date > o.req_date
+ORDER BY delay_days DESC;
+
+-- 창고별 출고 현황
+SELECT
+    w.warehouse_nm,
+    COUNT(DISTINCT o.outbound_no) as outbound_count,
+    SUM(d.ship_qty) as total_qty,
+    SUM(CASE WHEN o.status = 'SHIPPED' THEN 1 ELSE 0 END) as completed
+FROM outbound o
+JOIN outbound_dtl d ON o.outbound_no = d.outbound_no
+LEFT JOIN warehouse_mst w ON o.warehouse_cd = w.warehouse_id
+WHERE o.ship_date >= date('now', '-7 days')
+GROUP BY o.warehouse_cd
+ORDER BY total_qty DESC;
+----------------------------------------------------------
+
+[2. 퓨어웰 물류 기준 정보]
+----------------------------------------------------------
+| 구분 | 2023년 | 2024년 | 목표 | 비고 |
+|------|--------|--------|------|------|
+| 일 평균 출고건수 | 45건 | 52건 | 60건+ | |
+| 출고 완료율 | 94.2% | 96.5% | 98%+ | D+1 기준 |
+| 정시 출고율 | 91.8% | 95.2% | 98%+ | 요청일 이내 |
+| 배송 클레임률 | 1.8% | 1.2% | 0.5% | |
+
+[출고 유형별 특성]
+- 정기 배송: 70% (계약 고객 주간/월간 배송)
+- 긴급 배송: 15% (D+0 당일 출고)
+- 특송 배송: 10% (콜드체인 필수)
+- 수출 배송: 5% (통관 절차 포함)
+
+[창고별 출고 역량]
+- 상온 창고 (W01): 일 40,000개 출고 가능
+- 냉장 창고 (W02): 일 15,000개 출고 가능
+- 냉동 창고 (W03): 일 8,000개 출고 가능
+- 출하 대기장 (W04): 동시 50대 차량 상차
+
+[운송 파트너]
+- 대리점 직배송: 60% (자가 물류)
+- CJ대한통운: 25%
+- 한진택배: 10%
+- 기타 특송: 5%
+----------------------------------------------------------
+
+[3. 판단 기준 (Threshold)]
+----------------------------------------------------------
+[출고 완료율 기준]
+- 98% 이상: ✅ 우수 - 목표 달성
+- 95% ~ 98%: ✅ 정상 - 양호한 수준
+- 90% ~ 95%: ⚠️ 주의 - 원인 분석 필요
+- 90% 미만: 🚨 심각 - 긴급 대응 필요
+
+[정시 출고율 기준]
+- 요청일 D+0 이내: ✅ 정시 출고
+- 요청일 D+1 지연: ⚠️ 소폭 지연
+- 요청일 D+2~3 지연: 🔶 지연 주의
+- 요청일 D+4+ 지연: 🚨 심각 지연
+
+[일별 변동 기준]
+- 전일 대비 +20% 이상: 🔥 출고 급증 (피킹 인력 확대)
+- 전일 대비 ±20%: ✅ 안정적
+- 전일 대비 -20% ~ -30%: ⚠️ 소폭 감소
+- 전일 대비 -30% 이하: 🚨 출고량 급감 (원인 확인)
+
+[고객 집중도 기준]
+- Top 1 고객 비중 40% 초과: 🚨 위험 (의존도 과다)
+- Top 3 고객 비중 70% 초과: ⚠️ 주의 (집중도 높음)
+- Top 5 고객 비중 85% 미만: ✅ 양호 (분산됨)
+
+[지연 원인 분류]
+1. 재고 부족 (35%)
+   - 완제품 재고 소진
+   - 생산 지연으로 인한 재고 미확보
+2. 피킹/포장 지연 (25%)
+   - 인력 부족
+   - 대량 주문 집중
+3. 운송 문제 (20%)
+   - 차량 배차 지연
+   - 교통/기상 상황
+4. 고객 요청 (15%)
+   - 배송지 변경
+   - 출고 보류 요청
+5. 시스템 이슈 (5%)
+   - 재고 불일치
+   - 전산 오류
+----------------------------------------------------------
+
+[4. 연관 분석 자동 수행]
+----------------------------------------------------------
+[출고 완료율 미달 시 자동 분석]
+→ inventory 테이블에서 출고 대상 재고 가용량 조회
+→ production_order 테이블에서 금일 생산 완료 예정 확인
+→ outbound 상태별 건수 분석 (PENDING → PICKING → SHIPPED)
+→ 피킹 작업자 배치 현황 조회
+
+[특정 고객 출고 지연 시]
+→ 해당 고객 주문 패턴 분석 (주간/월간)
+→ 과거 지연 이력 조회
+→ 재고 가용성 vs 주문량 비교
+
+[출고량 급증/급감 시]
+→ 동일 요일 전주 대비 분석
+→ 프로모션/이벤트 일정 확인
+→ 신규 대량 주문 여부 체크
+→ 계절성 요인 검토
+
+[창고별 출고 불균형 시]
+→ 창고별 재고 현황 조회
+→ 창고별 피킹 효율 비교
+→ 차량 배차 계획 확인
+----------------------------------------------------------
+
+[5. 응답 형식 예시]
+----------------------------------------------------------
+📦 **출고 현황** (물류 핵심지표)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         ✅ 출고 완료율: **96.8%**
+         목표: 98% | 금주 출고: 312건
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 **출고 상태 현황** (금주)
+
+| 상태 | 건수 | 수량 | 금액 | 비율 |
+|------|------|------|------|------|
+| ✅ 출고완료 | 302 | 45,200개 | 8.5억 | 96.8% |
+| 🔄 피킹중 | 6 | 850개 | 0.2억 | 1.9% |
+| ⏳ 대기중 | 4 | 620개 | 0.1억 | 1.3% |
+| **합계** | **312** | **46,670개** | **8.8억** | **100%** |
+
+🏢 **고객별 출고 현황** (Top 5)
+
+| 순위 | 고객사 | 건수 | 수량 | 금액 | 비중 |
+|------|--------|------|------|------|------|
+| 1 | ○○홈쇼핑 | 45 | 12,500 | 2.3억 | 26.1% |
+| 2 | △△마트 | 38 | 8,200 | 1.5억 | 17.0% |
+| 3 | □□편의점 | 62 | 6,800 | 1.2억 | 13.6% |
+| 4 | ◇◇온라인 | 28 | 5,500 | 1.0억 | 11.4% |
+| 5 | ☆☆유통 | 22 | 4,200 | 0.8억 | 9.1% |
+
+📈 **일자별 출고 추이** (최근 7일)
+
+| 일자 | 건수 | 수량 | 금액 | 전일비 |
+|------|------|------|------|--------|
+| 12/08 | 52 | 7,800 | 1.45억 | +8.3% ↑ |
+| 12/07 | 48 | 7,200 | 1.34억 | -5.2% ↓ |
+| 12/06 | 51 | 7,600 | 1.42억 | +12.1% ↑ |
+| 12/05 | 45 | 6,800 | 1.26억 | -2.1% ↓ |
+| 12/04 | 46 | 6,950 | 1.29억 | +3.5% ↑ |
+
+⚠️ **출고 지연 현황** (3건)
+
+| 출고번호 | 고객 | 요청일 | 지연일수 | 사유 | 상태 |
+|----------|------|--------|----------|------|------|
+| OUT-1208-003 | △△마트 | 12/06 | D+2 | 재고부족 | 🔄 피킹중 |
+| OUT-1207-015 | ◇◇온라인 | 12/05 | D+3 | 차량지연 | ⏳ 대기 |
+| OUT-1206-022 | ☆☆유통 | 12/05 | D+3 | 재고부족 | 🔄 피킹중 |
+
+🏭 **창고별 출고 현황**
+
+| 창고 | 출고건수 | 수량 | 완료율 | 상태 |
+|------|----------|------|--------|------|
+| 상온창고 (W01) | 185 | 28,200 | 98.4% | ✅ |
+| 냉장창고 (W02) | 95 | 14,500 | 96.8% | ✅ |
+| 냉동창고 (W03) | 32 | 3,970 | 90.6% | ⚠️ |
+
+💡 **권고 조치**
+
+⚡ **즉시 조치**
+1. 냉동창고 피킹 인력 1명 추가 배치 (10:00까지)
+2. OUT-1207-015 긴급 차량 배차 (오전 중)
+3. 재고부족 2건 → 생산팀 긴급 출고 요청
+
+📋 **금일 계획**
+1. 출고 예정 58건 중 재고 확보 완료 54건 (93%)
+2. 미확보 4건 → 오후 2시 생산 완료 예정
+3. 콜드체인 배송 12건 → 차량 3대 배차 완료
+
+📊 **예상 효과**
+- 지연 3건 해소 시: 출고 완료율 96.8% → 97.8%
+- 목표 98% 달성 위해 추가 4건 정시 출고 필요
+
+⏰ 기준시점: 2024-12-08 09:30 | 일일 마감: 18:00
+----------------------------------------------------------
+
+[6. 차트 렌더링 데이터 (JSON)]
+----------------------------------------------------------
+{
+  "chartType": "bar",
+  "title": "출고 현황",
+  "config": {
+    "style": "grouped",
+    "orientation": "vertical",
+    "animation": true,
+    "showLegend": true,
+    "showValues": true
+  },
+  "data": {
+    "categories": ["○○홈쇼핑", "△△마트", "□□편의점", "◇◇온라인", "☆☆유통"],
+    "series": [
+      {
+        "name": "출고건수",
+        "data": [45, 38, 62, 28, 22],
+        "color": "#3498db"
+      },
+      {
+        "name": "출고수량(백개)",
+        "data": [125, 82, 68, 55, 42],
+        "color": "#2ecc71"
+      }
+    ]
+  },
+  "statusBreakdown": {
+    "SHIPPED": {"count": 302, "qty": 45200, "amount": 850000000, "color": "#28a745"},
+    "PICKING": {"count": 6, "qty": 850, "amount": 20000000, "color": "#ffc107"},
+    "PENDING": {"count": 4, "qty": 620, "amount": 10000000, "color": "#6c757d"}
+  },
+  "kpi": {
+    "completionRate": 96.8,
+    "target": 98,
+    "totalOrders": 312,
+    "totalQty": 46670,
+    "totalAmount": 880000000
+  },
+  "trend": {
+    "direction": "up",
+    "change": 8.3,
+    "period": "전일 대비"
+  },
+  "delays": [
+    {"outboundNo": "OUT-1208-003", "customer": "△△마트", "delayDays": 2, "reason": "재고부족", "status": "picking"},
+    {"outboundNo": "OUT-1207-015", "customer": "◇◇온라인", "delayDays": 3, "reason": "차량지연", "status": "pending"},
+    {"outboundNo": "OUT-1206-022", "customer": "☆☆유통", "delayDays": 3, "reason": "재고부족", "status": "picking"}
+  ],
+  "warehouseStatus": [
+    {"warehouse": "상온창고 (W01)", "count": 185, "qty": 28200, "rate": 98.4, "status": "normal"},
+    {"warehouse": "냉장창고 (W02)", "count": 95, "qty": 14500, "rate": 96.8, "status": "normal"},
+    {"warehouse": "냉동창고 (W03)", "count": 32, "qty": 3970, "rate": 90.6, "status": "warning"}
+  ],
+  "concentration": {
+    "top1_rate": 26.1,
+    "top3_rate": 56.7,
+    "top5_rate": 77.2,
+    "risk_level": "normal"
+  }
+}
+----------------------------------------------------------
+
+[7. 응답 규칙]
+----------------------------------------------------------
+1. 출고 완료율은 소수점 1자리까지 표시 (예: 96.8%)
+2. 금액은 억원 단위 소수점 1자리 (예: 8.5억)
+3. 수량은 천 단위 구분자 사용 (예: 45,200개)
+4. 전일 대비 증감은 화살표(↑↓)로 직관적 표시
+5. 고객별 현황은 금액 기준 Top 5 반드시 포함
+6. 지연 건은 출고번호, 사유, 상태 명확히 표시
+7. 창고별 현황에 완료율과 상태 이모지 포함
+8. 고객 집중도 위험 분석 (Top 1/3/5 비중)
+9. 물류팀 실무용이므로 구체적 조치 계획 제시
+10. D+N 형식으로 지연일수 직관적 표시
+==============================================================

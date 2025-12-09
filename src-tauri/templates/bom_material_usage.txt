@@ -1,0 +1,355 @@
+==============================================================
+퓨어웰 음료 AI Agent - BOM 원자재 소요량 분석 (PIE 차트)
+==============================================================
+
+[1. 데이터 조회 SQL]
+----------------------------------------------------------
+-- 최근 30일 원자재 소요량 (품목별)
+SELECT
+    i.item_cd,
+    i.item_nm,
+    i.item_type,
+    SUM(m.actual_qty) as total_used,
+    SUM(m.plan_qty) as total_planned,
+    ROUND(SUM(m.actual_qty) * 100.0 / NULLIF(SUM(m.plan_qty), 0), 1) as usage_rate,
+    COUNT(DISTINCT m.wo_no) as production_count
+FROM material_issue m
+JOIN item_mst i ON m.item_cd = i.item_cd
+WHERE m.issue_time >= date('now', '-30 days')
+GROUP BY m.item_cd
+ORDER BY total_used DESC;
+
+-- BOM 기준 원자재 배합 비율
+SELECT
+    b.bom_cd,
+    b.fg_item_cd,
+    fg.item_nm as product_name,
+    bd.item_cd as material_cd,
+    mat.item_nm as material_name,
+    bd.qty as standard_qty,
+    bd.unit,
+    ROUND(bd.qty * 100.0 / (
+        SELECT SUM(qty) FROM bom_dtl WHERE bom_cd = b.bom_cd
+    ), 1) as ratio
+FROM bom_mst b
+JOIN bom_dtl bd ON b.bom_cd = bd.bom_cd
+JOIN item_mst fg ON b.fg_item_cd = fg.item_cd
+JOIN item_mst mat ON bd.item_cd = mat.item_cd
+WHERE b.is_active = 1
+ORDER BY b.fg_item_cd, bd.seq;
+
+-- 제품별 원자재 투입 현황
+SELECT
+    b.fg_item_cd,
+    fg.item_nm as product_name,
+    mat.item_nm as material_name,
+    SUM(m.actual_qty) as actual_used,
+    SUM(m.plan_qty) as planned_qty,
+    ROUND(SUM(m.actual_qty) / NULLIF(SUM(m.plan_qty), 0) * 100, 1) as efficiency
+FROM material_issue m
+JOIN mes_work_order w ON m.wo_no = w.wo_no
+JOIN bom_mst b ON w.bom_cd = b.bom_cd
+JOIN item_mst fg ON b.fg_item_cd = fg.item_cd
+JOIN item_mst mat ON m.item_cd = mat.item_cd
+WHERE m.issue_time >= date('now', '-30 days')
+GROUP BY b.fg_item_cd, m.item_cd
+ORDER BY actual_used DESC;
+
+-- 원자재 Loss율 분석
+SELECT
+    i.item_nm,
+    SUM(m.plan_qty) as planned,
+    SUM(m.actual_qty) as actual,
+    SUM(m.actual_qty) - SUM(m.plan_qty) as loss_qty,
+    ROUND((SUM(m.actual_qty) - SUM(m.plan_qty)) * 100.0 /
+          NULLIF(SUM(m.plan_qty), 0), 2) as loss_rate
+FROM material_issue m
+JOIN item_mst i ON m.item_cd = i.item_cd
+WHERE m.issue_time >= date('now', '-30 days')
+GROUP BY m.item_cd
+HAVING loss_qty > 0
+ORDER BY loss_rate DESC
+LIMIT 10;
+
+-- 원자재 재고 대비 소요량 분석
+SELECT
+    i.item_nm,
+    inv.qty as current_stock,
+    ROUND(SUM(m.actual_qty) / 30, 0) as daily_usage,
+    ROUND(inv.qty / NULLIF(SUM(m.actual_qty) / 30, 0), 1) as stock_days,
+    i.safety_stock
+FROM material_issue m
+JOIN item_mst i ON m.item_cd = i.item_cd
+JOIN inventory inv ON m.item_cd = inv.item_cd
+WHERE m.issue_time >= date('now', '-30 days')
+GROUP BY m.item_cd
+ORDER BY stock_days ASC;
+
+-- 주요 원료별 월별 소요 추이
+SELECT
+    strftime('%Y-%m', m.issue_time) as month,
+    i.item_nm,
+    SUM(m.actual_qty) as used_qty
+FROM material_issue m
+JOIN item_mst i ON m.item_cd = i.item_cd
+WHERE m.issue_time >= date('now', '-6 months')
+  AND i.item_type = 'RAW'
+GROUP BY strftime('%Y-%m', m.issue_time), m.item_cd
+ORDER BY month, used_qty DESC;
+----------------------------------------------------------
+
+[2. 퓨어웰 BOM 기준 정보]
+----------------------------------------------------------
+[주요 제품별 BOM 구성]
+| 제품 | 주원료 비율 | 부원료 비율 | 포장재 비율 |
+|------|-------------|-------------|-------------|
+| 퓨어웰 워터 | 95% (정제수) | 3% (미네랄) | 2% (PET병) |
+| 비타민 워터 | 88% (정제수) | 10% (비타민) | 2% (PET병) |
+| 발효 유산균 | 70% (정제수) | 25% (유산균) | 5% (유리병) |
+| 에너지 드링크 | 85% (정제수) | 12% (타우린/카페인) | 3% (캔) |
+
+[원자재 유형별 표준 Loss율]
+- 정제수: 1% (증발/세척)
+- 과즙원료: 2% (잔류/세척)
+- 첨가물: 0.5% (계량 오차)
+- 포장재: 1.5% (불량/파손)
+- 전체 평균: 1.2%
+
+[안전재고 기준]
+- 주원료: 7일분
+- 부원료: 14일분
+- 포장재: 10일분
+- 긴급 발주 기준: 안전재고의 50% 도달시
+----------------------------------------------------------
+
+[3. 판단 기준 (Threshold)]
+----------------------------------------------------------
+[원자재 사용 효율 기준]
+- 사용률 98-102%: ✅ 정상 (허용 오차 ±2%)
+- 사용률 102-105%: ⚠️ 과다 사용 (Loss 점검)
+- 사용률 105% 초과: 🚨 심각 과다 (공정 점검 필수)
+- 사용률 95-98%: ⚠️ 미달 사용 (계량 오류?)
+- 사용률 95% 미만: 🚨 심각 미달 (배합 오류?)
+
+[Loss율 기준]
+- Loss율 1% 이내: ✅ 우수
+- Loss율 1-2%: ✅ 정상
+- Loss율 2-3%: ⚠️ 주의 (공정 개선 필요)
+- Loss율 3% 초과: 🚨 과다 Loss (긴급 점검)
+
+[재고 일수 기준]
+- 30일 이상: 🔥 과잉 재고 (발주 중단 검토)
+- 14-30일: ✅ 적정 재고
+- 7-14일: ⚠️ 주의 (발주 검토)
+- 7일 미만: 🚨 긴급 (즉시 발주)
+
+[배합 비율 편차 기준]
+- 표준 대비 ±1%: ✅ 정상
+- 표준 대비 ±1-3%: ⚠️ 주의 (품질 영향 가능)
+- 표준 대비 ±3% 초과: 🚨 이상 (제품 품질 확인)
+----------------------------------------------------------
+
+[4. 연관 분석 자동 수행]
+----------------------------------------------------------
+[과다 Loss 발생 시]
+→ mes_work_order에서 해당 생산 오더 확인
+→ operator_mst에서 담당 작업자 확인
+→ equipment_mst에서 설비 상태 확인
+→ qc_inspection에서 품질 검사 결과 확인
+
+[재고 부족 예상 시]
+→ purchase_order에서 발주 현황 확인
+→ vendor_mst에서 공급업체 리드타임 확인
+→ production_order에서 향후 생산계획 확인
+→ 대체 원자재 사용 가능 여부 확인
+
+[사용 효율 이상 시]
+→ 해당 제품 BOM 설정 재검토
+→ 최근 배합 변경 이력 확인
+→ 작업자별 투입량 비교 분석
+→ 설비별 투입량 편차 분석
+
+[특정 원자재 급증 시]
+→ 신제품 또는 프로모션 영향 확인
+→ 계절성 요인 분석
+→ 대량 주문 연관성 확인
+----------------------------------------------------------
+
+[5. 응답 형식 예시]
+----------------------------------------------------------
+📊 **BOM 원자재 소요량 분석** (배합 현황)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         ✅ 전체 사용 효율: **99.2%**
+         평균 Loss율: 1.3% | 적정 수준
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📈 **원자재 소요량 비율** (최근 30일)
+
+| 원자재 | 소요량 | 비율 | 효율 | 상태 |
+|--------|--------|------|------|------|
+| 정제수 | 75,200L | 68.5% | 99.8% | ✅ |
+| 과즙원료 | 12,300L | 11.2% | 98.5% | ✅ |
+| 비타민 프리믹스 | 8,500L | 7.7% | 101.2% | ✅ |
+| 유산균 배양액 | 6,200L | 5.6% | 102.8% | ⚠️ |
+| 타우린 | 3,800L | 3.5% | 99.1% | ✅ |
+| 기타 첨가물 | 3,800L | 3.5% | 100.5% | ✅ |
+
+🏭 **제품별 원자재 투입 현황**
+
+| 제품 | 생산량 | 원자재 투입 | 효율 | Loss |
+|------|--------|------------|------|------|
+| 퓨어웰 워터 | 35,000L | 35,840L | 97.7% | 2.3% ⚠️ |
+| 비타민 워터 | 28,500L | 28,785L | 99.0% | 1.0% ✅ |
+| 발효 유산균 | 18,200L | 18,474L | 98.5% | 1.5% ✅ |
+| 에너지 드링크 | 15,800L | 15,958L | 99.0% | 1.0% ✅ |
+
+⚠️ **Loss율 상위 원자재** (개선 필요)
+
+| 순위 | 원자재 | 계획 | 실제 | Loss량 | Loss율 |
+|------|--------|------|------|--------|--------|
+| 1 | 정제수 | 74,600L | 75,200L | 600L | 0.8% ✅ |
+| 2 | 과즙원료 | 12,050L | 12,300L | 250L | 2.1% ⚠️ |
+| 3 | 유산균 배양액 | 6,030L | 6,200L | 170L | 2.8% ⚠️ |
+
+📦 **원자재 재고 현황** (소요 대비)
+
+| 원자재 | 현재고 | 일일소요 | 재고일수 | 안전재고 | 상태 |
+|--------|--------|----------|----------|----------|------|
+| 정제수 | 225,000L | 2,507L | 90일 | 7일 | 🔥 과잉 |
+| 과즙원료 | 18,500L | 410L | 45일 | 14일 | ✅ |
+| 비타민 프리믹스 | 8,200L | 283L | 29일 | 14일 | ✅ |
+| 유산균 배양액 | 4,800L | 207L | 23일 | 14일 | ✅ |
+| 타우린 | 2,100L | 127L | 17일 | 14일 | ✅ |
+| 천연향료 | 850L | 95L | 9일 | 14일 | ⚠️ 발주 |
+
+📊 **BOM 배합 비율 분석** (퓨어웰 워터 기준)
+
+| 원자재 | 표준 | 실제 | 편차 | 상태 |
+|--------|------|------|------|------|
+| 정제수 | 95.0% | 94.8% | -0.2% | ✅ |
+| 미네랄 믹스 | 3.0% | 3.1% | +0.1% | ✅ |
+| 천연향료 | 1.5% | 1.6% | +0.1% | ✅ |
+| 보존료 | 0.5% | 0.5% | 0% | ✅ |
+
+💡 **분석 인사이트**
+
+📊 **현황 요약**
+- 전체 원자재 사용 효율 99.2%로 우수
+- 평균 Loss율 1.3%로 목표(2%) 이내
+- 정제수 재고 90일분 → 과잉 상태
+
+⚠️ **주의 사항**
+1. 유산균 배양액 Loss율 2.8% → 목표 초과
+2. 과즙원료 Loss율 2.1% → 개선 필요
+3. 천연향료 재고 9일 → 발주 필요
+
+💡 **권고 조치**
+1. 유산균 배양액 투입 공정 점검 (계량 오차 확인)
+2. 과즙원료 세척/잔류 공정 개선 검토
+3. 천연향료 긴급 발주 진행 (안전재고 확보)
+4. 정제수 발주량 조정 (과잉 재고 해소)
+
+📈 **예상 효과**
+- Loss율 개선시 월 원가 절감: 약 280만원
+- 재고 최적화시 보관 비용 절감: 약 150만원
+
+⏰ 기준시점: 2024-12-08 15:30 | 데이터 범위: 최근 30일
+----------------------------------------------------------
+
+[6. 차트 렌더링 데이터 (JSON)]
+----------------------------------------------------------
+{
+  "chartType": "pie",
+  "title": "BOM 원자재 소요량",
+  "config": {
+    "style": "도넛",
+    "animation": true,
+    "showLabels": true,
+    "showPercentage": true,
+    "innerRadius": 60,
+    "outerRadius": 100
+  },
+  "data": {
+    "labels": ["정제수", "과즙원료", "비타민 프리믹스", "유산균 배양액", "타우린", "기타 첨가물"],
+    "values": [75200, 12300, 8500, 6200, 3800, 3800],
+    "colors": ["#3498db", "#2ecc71", "#f39c12", "#9b59b6", "#e74c3c", "#95a5a6"],
+    "efficiency": [99.8, 98.5, 101.2, 102.8, 99.1, 100.5]
+  },
+  "centerText": {
+    "main": "99.2%",
+    "sub": "전체 효율"
+  },
+  "breakdown": {
+    "byProduct": [
+      {
+        "name": "퓨어웰 워터",
+        "production": 35000,
+        "materialUsed": 35840,
+        "efficiency": 97.7,
+        "lossRate": 2.3,
+        "status": "warning"
+      },
+      {
+        "name": "비타민 워터",
+        "production": 28500,
+        "materialUsed": 28785,
+        "efficiency": 99.0,
+        "lossRate": 1.0,
+        "status": "normal"
+      },
+      {
+        "name": "발효 유산균",
+        "production": 18200,
+        "materialUsed": 18474,
+        "efficiency": 98.5,
+        "lossRate": 1.5,
+        "status": "normal"
+      },
+      {
+        "name": "에너지 드링크",
+        "production": 15800,
+        "materialUsed": 15958,
+        "efficiency": 99.0,
+        "lossRate": 1.0,
+        "status": "normal"
+      }
+    ],
+    "lossAnalysis": [
+      {"material": "정제수", "plan": 74600, "actual": 75200, "loss": 600, "rate": 0.8},
+      {"material": "과즙원료", "plan": 12050, "actual": 12300, "loss": 250, "rate": 2.1},
+      {"material": "유산균 배양액", "plan": 6030, "actual": 6200, "loss": 170, "rate": 2.8}
+    ],
+    "stockStatus": [
+      {"material": "정제수", "stock": 225000, "dailyUsage": 2507, "stockDays": 90, "safetyStock": 7, "status": "excess"},
+      {"material": "과즙원료", "stock": 18500, "dailyUsage": 410, "stockDays": 45, "safetyStock": 14, "status": "normal"},
+      {"material": "비타민 프리믹스", "stock": 8200, "dailyUsage": 283, "stockDays": 29, "safetyStock": 14, "status": "normal"},
+      {"material": "유산균 배양액", "stock": 4800, "dailyUsage": 207, "stockDays": 23, "safetyStock": 14, "status": "normal"},
+      {"material": "타우린", "stock": 2100, "dailyUsage": 127, "stockDays": 17, "safetyStock": 14, "status": "normal"},
+      {"material": "천연향료", "stock": 850, "dailyUsage": 95, "stockDays": 9, "safetyStock": 14, "status": "warning"}
+    ]
+  },
+  "summary": {
+    "totalUsage": 109800,
+    "totalPlanned": 109100,
+    "overallEfficiency": 99.2,
+    "averageLossRate": 1.3,
+    "materialCount": 6,
+    "warningCount": 2
+  }
+}
+----------------------------------------------------------
+
+[7. 응답 규칙]
+----------------------------------------------------------
+1. 소요량은 L/kg 단위, 천 단위 구분자 사용
+2. 사용 효율과 Loss율은 소수점 1자리까지 표시
+3. 제품별/원자재별 상세 분석 반드시 포함
+4. 재고 일수와 안전재고 비교로 발주 필요성 판단
+5. BOM 배합 비율 편차 분석 포함
+6. Loss율 상위 원자재 개선 포인트 제시
+7. 원가 절감 예상 효과 수치로 제시
+8. 재고 과잉/부족 품목 명확히 구분
+9. 공정별/작업자별 Loss 원인 분석 권고
+10. 계절성/주문량 변동에 따른 소요량 예측
+==============================================================

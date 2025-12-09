@@ -1,0 +1,393 @@
+==============================================================
+퓨어웰 음료 AI Agent - 출고 추이 분석 (LINE 차트)
+==============================================================
+
+[1. 데이터 조회 SQL]
+----------------------------------------------------------
+-- 월별 출고 추이 (최근 6개월)
+SELECT
+    strftime('%Y-%m', o.ship_date) as month,
+    COUNT(DISTINCT o.outbound_no) as outbound_count,
+    SUM(d.qty) as total_qty,
+    SUM(d.qty * d.unit_price) as total_amount,
+    COUNT(DISTINCT o.cust_cd) as customer_count
+FROM outbound o
+JOIN outbound_dtl d ON o.outbound_no = d.outbound_no
+WHERE o.ship_date >= date('now', '-6 months')
+GROUP BY strftime('%Y-%m', o.ship_date)
+ORDER BY month;
+
+-- 일별 출고 추이 (최근 30일)
+SELECT
+    DATE(o.ship_date) as date,
+    COUNT(DISTINCT o.outbound_no) as outbound_count,
+    SUM(d.qty) as total_qty,
+    SUM(d.qty * d.unit_price) as total_amount
+FROM outbound o
+JOIN outbound_dtl d ON o.outbound_no = d.outbound_no
+WHERE o.ship_date >= date('now', '-30 days')
+GROUP BY DATE(o.ship_date)
+ORDER BY date;
+
+-- 고객별 출고 추이 (TOP 10)
+SELECT
+    strftime('%Y-%m', o.ship_date) as month,
+    c.cust_nm,
+    COUNT(DISTINCT o.outbound_no) as delivery_count,
+    SUM(d.qty) as total_qty,
+    SUM(d.qty * d.unit_price) as total_amount
+FROM outbound o
+JOIN outbound_dtl d ON o.outbound_no = d.outbound_no
+JOIN customer_mst c ON o.cust_cd = c.cust_cd
+WHERE o.ship_date >= date('now', '-6 months')
+GROUP BY strftime('%Y-%m', o.ship_date), o.cust_cd
+ORDER BY month, total_amount DESC;
+
+-- 제품별 출고 추이
+SELECT
+    strftime('%Y-%m', o.ship_date) as month,
+    i.item_nm,
+    i.item_type,
+    SUM(d.qty) as total_qty
+FROM outbound o
+JOIN outbound_dtl d ON o.outbound_no = d.outbound_no
+JOIN item_mst i ON d.item_cd = i.item_cd
+WHERE o.ship_date >= date('now', '-6 months')
+GROUP BY strftime('%Y-%m', o.ship_date), d.item_cd
+ORDER BY month, total_qty DESC;
+
+-- 출고 완료율 추이
+SELECT
+    strftime('%Y-%m', o.ship_date) as month,
+    COUNT(*) as total_orders,
+    SUM(CASE WHEN o.status = 'SHIPPED' THEN 1 ELSE 0 END) as completed,
+    SUM(CASE WHEN o.status = 'PENDING' THEN 1 ELSE 0 END) as pending,
+    ROUND(SUM(CASE WHEN o.status = 'SHIPPED'
+              THEN 1.0 ELSE 0.0 END) / COUNT(*) * 100, 1) as completion_rate
+FROM outbound o
+WHERE o.ship_date >= date('now', '-6 months')
+   OR o.created_at >= date('now', '-6 months')
+GROUP BY strftime('%Y-%m', COALESCE(o.ship_date, o.created_at))
+ORDER BY month;
+
+-- 지역별 출고 현황
+SELECT
+    c.region,
+    COUNT(DISTINCT o.outbound_no) as delivery_count,
+    SUM(d.qty) as total_qty,
+    SUM(d.qty * d.unit_price) as total_amount,
+    AVG(julianday(o.ship_date) - julianday(o.created_at)) as avg_lead_time
+FROM outbound o
+JOIN outbound_dtl d ON o.outbound_no = d.outbound_no
+JOIN customer_mst c ON o.cust_cd = c.cust_cd
+WHERE o.ship_date >= date('now', '-3 months')
+GROUP BY c.region
+ORDER BY total_amount DESC;
+
+-- 요일별 출고 패턴
+SELECT
+    CASE strftime('%w', o.ship_date)
+        WHEN '0' THEN '일'
+        WHEN '1' THEN '월'
+        WHEN '2' THEN '화'
+        WHEN '3' THEN '수'
+        WHEN '4' THEN '목'
+        WHEN '5' THEN '금'
+        WHEN '6' THEN '토'
+    END as day_of_week,
+    COUNT(DISTINCT o.outbound_no) as avg_outbound_count,
+    AVG(d.qty) as avg_qty
+FROM outbound o
+JOIN outbound_dtl d ON o.outbound_no = d.outbound_no
+WHERE o.ship_date >= date('now', '-3 months')
+GROUP BY strftime('%w', o.ship_date)
+ORDER BY strftime('%w', o.ship_date);
+----------------------------------------------------------
+
+[2. 퓨어웰 출고 기준 정보]
+----------------------------------------------------------
+[연간 출고 목표]
+| 구분 | 2023년 | 2024년 | 목표 | 비고 |
+|------|--------|--------|------|------|
+| 월 평균 출고량 | 78,000L | 88,000L | 100,000L | 완제품 기준 |
+| 월 평균 매출액 | 5.2억원 | 5.9억원 | 6.5억원 | |
+| 출고 완료율 | 96.5% | 97.8% | 99%+ | 연간 목표 |
+| 평균 거래처 수 | 45개 | 52개 | 60개 | |
+
+[제품군별 월간 출고 기준]
+- 음료 (음료): 45,000L/월 (45%)
+- 발효음료: 25,000L/월 (25%)
+- 기능성음료: 18,000L/월 (18%)
+- OEM제품: 12,000L/월 (12%)
+
+[출고 유형]
+- 정기 출고: 월/수/금 (전체의 65%)
+- 수시 출고: 화/목 (전체의 30%)
+- 긴급 출고: 토/일 (전체의 5%)
+
+[배송 리드타임 기준]
+- 수도권: 1일 (당일 또는 익일)
+- 충청/강원: 2일
+- 영남/호남: 2-3일
+- 제주/도서: 3-5일
+----------------------------------------------------------
+
+[3. 판단 기준 (Threshold)]
+----------------------------------------------------------
+[출고량 변동 기준]
+- 전월 대비 +20% 이상: 🔥 급증 (재고 부족 주의)
+- 전월 대비 +10% ~ +20%: ⬆️ 증가 (호조)
+- 전월 대비 -10% ~ +10%: ✅ 안정적
+- 전월 대비 -10% ~ -20%: ⬇️ 감소 (영업 점검)
+- 전월 대비 -20% 이하: 🚨 급감 (매출 경고)
+
+[매출액 기준]
+- 월 매출 7억원 이상: 🔥 호황 (최고 실적)
+- 월 매출 6-7억원: ✅ 목표 달성
+- 월 매출 5-6억원: ⚠️ 목표 미달 (영업 강화)
+- 월 매출 5억원 미만: 🚨 저조 (긴급 대책)
+
+[출고 완료율 기준]
+- 99% 이상: ✅ 우수
+- 97% ~ 99%: ✅ 양호
+- 95% ~ 97%: ⚠️ 주의 (물류 점검)
+- 95% 미만: 🚨 심각 (배송 시스템 점검)
+
+[계절성 고려]
+- 성수기 (5-8월): 출고량 +40% 정상
+- 비수기 (11-2월): 출고량 -25% 정상
+- 명절 시즌: 2주 전 +50% 집중 출고
+----------------------------------------------------------
+
+[4. 연관 분석 자동 수행]
+----------------------------------------------------------
+[출고 급증 시]
+→ inventory 테이블에서 완제품 재고 확인
+→ production_order에서 생산계획 확인
+→ 재고 부족 경고 여부 판단
+
+[출고 급감 시]
+→ sales_order 테이블에서 수주 현황 확인
+→ customer_mst에서 주요 고객 거래 현황
+→ 시장 트렌드 및 경쟁 상황 분석 권고
+
+[특정 제품 출고 변동 시]
+→ qc_test에서 해당 제품 품질 이슈 확인
+→ inventory에서 해당 제품 재고 수준
+→ 마케팅/프로모션 연관성 분석
+
+[지역별 편차 발생 시]
+→ 물류 파트너 배송 성과 분석
+→ 지역별 영업 활동 현황 확인
+→ 신규 거래처 개척 상황 점검
+----------------------------------------------------------
+
+[5. 응답 형식 예시]
+----------------------------------------------------------
+📈 **출고 추이 분석** (완제품 출고/배송 현황)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         ✅ 금월 출고량: **92,500L**
+         전월 대비: +12.3% | 목표 대비: 92.5%
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 **월별 출고 추이** (최근 6개월)
+
+| 월 | 출고량 | 매출액 | 건수 | 전월비 | 상태 |
+|----|--------|--------|------|--------|------|
+| 12월 | 92,500L | 6.2억원 | 156건 | +12.3% | ⬆️ |
+| 11월 | 82,400L | 5.5억원 | 138건 | -8.7% | ⬇️ |
+| 10월 | 90,200L | 6.0억원 | 152건 | +5.3% | ✅ |
+| 09월 | 85,600L | 5.7억원 | 144건 | -15.2% | ⬇️ |
+| 08월 | 100,900L | 6.7억원 | 170건 | +18.5% | ⬆️ |
+| 07월 | 85,100L | 5.7억원 | 143건 | - | ✅ |
+
+📦 **제품군별 출고 현황**
+
+| 제품군 | 금월 | 전월 | 증감 | 비율 |
+|--------|------|------|------|------|
+| 음료 | 42,800L | 38,200L | +12.0% | 46.3% |
+| 발효음료 | 22,100L | 19,800L | +11.6% | 23.9% |
+| 기능성음료 | 17,200L | 14,500L | +18.6% | 18.6% |
+| OEM제품 | 10,400L | 9,900L | +5.1% | 11.2% |
+
+🏢 **주요 고객 출고 현황** (TOP 5)
+
+| 순위 | 고객사 | 출고량 | 매출액 | 전월비 |
+|------|--------|--------|--------|--------|
+| 1 | GS리테일 | 18,500L | 1.24억원 | +15.2% ⬆️ |
+| 2 | 이마트 | 15,200L | 1.02억원 | +8.6% ✅ |
+| 3 | 롯데마트 | 12,800L | 0.86억원 | +22.1% 🔥 |
+| 4 | 홈플러스 | 10,500L | 0.70억원 | -5.3% ⬇️ |
+| 5 | CU편의점 | 9,200L | 0.62억원 | +18.9% ⬆️ |
+
+🗺️ **지역별 출고 현황**
+
+| 지역 | 출고량 | 매출액 | 비율 | 평균 리드타임 |
+|------|--------|--------|------|---------------|
+| 수도권 | 55,500L | 3.72억원 | 60% | 1.2일 ✅ |
+| 충청권 | 14,800L | 0.99억원 | 16% | 1.8일 ✅ |
+| 영남권 | 11,100L | 0.74억원 | 12% | 2.3일 ✅ |
+| 호남권 | 7,400L | 0.50억원 | 8% | 2.5일 ✅ |
+| 기타 | 3,700L | 0.25억원 | 4% | 3.8일 ⚠️ |
+
+⏱️ **출고 완료율 추이**
+
+| 월 | 총 주문 | 출고완료 | 진행중 | 완료율 |
+|----|---------|----------|--------|--------|
+| 12월 | 156건 | 152건 | 4건 | 97.4% ✅ |
+| 11월 | 138건 | 135건 | 3건 | 97.8% ✅ |
+| 10월 | 152건 | 146건 | 6건 | 96.1% ⚠️ |
+
+📅 **요일별 출고 패턴**
+
+| 요일 | 평균 출고건수 | 비율 | 특징 |
+|------|---------------|------|------|
+| 월 | 8.5건 | 21% | 주간 최다 |
+| 수 | 7.8건 | 19% | 주요 출고일 |
+| 금 | 9.2건 | 23% | 주말 배송용 |
+| 화/목 | 6.0건 | 30% | 수시 출고 |
+| 토/일 | 1.2건 | 7% | 긴급만 |
+
+💡 **분석 인사이트**
+
+📊 **현황 요약**
+- 금월 출고량 92,500L로 전월 대비 12.3% 증가 (호조!)
+- 기능성음료 18.6% 급성장 → 건강음료 트렌드 반영
+- 롯데마트 22.1% 급증 → 프로모션 효과 확인
+
+⚠️ **주의 사항**
+1. 홈플러스 5.3% 감소 → 원인 파악 필요
+2. 10월 출고 완료율 96.1% → 물류 점검 필요했음
+
+💡 **권고 조치**
+1. 기능성음료 라인 생산량 확대 검토 (수요 증가)
+2. 홈플러스 담당자 미팅으로 관계 강화
+3. 12월 성수기 대비 완제품 재고 확보
+
+📈 **매출 전망**
+- 12월 목표: 6.5억원 | 현재 달성: 6.2억원 (95.4%)
+- 잔여 일수 고려시 목표 달성 가능 (예상 6.7억원)
+
+⏰ 기준시점: 2024-12-08 15:30 | 데이터 범위: 최근 6개월
+----------------------------------------------------------
+
+[6. 차트 렌더링 데이터 (JSON)]
+----------------------------------------------------------
+{
+  "chartType": "line",
+  "title": "출고 추이",
+  "config": {
+    "style": "부드러운 곡선 + 이중 축",
+    "animation": true,
+    "showPoints": true,
+    "fillArea": true,
+    "multiAxis": true
+  },
+  "data": {
+    "labels": ["7월", "8월", "9월", "10월", "11월", "12월"],
+    "datasets": [
+      {
+        "name": "출고량 (L)",
+        "data": [85100, 100900, 85600, 90200, 82400, 92500],
+        "color": "#3498db",
+        "yAxisID": "y-qty",
+        "fill": true,
+        "fillOpacity": 0.3
+      },
+      {
+        "name": "매출액 (억원)",
+        "data": [5.7, 6.7, 5.7, 6.0, 5.5, 6.2],
+        "color": "#2ecc71",
+        "yAxisID": "y-amount",
+        "fill": false
+      }
+    ]
+  },
+  "axes": {
+    "y-qty": {
+      "position": "left",
+      "label": "출고량 (L)",
+      "min": 0,
+      "max": 120000
+    },
+    "y-amount": {
+      "position": "right",
+      "label": "매출액 (억원)",
+      "min": 0,
+      "max": 8
+    }
+  },
+  "annotations": [
+    {
+      "type": "line",
+      "yValue": 100000,
+      "yAxisID": "y-qty",
+      "label": "월간 목표",
+      "color": "#e74c3c",
+      "style": "dashed"
+    }
+  ],
+  "breakdown": {
+    "byProductGroup": [
+      {"name": "음료", "qty": 42800, "ratio": 46.3, "color": "#3498db"},
+      {"name": "발효음료", "qty": 22100, "ratio": 23.9, "color": "#2ecc71"},
+      {"name": "기능성음료", "qty": 17200, "ratio": 18.6, "color": "#f39c12"},
+      {"name": "OEM제품", "qty": 10400, "ratio": 11.2, "color": "#9b59b6"}
+    ],
+    "byCustomer": [
+      {"name": "GS리테일", "qty": 18500, "amount": 1.24, "change": 15.2},
+      {"name": "이마트", "qty": 15200, "amount": 1.02, "change": 8.6},
+      {"name": "롯데마트", "qty": 12800, "amount": 0.86, "change": 22.1},
+      {"name": "홈플러스", "qty": 10500, "amount": 0.70, "change": -5.3},
+      {"name": "CU편의점", "qty": 9200, "amount": 0.62, "change": 18.9}
+    ],
+    "byRegion": [
+      {"region": "수도권", "qty": 55500, "amount": 3.72, "ratio": 60, "leadTime": 1.2},
+      {"region": "충청권", "qty": 14800, "amount": 0.99, "ratio": 16, "leadTime": 1.8},
+      {"region": "영남권", "qty": 11100, "amount": 0.74, "ratio": 12, "leadTime": 2.3},
+      {"region": "호남권", "qty": 7400, "amount": 0.50, "ratio": 8, "leadTime": 2.5},
+      {"region": "기타", "qty": 3700, "amount": 0.25, "ratio": 4, "leadTime": 3.8}
+    ],
+    "completionRate": [
+      {"month": "12월", "total": 156, "completed": 152, "rate": 97.4},
+      {"month": "11월", "total": 138, "completed": 135, "rate": 97.8},
+      {"month": "10월", "total": 152, "completed": 146, "rate": 96.1}
+    ]
+  },
+  "trend": {
+    "direction": "up",
+    "change": 12.3,
+    "period": "전월 대비"
+  },
+  "summary": {
+    "currentMonth": {
+      "qty": 92500,
+      "amount": 6.2,
+      "count": 156,
+      "customerCount": 52
+    },
+    "monthlyAverage": {
+      "qty": 89450,
+      "amount": 5.97,
+      "count": 150
+    },
+    "completionRate": 97.4,
+    "targetAchievement": 92.5
+  }
+}
+----------------------------------------------------------
+
+[7. 응답 규칙]
+----------------------------------------------------------
+1. 출고량은 L 단위, 천 단위 구분자 사용 (예: 92,500L)
+2. 매출액은 억원 단위로 표시 (예: 6.2억원)
+3. 전월/전년 대비 증감은 화살표와 퍼센트로 표시
+4. 제품군별 비율은 반드시 포함
+5. 주요 고객사별 출고 현황 TOP 5 표시
+6. 지역별 배송 리드타임 함께 표시
+7. 계절성 요인 고려하여 판단 (성수기/비수기)
+8. 출고 급증/급감 시 원인과 영향 분석 제시
+9. 매출 전망 및 목표 달성 가능성 분석
+10. 6개월 추이로 트렌드, 요일별 패턴으로 물류 최적화
+==============================================================
