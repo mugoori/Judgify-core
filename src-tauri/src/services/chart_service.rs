@@ -258,7 +258,7 @@ impl ChartService {
 
         let request_body = json!({
             "model": "claude-sonnet-4-5-20250929",
-            "max_tokens": 8192,
+            "max_tokens": 24576,
             "system": system_prompt,
             "messages": [
                 {"role": "user", "content": user_request}
@@ -574,7 +574,7 @@ impl ChartService {
 
         let request_body = json!({
             "model": "claude-sonnet-4-5-20250929",
-            "max_tokens": 8192,
+            "max_tokens": 24576,
             "system": system_prompt,
             "messages": [
                 {"role": "user", "content": user_content}

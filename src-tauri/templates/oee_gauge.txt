@@ -4,6 +4,7 @@
 
 [1. 데이터 조회 SQL]
 ----------------------------------------------------------
+<!--SQL_START:oee_gauge-->
 -- OEE 3요소 계산을 위한 기초 데이터 조회
 -- 1) 가용률 계산: 계획시간 대비 실제 가동시간
 SELECT
@@ -65,6 +66,7 @@ JOIN reason_code_mst r ON d.reason_code = r.reason_code
 WHERE DATE(d.start_dt) = DATE('now')
 GROUP BY r.reason_category
 ORDER BY total_loss_min DESC;
+<!--SQL_END-->
 ----------------------------------------------------------
 
 [2. OEE 계산 기준]

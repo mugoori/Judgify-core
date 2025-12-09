@@ -4,34 +4,35 @@
 
 [1. 데이터 조회 SQL]
 ----------------------------------------------------------
--- 라인별 금일 생산량 집계
+<!--SQL_START:line_production-->
 SELECT
     l.line_id,
-    l.line_name,
-    l.line_type,
-    COUNT(DISTINCT o.op_exec_id) as work_count,
-    SUM(o.qty_output) as total_output,
-    SUM(o.scrap_qty) as total_scrap,
-    ROUND(SUM(o.scrap_qty) * 100.0 / NULLIF(SUM(o.qty_input), 0), 2) as scrap_rate
-FROM operation_exec o
-JOIN mes_work_order m ON o.mes_order_id = m.mes_order_id
-JOIN line_mst l ON m.line_id = l.line_id
-WHERE DATE(o.end_dt) = DATE('now')
-  AND o.result_flag = 'PASS'
-GROUP BY l.line_id, l.line_name, l.line_type
+    l.line_name AS name,
+    COALESCE(SUM(o.qty_output), 0) as value,
+    CASE l.line_id
+        WHEN 'L01' THEN 15000
+        WHEN 'L02' THEN 20000
+        WHEN 'L03' THEN 18000
+        WHEN 'PILOT' THEN 3000
+        ELSE 10000
+    END as target,
+    ROUND(COALESCE(SUM(o.qty_output), 0) * 100.0 /
+        CASE l.line_id
+            WHEN 'L01' THEN 15000
+            WHEN 'L02' THEN 20000
+            WHEN 'L03' THEN 18000
+            WHEN 'PILOT' THEN 3000
+            ELSE 10000
+        END, 1) as achievement_rate
+FROM line_mst l
+LEFT JOIN mes_work_order m ON l.line_id = m.line_id
+LEFT JOIN operation_exec o ON m.mes_order_id = o.mes_order_id
+    AND DATE(o.end_dt) = DATE('now')
+    AND o.result_flag = 'PASS'
+WHERE l.is_active = 1
+GROUP BY l.line_id, l.line_name
 ORDER BY l.line_id;
-
--- 라인별 비가동 시간 조회 (연관 분석용)
-SELECT
-    l.line_name,
-    SUM(d.duration_min) as total_downtime_min,
-    r.description as main_reason
-FROM downtime_event d
-JOIN line_mst l ON d.line_id = l.line_id
-LEFT JOIN reason_code_mst r ON d.reason_code = r.reason_code
-WHERE DATE(d.start_dt) = DATE('now')
-GROUP BY l.line_id
-ORDER BY total_downtime_min DESC;
+<!--SQL_END-->
 ----------------------------------------------------------
 
 [2. 조회 대상 라인 정보]
@@ -84,19 +85,12 @@ ORDER BY total_downtime_min DESC;
 
 [5. 응답 형식 예시]
 ----------------------------------------------------------
-현재 라인별 생산 현황을 확인했습니다. (2024-01-15 16:30 기준)
+현재 라인별 생산 현황을 확인했습니다. (현재 시간 기준)
 
 📊 [생산 데이터 조회]
-┌────────┬──────────┬──────────┬─────────┬────────┐
-│ 라인   │ 생산량   │ 목표     │ 달성률  │ 상태   │
-├────────┼──────────┼──────────┼─────────┼────────┤
-│ 1라인  │ 12,450병 │ 15,000병 │ 83.0%   │ ⚠️ 주의 │
-│ 2라인  │ 19,230병 │ 20,000병 │ 96.2%   │ ✅ 정상 │
-│ 3라인  │ 17,890병 │ 18,000병 │ 99.4%   │ ✅ 정상 │
-│ Pilot  │ 2,850병  │ 3,000병  │ 95.0%   │ ✅ 정상 │
-├────────┼──────────┼──────────┼─────────┼────────┤
-│ 합계   │ 52,420병 │ 56,000병 │ 93.6%   │ ⚠️ 주의 │
-└────────┴──────────┴──────────┴─────────┴────────┘
+<!--DATA_PLACEHOLDER-->
+(위 SQL 실행 결과가 여기에 삽입됩니다)
+<!--DATA_PLACEHOLDER_END-->
 
 🔍 [자동 분석 결과]
 ⚠️ 1라인 생산량이 목표 대비 83.0% 수준입니다.
@@ -125,52 +119,29 @@ ORDER BY total_downtime_min DESC;
 
 [6. 차트 렌더링 데이터 (JSON)]
 ----------------------------------------------------------
+다음 형식으로 차트 데이터를 생성해주세요:
 {
   "chart_type": "bar",
   "style": "gradient_rounded",
   "title": "라인별 생산량 현황",
-  "subtitle": "2024-01-15 16:30 기준",
+  "subtitle": "현재 시간 기준",
   "xAxisKey": "name",
   "dataKeys": [
     { "key": "value", "label": "생산량", "color": "#4F46E5" },
     { "key": "target", "label": "목표", "color": "#10B981" }
   ],
-  "data": [
-    {
-      "name": "1라인",
-      "value": 12450,
-      "target": 15000,
-      "achievement_rate": 83.0,
-      "status": "warning"
-    },
-    {
-      "name": "2라인",
-      "value": 19230,
-      "target": 20000,
-      "achievement_rate": 96.2,
-      "status": "normal"
-    },
-    {
-      "name": "3라인",
-      "value": 17890,
-      "target": 18000,
-      "achievement_rate": 99.4,
-      "status": "normal"
-    },
-    {
-      "name": "Pilot",
-      "value": 2850,
-      "target": 3000,
-      "achievement_rate": 95.0,
-      "status": "normal"
-    }
-  ],
+  "data": [SQL 실행 결과 데이터 - 각 라인별 name, value, target, achievement_rate 포함],
   "threshold": {
     "danger": 80,
     "warning": 95,
     "normal": 100
   }
 }
+
+상태 판단 기준:
+- achievement_rate < 80: "critical"
+- achievement_rate < 95: "warning"
+- achievement_rate >= 95: "normal"
 ----------------------------------------------------------
 
 [7. 응답 규칙]

@@ -128,6 +128,225 @@ fn strip_markdown_code_block(content: &str) -> &str {
     }
 }
 
+/// SQL 쿼리 실행 결과 구조체
+#[derive(Debug, Clone, Serialize)]
+pub struct SqlQueryResult {
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<serde_json::Value>>,
+    pub row_count: usize,
+}
+
+/// 템플릿에서 SQL 쿼리 추출 (<!--SQL_START:name-->...<!--SQL_END--> 마커 사용)
+fn extract_sql_from_template(template: &str) -> Option<String> {
+    // 마커 기반 추출 시도
+    if let Some(start_idx) = template.find("<!--SQL_START:") {
+        if let Some(end_marker_start) = template[start_idx..].find("-->") {
+            let sql_start = start_idx + end_marker_start + 3;
+            if let Some(end_idx) = template[sql_start..].find("<!--SQL_END-->") {
+                let sql = template[sql_start..sql_start + end_idx].trim();
+                return Some(sql.to_string());
+            }
+        }
+    }
+
+    // 폴백: [1. 데이터 조회 SQL] 섹션에서 첫 번째 SELECT 문 추출
+    if let Some(sql_section_start) = template.find("[1. 데이터 조회 SQL]") {
+        let section = &template[sql_section_start..];
+        // SELECT로 시작하는 SQL 찾기
+        if let Some(select_start) = section.find("SELECT") {
+            // 세미콜론으로 끝나는 첫 번째 쿼리 추출
+            let sql_part = &section[select_start..];
+            if let Some(semicolon_idx) = sql_part.find(';') {
+                let sql = &sql_part[..semicolon_idx + 1];
+                // 주석 제거 (-- 로 시작하는 줄)
+                let clean_sql: String = sql
+                    .lines()
+                    .filter(|line| !line.trim().starts_with("--"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                return Some(clean_sql.trim().to_string());
+            }
+        }
+    }
+
+    None
+}
+
+/// SQL 쿼리 실행 및 결과 반환
+fn execute_sql_query(db: &Connection, sql: &str) -> Result<SqlQueryResult> {
+    println!("🔍 [execute_sql_query] Executing SQL:\n{}", sql);
+
+    let mut stmt = db.prepare(sql)?;
+    let column_names: Vec<String> = stmt
+        .column_names()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    let column_count = column_names.len();
+
+    let rows: Vec<Vec<serde_json::Value>> = stmt
+        .query_map([], |row| {
+            let mut row_values = Vec::with_capacity(column_count);
+            for i in 0..column_count {
+                let value: rusqlite::types::Value = row.get(i)?;
+                let json_value = match value {
+                    rusqlite::types::Value::Null => serde_json::Value::Null,
+                    rusqlite::types::Value::Integer(i) => serde_json::json!(i),
+                    rusqlite::types::Value::Real(f) => serde_json::json!(f),
+                    rusqlite::types::Value::Text(s) => serde_json::json!(s),
+                    rusqlite::types::Value::Blob(b) => {
+                        serde_json::json!(format!("[BLOB: {} bytes]", b.len()))
+                    }
+                };
+                row_values.push(json_value);
+            }
+            Ok(row_values)
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    let row_count = rows.len();
+    println!("✅ [execute_sql_query] Query returned {} rows, {} columns", row_count, column_count);
+
+    Ok(SqlQueryResult {
+        columns: column_names,
+        rows,
+        row_count,
+    })
+}
+
+/// SQL 쿼리 결과를 LLM에 전달할 수 있는 텍스트 형식으로 변환
+fn format_sql_result_for_llm(result: &SqlQueryResult) -> String {
+    if result.row_count == 0 {
+        return "[데이터 없음: 조회 결과가 비어 있습니다]".to_string();
+    }
+
+    let mut output = String::new();
+
+    // 헤더
+    output.push_str("| ");
+    output.push_str(&result.columns.join(" | "));
+    output.push_str(" |\n");
+
+    // 구분선
+    output.push_str("|");
+    for _ in &result.columns {
+        output.push_str("------|");
+    }
+    output.push('\n');
+
+    // 데이터 행
+    for row in &result.rows {
+        output.push_str("| ");
+        let row_str: Vec<String> = row.iter().map(|v| {
+            match v {
+                serde_json::Value::Null => "NULL".to_string(),
+                serde_json::Value::Number(n) => {
+                    if let Some(f) = n.as_f64() {
+                        if f.fract() == 0.0 && f.abs() < 1_000_000_000.0 {
+                            format!("{}", f as i64)
+                        } else {
+                            format!("{:.2}", f)
+                        }
+                    } else {
+                        n.to_string()
+                    }
+                }
+                serde_json::Value::String(s) => s.clone(),
+                _ => v.to_string(),
+            }
+        }).collect();
+        output.push_str(&row_str.join(" | "));
+        output.push_str(" |\n");
+    }
+
+    output.push_str(&format!("\n총 {} 건의 데이터\n", result.row_count));
+
+    output
+}
+
+/// SQL 쿼리 결과를 차트 데이터 형식(JSON)으로 변환
+fn convert_sql_result_to_chart_data(result: &SqlQueryResult, chart_type: &str) -> serde_json::Value {
+    if result.row_count == 0 {
+        return serde_json::json!([]);
+    }
+
+    let mut chart_data = Vec::new();
+
+    for row in &result.rows {
+        let mut data_point = serde_json::Map::new();
+
+        for (i, col_name) in result.columns.iter().enumerate() {
+            if let Some(value) = row.get(i) {
+                // 컬럼 이름을 차트 친화적으로 매핑
+                let key = match col_name.as_str() {
+                    "line_name" => "name",
+                    "total_output" => "value",
+                    "work_count" => "workCount",
+                    "total_scrap" => "scrap",
+                    "scrap_rate" => "scrapRate",
+                    _ => col_name.as_str(),
+                };
+                data_point.insert(key.to_string(), value.clone());
+            }
+        }
+
+        // BAR 차트용 목표값 추가 (라인 생산량 템플릿)
+        if chart_type == "bar" {
+            if let Some(name) = data_point.get("name") {
+                let target = match name.as_str() {
+                    Some("1라인") => 15000,
+                    Some("2라인") => 20000,
+                    Some("3라인") => 18000,
+                    Some("Pilot라인") | Some("PILOT라인") => 3000,
+                    _ => 10000,
+                };
+                data_point.insert("target".to_string(), serde_json::json!(target));
+
+                // 달성률 계산
+                if let Some(value) = data_point.get("value").and_then(|v| v.as_f64()) {
+                    let achievement_rate = (value / target as f64 * 100.0).round() / 1.0;
+                    data_point.insert("achievement_rate".to_string(), serde_json::json!(achievement_rate));
+
+                    // 상태 결정
+                    let status = if achievement_rate >= 95.0 {
+                        "normal"
+                    } else if achievement_rate >= 80.0 {
+                        "warning"
+                    } else {
+                        "danger"
+                    };
+                    data_point.insert("status".to_string(), serde_json::json!(status));
+                }
+            }
+        }
+
+        chart_data.push(serde_json::Value::Object(data_point));
+    }
+
+    serde_json::json!(chart_data)
+}
+
+/// 템플릿의 예시 데이터를 실제 SQL 결과로 교체
+fn inject_real_data_into_template(template: &str, sql_result: &SqlQueryResult, formatted_data: &str) -> String {
+    // [실제 데이터 조회 결과] 섹션 추가
+    let data_section = format!(
+        "\n[실제 데이터 조회 결과]\n----------------------------------------------------------\n{}\n----------------------------------------------------------\n",
+        formatted_data
+    );
+
+    // [5. 응답 형식 예시] 섹션 앞에 실제 데이터 삽입
+    if let Some(example_idx) = template.find("[5. 응답 형식 예시]") {
+        let mut result = String::new();
+        result.push_str(&template[..example_idx]);
+        result.push_str(&data_section);
+        result.push_str(&template[example_idx..]);
+        return result;
+    }
+
+    // 폴백: 템플릿 끝에 추가
+    format!("{}\n{}", template, data_section)
+}
+
 /// Chat Service 핵심 구조
 pub struct ChatService {
     claude_api_key: String,
@@ -374,7 +593,7 @@ Examples:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.3,
-            "max_tokens": 8192
+            "max_tokens": 24576
         });
 
         println!("📤 Sending request to Claude API...");
@@ -979,7 +1198,7 @@ Examples:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.3,
-            "max_tokens": 8192
+            "max_tokens": 24576
         });
 
         let response = self
@@ -2081,7 +2300,7 @@ Examples:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.7,  // 대화형 응답은 약간 더 창의적으로
-            "max_tokens": 8192  // 긴 답변(전략 제안, 상세 설명 등) 대응
+            "max_tokens": 24576  // 긴 답변(전략 제안, 상세 설명 등) 대응
         });
 
         let response = self
@@ -2149,9 +2368,37 @@ Examples:
 
         // 1. 프롬프트 라우터로 확장 프롬프트 생성
         let router = PromptRouter::new();
-        let expanded_prompt = router.get_final_prompt(message);
+        let mut expanded_prompt = router.get_final_prompt(message);
 
         println!("📋 [generate_chart_response] Expanded prompt length: {} chars", expanded_prompt.len());
+
+        // 2. 🆕 템플릿에서 SQL 추출 및 실행
+        if let Some(sql) = extract_sql_from_template(&expanded_prompt) {
+            println!("🔍 [generate_chart_response] SQL found in template, executing...");
+
+            // DB 연결에서 SQL 실행
+            let db_guard = self.db.lock().map_err(|e| anyhow::anyhow!("DB lock error: {}", e))?;
+
+            match execute_sql_query(&db_guard, &sql) {
+                Ok(result) => {
+                    println!("✅ [generate_chart_response] SQL executed successfully: {} rows", result.row_count);
+
+                    // 결과를 마크다운 테이블로 포맷팅
+                    let formatted_data = format_sql_result_for_llm(&result);
+
+                    // 템플릿에 실제 데이터 삽입
+                    expanded_prompt = inject_real_data_into_template(&expanded_prompt, &result, &formatted_data);
+
+                    println!("📝 [generate_chart_response] Real data injected into template");
+                }
+                Err(e) => {
+                    println!("⚠️ [generate_chart_response] SQL execution error: {}", e);
+                    // SQL 실행 실패 시에도 템플릿 기반으로 진행 (예시 데이터 사용)
+                }
+            }
+        } else {
+            println!("⚠️ [generate_chart_response] No SQL found in template, using template as-is");
+        }
 
         // 2. 대화 이력을 Claude 메시지 형식으로 변환
         let mut messages: Vec<serde_json::Value> = history
@@ -2221,7 +2468,7 @@ Examples:
             "system": system_prompt,
             "messages": messages,
             "temperature": 0.3,  // 데이터 분석은 정확성 우선
-            "max_tokens": 8192   // 차트 JSON 포함으로 더 긴 응답 허용
+            "max_tokens": 24576   // 차트 JSON 포함으로 더 긴 응답 허용
         });
 
         let response = self
@@ -2333,7 +2580,7 @@ Bad Response: "판매 주문에서 20건의 데이터를 찾았습니다." (This
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.3,  // 데이터 분석은 정확성 우선
-            "max_tokens": 8192
+            "max_tokens": 24576
         });
 
         let response = self
@@ -2414,7 +2661,7 @@ Examples:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.3,
-            "max_tokens": 8192
+            "max_tokens": 24576
         });
 
         let response = self
@@ -2504,7 +2751,7 @@ Examples:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.3,  // 정확한 JSON 생성을 위해 낮은 temperature
-            "max_tokens": 8192   // 긴 워크플로우 대응
+            "max_tokens": 24576   // 긴 워크플로우 대응
         });
 
         let response = self

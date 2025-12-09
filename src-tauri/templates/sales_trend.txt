@@ -4,6 +4,7 @@
 
 [1. 데이터 조회 SQL]
 ----------------------------------------------------------
+<!--SQL_START:sales_trend-->
 -- 월별 매출 추이 (수주 기준 + 출하 기준 비교)
 SELECT
     strftime('%Y-%m', s.so_date) as sales_month,
@@ -43,6 +44,7 @@ JOIN customer_mst c ON s.customer_id = c.customer_id
 WHERE s.so_date >= date('now', '-12 months')
 GROUP BY strftime('%Y-%m', s.so_date), c.biz_type
 ORDER BY sales_month;
+<!--SQL_END-->
 ----------------------------------------------------------
 
 [2. 재무 현황 및 목표]
